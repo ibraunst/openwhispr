@@ -1435,7 +1435,16 @@
       "noProviderAction": "Ouvrir les paramètres de transcription",
       "fileTooLarge": "Ce fichier dépasse la limite de 500 MB.",
       "largeFileNote": "Les fichiers volumineux sont découpés et transcrits en parallèle.",
-      "chunkProgress": "Transcription de la partie {{completed}} sur {{total}}..."
+      "chunkProgress": "Transcription de la partie {{completed}} sur {{total}}...",
+      "paidPlanRequired": "La transcription cloud pour les fichiers de plus de 25 Mo nécessite un abonnement payant. Les fichiers volumineux sont traités avec OpenWhispr Cloud pour des résultats fiables et de haute qualité.",
+      "byokTooLarge": "Les clés API tierces ne prennent en charge que les fichiers jusqu'à 25 Mo.",
+      "byokTooLargeDetail": "Pour les fichiers de plus de 25 Mo, OpenWhispr Cloud gère le découpage, le traitement parallèle et le réassemblage — pour des résultats fiables sans dépendre des limites des fournisseurs tiers.",
+      "byokTooLargeNeedsAccount": "Créez un compte et passez à un abonnement payant pour transcrire des fichiers plus volumineux avec OpenWhispr Cloud.",
+      "byokTooLargeNeedsUpgrade": "Passez à un abonnement payant pour transcrire des fichiers plus volumineux avec OpenWhispr Cloud.",
+      "switchToCloudForLargeFiles": "Passez à OpenWhispr Cloud pour transcrire ce fichier.",
+      "createAccount": "Créer un compte",
+      "upgrade": "Mettre à niveau",
+      "switchToCloud": "OpenWhispr Cloud"
     },
     "meeting": {
       "title": "Notes de réunion",

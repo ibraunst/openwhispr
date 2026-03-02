@@ -1395,7 +1395,16 @@
       "noProviderAction": "Transkriptionseinstellungen öffnen",
       "fileTooLarge": "Diese Datei überschreitet das Limit von 500 MB.",
       "largeFileNote": "Große Dateien werden aufgeteilt und parallel transkribiert.",
-      "chunkProgress": "Transkribiere Teil {{completed}} von {{total}}..."
+      "chunkProgress": "Transkribiere Teil {{completed}} von {{total}}...",
+      "paidPlanRequired": "Cloud-Transkription für Dateien über 25 MB erfordert einen kostenpflichtigen Plan. Große Dateien werden mit OpenWhispr Cloud für zuverlässige, hochwertige Ergebnisse verarbeitet.",
+      "byokTooLarge": "API-Schlüssel von Drittanbietern unterstützen nur Dateien bis 25 MB.",
+      "byokTooLargeDetail": "Für Dateien über 25 MB übernimmt OpenWhispr Cloud das Aufteilen, die parallele Verarbeitung und das Zusammenführen — so erhältst du zuverlässige Ergebnisse ohne die Einschränkungen von Drittanbietern.",
+      "byokTooLargeNeedsAccount": "Erstelle ein Konto und wechsle zu einem kostenpflichtigen Plan, um größere Dateien mit OpenWhispr Cloud zu transkribieren.",
+      "byokTooLargeNeedsUpgrade": "Wechsle zu einem kostenpflichtigen Plan, um größere Dateien mit OpenWhispr Cloud zu transkribieren.",
+      "switchToCloudForLargeFiles": "Wechsle zu OpenWhispr Cloud, um diese Datei zu transkribieren.",
+      "createAccount": "Konto erstellen",
+      "upgrade": "Upgraden",
+      "switchToCloud": "OpenWhispr Cloud"
     },
     "meeting": {
       "title": "Besprechungsnotizen",

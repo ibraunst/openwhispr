@@ -1374,7 +1374,16 @@
       "noProviderAction": "文字起こし設定を開く",
       "fileTooLarge": "このファイルは 500 MB の制限を超えています。",
       "largeFileNote": "大容量ファイルは分割され、並列で文字起こしされます。",
-      "chunkProgress": "パート {{completed}} / {{total}} を文字起こし中..."
+      "chunkProgress": "パート {{completed}} / {{total}} を文字起こし中...",
+      "paidPlanRequired": "25 MB を超えるファイルのクラウド文字起こしには有料プランが必要です。大容量ファイルは OpenWhispr Cloud で信頼性の高い高品質な結果を得られます。",
+      "byokTooLarge": "サードパーティの API キーは 25 MB までのファイルのみ対応しています。",
+      "byokTooLargeDetail": "25 MB を超えるファイルは、OpenWhispr Cloud が分割・並列処理・結合を行います。サードパーティの制限に依存せず、信頼性の高い結果が得られます。",
+      "byokTooLargeNeedsAccount": "アカウントを作成し、有料プランにアップグレードすると、OpenWhispr Cloud でより大きなファイルを文字起こしできます。",
+      "byokTooLargeNeedsUpgrade": "有料プランにアップグレードすると、OpenWhispr Cloud でより大きなファイルを文字起こしできます。",
+      "switchToCloudForLargeFiles": "このファイルを文字起こしするには OpenWhispr Cloud に切り替えてください。",
+      "createAccount": "アカウント作成",
+      "upgrade": "アップグレード",
+      "switchToCloud": "OpenWhispr Cloud"
     },
     "meeting": {
       "title": "議事録",
