@@ -1159,6 +1159,10 @@
     "privacy": {
       "cloudBackup": "Cloud backup",
       "cloudBackupDescription": "Save your transcriptions to the cloud so you never lose them.",
+      "cloudNotesBackup": "Back up notes to the cloud",
+      "cloudNotesBackupDescription": "Sync your notes to the cloud to enable semantic search and cross-device access.",
+      "cloudNotesMigration": "Backing up notes… {{done}} / {{total}}",
+      "cloudNotesMigrationDone": "All notes backed up",
       "description": "Control what data leaves your device. Everything is off by default.",
       "title": "Privacy",
       "usageAnalytics": "Usage analytics",
@@ -1595,5 +1599,29 @@
       "redirectTitle": "Redirecting to app...",
       "closeTab": "You can close this tab."
     }
+  },
+  "notesView": {
+    "searchPlaceholder": "Search notes…",
+    "newNote": "New Note",
+    "empty": {
+      "title": "No notes yet",
+      "description": "Create your first note to get started."
+    },
+    "searchEmpty": {
+      "title": "No results",
+      "description": "No notes found for \"{{query}}\"."
+    },
+    "noteType": {
+      "personal": "personal",
+      "meeting": "meeting",
+      "upload": "upload"
+    }
+  },
+  "noteEditor": {
+    "saved": "Saved",
+    "deleteNote": "Delete note",
+    "deleteConfirmTitle": "Delete note?",
+    "deleteConfirmDescription": "This note will be permanently deleted and cannot be recovered.",
+    "deleteConfirm": "Delete"
   }
 }

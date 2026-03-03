@@ -1135,6 +1135,10 @@
     "privacy": {
       "cloudBackup": "Backup na nuvem",
       "cloudBackupDescription": "Salve suas transcrições na nuvem para nunca perdê-las.",
+      "cloudNotesBackup": "Fazer backup das notas na nuvem",
+      "cloudNotesBackupDescription": "Sincronize suas notas com a nuvem para ativar pesquisa semântica e acesso em múltiplos dispositivos.",
+      "cloudNotesMigration": "Fazendo backup das notas… {{done}} / {{total}}",
+      "cloudNotesMigrationDone": "Todas as notas salvas na nuvem",
       "description": "Controle quais dados saem do seu dispositivo. Tudo está desativado por padrão.",
       "title": "Privacidade",
       "usageAnalytics": "Análise de uso",
@@ -1599,5 +1603,29 @@
       "redirectTitle": "Redirecionando para o app...",
       "closeTab": "Você pode fechar esta aba."
     }
+  },
+  "notesView": {
+    "searchPlaceholder": "Pesquisar notas…",
+    "newNote": "Nova nota",
+    "empty": {
+      "title": "Nenhuma nota ainda",
+      "description": "Crie sua primeira nota para começar."
+    },
+    "searchEmpty": {
+      "title": "Sem resultados",
+      "description": "Nenhuma nota encontrada para \"{{query}}\"."
+    },
+    "noteType": {
+      "personal": "pessoal",
+      "meeting": "reunião",
+      "upload": "upload"
+    }
+  },
+  "noteEditor": {
+    "saved": "Salvo",
+    "deleteNote": "Excluir nota",
+    "deleteConfirmTitle": "Excluir nota?",
+    "deleteConfirmDescription": "Esta nota será excluída permanentemente e não poderá ser recuperada.",
+    "deleteConfirm": "Excluir"
   }
 }

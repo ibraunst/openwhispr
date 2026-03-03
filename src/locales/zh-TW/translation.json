@@ -1159,6 +1159,10 @@
     "privacy": {
       "cloudBackup": "雲端備份",
       "cloudBackupDescription": "將轉錄記錄儲存至雲端，確保不會遺失。",
+      "cloudNotesBackup": "將筆記備份至雲端",
+      "cloudNotesBackupDescription": "將筆記同步至雲端，啟用語義搜尋及跨裝置存取。",
+      "cloudNotesMigration": "正在備份筆記… {{done}} / {{total}}",
+      "cloudNotesMigrationDone": "所有筆記已備份",
       "description": "控制哪些資料會離開你的裝置。預設全部關閉。",
       "title": "隱私權",
       "usageAnalytics": "使用分析",
@@ -1595,5 +1599,29 @@
       "redirectTitle": "正在跳轉到應用程式...",
       "closeTab": "您可以關閉此分頁。"
     }
+  },
+  "notesView": {
+    "searchPlaceholder": "搜尋筆記…",
+    "newNote": "新建筆記",
+    "empty": {
+      "title": "尚無筆記",
+      "description": "建立你的第一則筆記開始使用。"
+    },
+    "searchEmpty": {
+      "title": "無結果",
+      "description": "找不到與「{{query}}」相符的筆記。"
+    },
+    "noteType": {
+      "personal": "個人",
+      "meeting": "會議",
+      "upload": "上傳"
+    }
+  },
+  "noteEditor": {
+    "saved": "已儲存",
+    "deleteNote": "刪除筆記",
+    "deleteConfirmTitle": "刪除筆記？",
+    "deleteConfirmDescription": "此筆記將被永久刪除，無法復原。",
+    "deleteConfirm": "刪除"
   }
 }

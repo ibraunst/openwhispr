@@ -1159,6 +1159,10 @@
     "privacy": {
       "cloudBackup": "Cloud-Backup",
       "cloudBackupDescription": "Speichern Sie Ihre Transkriptionen in der Cloud, damit sie nicht verloren gehen.",
+      "cloudNotesBackup": "Notizen in der Cloud sichern",
+      "cloudNotesBackupDescription": "Synchronisieren Sie Ihre Notizen mit der Cloud für semantische Suche und geräteübergreifenden Zugriff.",
+      "cloudNotesMigration": "Notizen werden gesichert… {{done}} / {{total}}",
+      "cloudNotesMigrationDone": "Alle Notizen gesichert",
       "description": "Steuern Sie, welche Daten Ihr Gerät verlassen. Standardmäßig ist alles deaktiviert.",
       "title": "Datenschutz",
       "usageAnalytics": "Nutzungsanalysen",
@@ -1595,5 +1599,29 @@
       "redirectTitle": "Weiterleitung zur App...",
       "closeTab": "Du kannst diesen Tab schließen."
     }
+  },
+  "notesView": {
+    "searchPlaceholder": "Notizen durchsuchen…",
+    "newNote": "Neue Notiz",
+    "empty": {
+      "title": "Noch keine Notizen",
+      "description": "Erstellen Sie Ihre erste Notiz, um zu beginnen."
+    },
+    "searchEmpty": {
+      "title": "Keine Ergebnisse",
+      "description": "Keine Notizen für \u201e{{query}}\u201c gefunden."
+    },
+    "noteType": {
+      "personal": "persönlich",
+      "meeting": "Meeting",
+      "upload": "Upload"
+    }
+  },
+  "noteEditor": {
+    "saved": "Gespeichert",
+    "deleteNote": "Notiz löschen",
+    "deleteConfirmTitle": "Notiz löschen?",
+    "deleteConfirmDescription": "Diese Notiz wird dauerhaft gelöscht und kann nicht wiederhergestellt werden.",
+    "deleteConfirm": "Löschen"
   }
 }

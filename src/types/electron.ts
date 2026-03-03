@@ -18,6 +18,7 @@ export interface NoteItem {
   source_file: string | null;
   audio_duration_seconds: number | null;
   folder_id: number | null;
+  cloud_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -323,6 +324,8 @@ declare global {
         noteId: number,
         format: "txt" | "md"
       ) => Promise<{ success: boolean; error?: string }>;
+      searchNotes: (query: string, limit?: number) => Promise<NoteItem[]>;
+      updateNoteCloudId: (id: number, cloudId: string) => Promise<NoteItem>;
 
       // Folder operations
       getFolders: () => Promise<FolderItem[]>;

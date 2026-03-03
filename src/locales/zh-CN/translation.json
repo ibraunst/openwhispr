@@ -1159,6 +1159,10 @@
     "privacy": {
       "cloudBackup": "云端备份",
       "cloudBackupDescription": "将转录记录保存到云端，确保永不丢失。",
+      "cloudNotesBackup": "将笔记备份到云端",
+      "cloudNotesBackupDescription": "将笔记同步到云端，以启用语义搜索和跨设备访问。",
+      "cloudNotesMigration": "正在备份笔记… {{done}} / {{total}}",
+      "cloudNotesMigrationDone": "所有笔记已备份",
       "description": "控制哪些数据会离开你的设备。默认全部关闭。",
       "title": "隐私",
       "usageAnalytics": "使用分析",
@@ -1595,5 +1599,29 @@
       "redirectTitle": "正在跳转到应用...",
       "closeTab": "您可以关闭此标签页。"
     }
+  },
+  "notesView": {
+    "searchPlaceholder": "搜索笔记…",
+    "newNote": "新建笔记",
+    "empty": {
+      "title": "暂无笔记",
+      "description": "创建你的第一条笔记开始使用。"
+    },
+    "searchEmpty": {
+      "title": "无结果",
+      "description": "未找到与\u201c{{query}}\u201d匹配的笔记。"
+    },
+    "noteType": {
+      "personal": "个人",
+      "meeting": "会议",
+      "upload": "上传"
+    }
+  },
+  "noteEditor": {
+    "saved": "已保存",
+    "deleteNote": "删除笔记",
+    "deleteConfirmTitle": "删除笔记？",
+    "deleteConfirmDescription": "此笔记将被永久删除，无法恢复。",
+    "deleteConfirm": "删除"
   }
 }

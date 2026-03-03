@@ -62,6 +62,7 @@ import logger from "../utils/logger";
 import { SettingsRow } from "./ui/SettingsSection";
 import { useUsage } from "../hooks/useUsage";
 import { cn } from "./lib/utils";
+import { startMigration, useMigration } from "../stores/noteStore.js";
 
 export type SettingsSectionType =
   | "account"
@@ -679,6 +680,8 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
     setFloatingIconAutoHide,
     cloudBackupEnabled,
     setCloudBackupEnabled,
+    cloudNotesEnabled,
+    setCloudNotesEnabled,
     telemetryEnabled,
     setTelemetryEnabled,
     customDictionary,
@@ -711,6 +714,8 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
 
   const isUpdateAvailable =
     !updateStatus.isDevelopment && (updateStatus.updateAvailable || updateStatus.updateDownloaded);
+
+  const migration = useMigration();
 
   const whisperHook = useWhisper();
   const permissionsHook = usePermissions(showAlertDialog);
@@ -2343,16 +2348,57 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
               />
 
               {isSignedIn && (
-                <SettingsPanel className="mb-4">
-                  <SettingsPanelRow>
-                    <SettingsRow
-                      label={t("settingsPage.privacy.cloudBackup")}
-                      description={t("settingsPage.privacy.cloudBackupDescription")}
-                    >
-                      <Toggle checked={cloudBackupEnabled} onChange={setCloudBackupEnabled} />
-                    </SettingsRow>
-                  </SettingsPanelRow>
-                </SettingsPanel>
+                <div className="mb-4">
+                  <SettingsPanel className="mb-2">
+                    <SettingsPanelRow>
+                      <SettingsRow
+                        label={t("settingsPage.privacy.cloudBackup")}
+                        description={t("settingsPage.privacy.cloudBackupDescription")}
+                      >
+                        <Toggle checked={cloudBackupEnabled} onChange={setCloudBackupEnabled} />
+                      </SettingsRow>
+                    </SettingsPanelRow>
+                    <SettingsPanelRow>
+                      <SettingsRow
+                        label={t("settingsPage.privacy.cloudNotesBackup")}
+                        description={t("settingsPage.privacy.cloudNotesBackupDescription")}
+                      >
+                        <Toggle
+                          checked={cloudNotesEnabled}
+                          onChange={(v) => {
+                            setCloudNotesEnabled(v);
+                            if (v) startMigration().catch(console.error);
+                          }}
+                        />
+                      </SettingsRow>
+                    </SettingsPanelRow>
+                  </SettingsPanel>
+                  {migration && (
+                    <div className="mt-2 space-y-1">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          {t("settingsPage.privacy.cloudNotesMigration", {
+                            done: migration.done,
+                            total: migration.total,
+                          })}
+                        </span>
+                        <span>{Math.round((migration.done / migration.total) * 100)}%</span>
+                      </div>
+                      <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full bg-primary transition-all duration-300 ease-out"
+                          style={{ width: `${(migration.done / migration.total) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {!migration && cloudNotesEnabled && isSignedIn && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t("settingsPage.privacy.cloudNotesMigrationDone")}
+                    </p>
+                  )}
+                </div>
               )}
 
               <SettingsPanel>

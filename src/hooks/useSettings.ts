@@ -52,6 +52,7 @@ export interface ApiKeySettings {
 
 export interface PrivacySettings {
   cloudBackupEnabled: boolean;
+  cloudNotesEnabled: boolean;
   telemetryEnabled: boolean;
 }
 
@@ -223,6 +224,8 @@ function useSettingsInternal() {
     setAutoLearnCorrections,
     cloudBackupEnabled: store.cloudBackupEnabled,
     setCloudBackupEnabled: store.setCloudBackupEnabled,
+    cloudNotesEnabled: store.cloudNotesEnabled,
+    setCloudNotesEnabled: store.setCloudNotesEnabled,
     telemetryEnabled: store.telemetryEnabled,
     setTelemetryEnabled: store.setTelemetryEnabled,
     updateTranscriptionSettings: store.updateTranscriptionSettings,

@@ -68,6 +68,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   updateNote: (id, updates) => ipcRenderer.invoke("db-update-note", id, updates),
   deleteNote: (id) => ipcRenderer.invoke("db-delete-note", id),
   exportNote: (noteId, format) => ipcRenderer.invoke("export-note", noteId, format),
+  searchNotes: (query, limit) => ipcRenderer.invoke("db-search-notes", query, limit),
+  updateNoteCloudId: (id, cloudId) => ipcRenderer.invoke("db-update-note-cloud-id", id, cloudId),
 
   // Folder functions
   getFolders: () => ipcRenderer.invoke("db-get-folders"),

@@ -65,6 +65,54 @@ class DatabaseManager {
       } catch (err) {
         if (!err.message.includes("duplicate column")) throw err;
       }
+      try {
+        this.db.exec("ALTER TABLE notes ADD COLUMN cloud_id TEXT");
+      } catch (err) {
+        if (!err.message.includes("duplicate column")) throw err;
+      }
+
+      this.db.exec(`
+        CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
+          title,
+          content,
+          enhanced_content,
+          content='notes',
+          content_rowid='id'
+        )
+      `);
+
+      this.db.exec(`
+        CREATE TRIGGER IF NOT EXISTS notes_fts_insert AFTER INSERT ON notes BEGIN
+          INSERT INTO notes_fts(rowid, title, content, enhanced_content)
+          VALUES (new.id, new.title, new.content, new.enhanced_content);
+        END
+      `);
+
+      this.db.exec(`
+        CREATE TRIGGER IF NOT EXISTS notes_fts_update AFTER UPDATE ON notes BEGIN
+          INSERT INTO notes_fts(notes_fts, rowid, title, content, enhanced_content)
+          VALUES ('delete', old.id, old.title, old.content, old.enhanced_content);
+          INSERT INTO notes_fts(rowid, title, content, enhanced_content)
+          VALUES (new.id, new.title, new.content, new.enhanced_content);
+        END
+      `);
+
+      this.db.exec(`
+        CREATE TRIGGER IF NOT EXISTS notes_fts_delete AFTER DELETE ON notes BEGIN
+          INSERT INTO notes_fts(notes_fts, rowid, title, content, enhanced_content)
+          VALUES ('delete', old.id, old.title, old.content, old.enhanced_content);
+        END
+      `);
+
+      this.db
+        .prepare(
+          `
+        INSERT OR IGNORE INTO notes_fts(rowid, title, content, enhanced_content)
+        SELECT id, COALESCE(title, ''), COALESCE(content, ''), COALESCE(enhanced_content, '')
+        FROM notes
+      `
+        )
+        .run();
 
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS folders (
@@ -526,6 +574,44 @@ class DatabaseManager {
       return { success: result.changes > 0, id };
     } catch (error) {
       debugLogger.error("Error deleting note", { error: error.message }, "notes");
+      throw error;
+    }
+  }
+
+  searchNotes(query, limit = 50) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      const term = query
+        .trim()
+        .replace(/[^\w\s]/g, " ")
+        .trim();
+      if (!term) return [];
+      return this.db
+        .prepare(
+          `
+        SELECT n.*
+        FROM notes n
+        JOIN notes_fts ON notes_fts.rowid = n.id
+        WHERE notes_fts MATCH ?
+          AND n.deleted_at IS NULL
+        ORDER BY notes_fts.rank
+        LIMIT ?
+      `
+        )
+        .all(term + "*", limit);
+    } catch (error) {
+      debugLogger.error("Error searching notes", { error: error.message }, "database");
+      throw error;
+    }
+  }
+
+  updateNoteCloudId(id, cloudId) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      this.db.prepare("UPDATE notes SET cloud_id = ? WHERE id = ?").run(cloudId, id);
+      return this.db.prepare("SELECT * FROM notes WHERE id = ?").get(id);
+    } catch (error) {
+      debugLogger.error("Error updating note cloud_id", { error: error.message }, "database");
       throw error;
     }
   }
