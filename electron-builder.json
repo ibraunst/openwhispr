@@ -159,9 +159,12 @@
     ]
   },
   "deb": {
+    "afterInstall": "resources/linux/after-install.sh",
     "afterRemove": "resources/linux/after-remove.sh",
     "depends": ["ydotool"],
     "fpm": [
+      "--deb-recommends",
+      "ydotoold",
       "--deb-suggests",
       "xdotool",
       "--deb-suggests",
@@ -172,6 +175,8 @@
   },
   "rpm": {
     "fpm": [
+      "--after-install",
+      "resources/linux/after-install.sh",
       "--rpm-tag",
       "Requires: ydotool",
       "--rpm-tag",
