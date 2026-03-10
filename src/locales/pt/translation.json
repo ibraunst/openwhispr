@@ -205,7 +205,12 @@
       "clearAllDescription": "Todas as transcrições e arquivos de áudio serão removidos permanentemente.",
       "clearAllSuccess": "Histórico limpo",
       "clearAllErrorTitle": "Não foi possível limpar o histórico",
-      "clearAllErrorDescription": "Algo deu errado. Tente novamente."
+      "clearAllErrorDescription": "Algo deu errado. Tente novamente.",
+      "exportItem": "Exportar transcrição",
+      "exportAll": "Exportar tudo",
+      "exportSuccess": "Transcrição exportada",
+      "exportAllSuccess": "{{count}} transcrições exportadas",
+      "exportError": "Falha ao exportar"
     },
     "cloudMigration": {
       "title": "Boas-vindas ao OpenWhispr Pro",
@@ -1222,7 +1227,26 @@
       "description": "Controle quais dados saem do seu dispositivo. Tudo está desativado por padrão.",
       "title": "Privacidade",
       "usageAnalytics": "Análise de uso",
-      "usageAnalyticsDescription": "Ajude-nos a melhorar o OpenWhispr compartilhando métricas anônimas de desempenho. Nunca enviamos conteúdo de transcrição — apenas dados de tempo e erros."
+      "usageAnalyticsDescription": "Ajude-nos a melhorar o OpenWhispr compartilhando métricas anônimas de desempenho. Nunca enviamos conteúdo de transcrição — apenas dados de tempo e erros.",
+      "transcriptionExportTitle": "Exportar",
+      "transcriptionExportDescription": "Configure o formato padrão e o local de salvamento para as transcrições exportadas.",
+      "transcriptionExportFormat": "Formato padrão",
+      "transcriptionExportFormatDescription": "Formato de arquivo usado ao exportar transcrições.",
+      "transcriptionExportFormatTxt": "Texto simples (.txt)",
+      "transcriptionExportFormatMd": "Markdown (.md)",
+      "transcriptionExportDirectory": "Local de salvamento padrão",
+      "transcriptionExportDirectoryEmpty": "O seletor de arquivos será exibido a cada exportação",
+      "transcriptionExportChooseDirectory": "Escolher pasta",
+      "transcriptionExportClearDirectory": "Limpar",
+      "redoSetup": {
+        "title": "Setup",
+        "description": "Restart the initial setup wizard to reconfigure permissions and preferences.",
+        "label": "Redo setup",
+        "rowDescription": "Restarts the app setup wizard on next launch.",
+        "action": "Redo setup",
+        "confirmTitle": "Redo setup?",
+        "confirmDescription": "This will restart the setup wizard on next launch. Your transcription history and settings will not be affected."
+      }
     },
     "prompts": {
       "description": "Visualize, personalize e teste o prompt de sistema unificado que alimenta a limpeza de texto e a detecção de instruções",

@@ -162,6 +162,11 @@ export interface SettingsState
   setAgentEnabled: (value: boolean) => void;
   setCloudAgentMode: (value: string) => void;
 
+  exportDirectory: string;
+  defaultExportFormat: "txt" | "md";
+  setExportDirectory: (value: string) => void;
+  setDefaultExportFormat: (value: "txt" | "md") => void;
+
   updateTranscriptionSettings: (settings: Partial<TranscriptionSettings>) => void;
   updateReasoningSettings: (settings: Partial<ReasoningSettings>) => void;
   updateApiKeys: (keys: Partial<ApiKeySettings>) => void;
@@ -311,6 +316,11 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   agentSystemPrompt: readString("agentSystemPrompt", ""),
   agentEnabled: readBoolean("agentEnabled", true),
   cloudAgentMode: readString("cloudAgentMode", "openwhispr"),
+
+  exportDirectory: readString("exportDirectory", ""),
+  defaultExportFormat: (readString("defaultExportFormat", "txt") === "md" ? "md" : "txt") as
+    | "txt"
+    | "md",
 
   setUseLocalWhisper: createBooleanSetter("useLocalWhisper"),
   setWhisperModel: createStringSetter("whisperModel"),
@@ -496,6 +506,9 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setAgentSystemPrompt: createStringSetter("agentSystemPrompt"),
   setAgentEnabled: createBooleanSetter("agentEnabled"),
   setCloudAgentMode: createStringSetter("cloudAgentMode"),
+
+  setExportDirectory: createStringSetter("exportDirectory"),
+  setDefaultExportFormat: createStringSetter("defaultExportFormat"),
 
   updateTranscriptionSettings: (settings: Partial<TranscriptionSettings>) => {
     const s = useSettingsStore.getState();

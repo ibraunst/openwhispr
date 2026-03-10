@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
-import { Loader2, Sparkles, Cloud, X, Mic, Trash2 } from "lucide-react";
+import { Loader2, Sparkles, Cloud, X, Mic, Trash2, Download } from "lucide-react";
 import TranscriptionItem from "./ui/TranscriptionItem";
 import type { TranscriptionItem as TranscriptionItemType } from "../types/electron";
 import { formatHotkeyLabel } from "../utils/hotkeys";
@@ -25,6 +25,8 @@ interface HistoryViewProps {
   onOpenSettings: (section?: string) => void;
   onShowAudioInFolder: (id: number) => void;
   onRetryTranscription: (id: number) => Promise<void>;
+  onExportTranscription: (id: number) => void;
+  exportAllTranscriptions: () => void;
 }
 
 export default function HistoryView({
@@ -42,6 +44,8 @@ export default function HistoryView({
   onOpenSettings,
   onShowAudioInFolder,
   onRetryTranscription,
+  onExportTranscription,
+  exportAllTranscriptions,
 }: HistoryViewProps) {
   const { t } = useTranslation();
   const { events, isLoading: eventsLoading, isConnected } = useUpcomingEvents();
@@ -270,13 +274,22 @@ export default function HistoryView({
                         {group.label}
                       </span>
                       {index === 0 && (
-                        <button
-                          onClick={clearAllTranscriptions}
-                          className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] text-muted-foreground/60 opacity-0 group-hover:opacity-100 hover:!text-destructive hover:!bg-destructive/8 dark:hover:!bg-destructive/10 active:scale-[0.98] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/30 transition-all duration-200"
-                        >
-                          <Trash2 size={11} />
-                          <span>{t("controlPanel.history.clearAll")}</span>
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={exportAllTranscriptions}
+                            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] text-muted-foreground/60 opacity-0 group-hover:opacity-100 hover:!text-foreground hover:!bg-foreground/8 dark:hover:!bg-foreground/10 active:scale-[0.98] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/30 transition-all duration-200"
+                          >
+                            <Download size={11} />
+                            <span>{t("controlPanel.history.exportAll")}</span>
+                          </button>
+                          <button
+                            onClick={clearAllTranscriptions}
+                            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] text-muted-foreground/60 opacity-0 group-hover:opacity-100 hover:!text-destructive hover:!bg-destructive/8 dark:hover:!bg-destructive/10 active:scale-[0.98] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/30 transition-all duration-200"
+                          >
+                            <Trash2 size={11} />
+                            <span>{t("controlPanel.history.clearAll")}</span>
+                          </button>
+                        </div>
                       )}
                     </div>
                     <div className="space-y-1.5 relative z-0">
@@ -289,6 +302,7 @@ export default function HistoryView({
                           onShowAudioInFolder={onShowAudioInFolder}
                           onRetryTranscription={onRetryTranscription}
                           onOpenSettings={() => onOpenSettings("transcription")}
+                          onExport={onExportTranscription}
                         />
                       ))}
                     </div>

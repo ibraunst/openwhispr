@@ -233,7 +233,12 @@
       "clearAllDescription": "Alle Transkriptionen und Audiodateien werden dauerhaft entfernt.",
       "clearAllSuccess": "Verlauf gelöscht",
       "clearAllErrorTitle": "Verlauf konnte nicht gelöscht werden",
-      "clearAllErrorDescription": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut."
+      "clearAllErrorDescription": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+      "exportItem": "Transkription exportieren",
+      "exportAll": "Alle exportieren",
+      "exportSuccess": "Transkription exportiert",
+      "exportAllSuccess": "{{count}} Transkriptionen exportiert",
+      "exportError": "Export fehlgeschlagen"
     },
     "cloudMigration": {
       "title": "Willkommen bei OpenWhispr Pro",
@@ -1246,7 +1251,26 @@
       "description": "Steuern Sie, welche Daten Ihr Gerät verlassen. Standardmäßig ist alles deaktiviert.",
       "title": "Datenschutz",
       "usageAnalytics": "Nutzungsanalysen",
-      "usageAnalyticsDescription": "Helfen Sie uns, OpenWhispr zu verbessern, indem Sie anonyme Leistungsdaten teilen. Wir senden niemals Transkriptionsinhalte – nur Timing- und Fehlerdaten."
+      "usageAnalyticsDescription": "Helfen Sie uns, OpenWhispr zu verbessern, indem Sie anonyme Leistungsdaten teilen. Wir senden niemals Transkriptionsinhalte – nur Timing- und Fehlerdaten.",
+      "transcriptionExportTitle": "Exportieren",
+      "transcriptionExportDescription": "Standardformat und Speicherort für exportierte Transkriptionen festlegen.",
+      "transcriptionExportFormat": "Standardformat",
+      "transcriptionExportFormatDescription": "Dateiformat beim Exportieren von Transkriptionen.",
+      "transcriptionExportFormatTxt": "Nur Text (.txt)",
+      "transcriptionExportFormatMd": "Markdown (.md)",
+      "transcriptionExportDirectory": "Standard-Speicherort",
+      "transcriptionExportDirectoryEmpty": "Bei jedem Export wird der Datei-Dialog angezeigt",
+      "transcriptionExportChooseDirectory": "Ordner auswählen",
+      "transcriptionExportClearDirectory": "Löschen",
+      "redoSetup": {
+        "title": "Setup",
+        "description": "Restart the initial setup wizard to reconfigure permissions and preferences.",
+        "label": "Redo setup",
+        "rowDescription": "Restarts the app setup wizard on next launch.",
+        "action": "Redo setup",
+        "confirmTitle": "Redo setup?",
+        "confirmDescription": "This will restart the setup wizard on next launch. Your transcription history and settings will not be affected."
+      }
     },
     "prompts": {
       "description": "Den einheitlichen System-Prompt anzeigen, anpassen und testen, der Textbereinigung und Anweisungserkennung steuert",

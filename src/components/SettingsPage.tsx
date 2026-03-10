@@ -710,6 +710,10 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
     setAudioRetentionDays,
     customDictionary,
     setCustomDictionary,
+    exportDirectory,
+    setExportDirectory,
+    defaultExportFormat,
+    setDefaultExportFormat,
   } = useSettings();
 
   const { t, i18n } = useTranslation();
@@ -999,6 +1003,18 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
       }
     };
   }, [installInitiated, showAlertDialog, t]);
+
+  const handleRedoSetup = () => {
+    showConfirmDialog({
+      title: t("settingsPage.privacy.redoSetup.confirmTitle"),
+      description: t("settingsPage.privacy.redoSetup.confirmDescription"),
+      onConfirm: () => {
+        localStorage.removeItem("onboardingCompleted");
+        localStorage.removeItem("onboardingCurrentStep");
+        window.location.reload();
+      },
+    });
+  };
 
   const resetAccessibilityPermissions = () => {
     const message = t("settingsPage.permissions.resetAccessibility.description");
@@ -2876,6 +2892,68 @@ EOF`,
               </SettingsPanel>
             </div>
 
+            {/* Transcription Export */}
+            <div className="border-t border-border/40 pt-6">
+              <SectionHeader
+                title={t("settingsPage.privacy.transcriptionExportTitle")}
+                description={t("settingsPage.privacy.transcriptionExportDescription")}
+              />
+
+              <SettingsPanel>
+                <SettingsPanelRow>
+                  <SettingsRow
+                    label={t("settingsPage.privacy.transcriptionExportFormat")}
+                    description={t("settingsPage.privacy.transcriptionExportFormatDescription")}
+                  >
+                    <select
+                      value={defaultExportFormat}
+                      onChange={(e) => setDefaultExportFormat(e.target.value as "txt" | "md")}
+                      className="h-7 rounded border border-border/70 bg-surface-1/80 px-2.5 text-xs font-medium text-foreground shadow-sm backdrop-blur-sm hover:border-border-hover hover:bg-surface-2/70 focus:outline-none focus:ring-2 focus:ring-ring/30 focus:ring-offset-1 transition-colors duration-200"
+                    >
+                      <option value="txt">{t("settingsPage.privacy.transcriptionExportFormatTxt")}</option>
+                      <option value="md">{t("settingsPage.privacy.transcriptionExportFormatMd")}</option>
+                    </select>
+                  </SettingsRow>
+                </SettingsPanelRow>
+                <SettingsPanelRow>
+                  <SettingsRow
+                    label={t("settingsPage.privacy.transcriptionExportDirectory")}
+                    description={
+                      exportDirectory
+                        ? exportDirectory
+                        : t("settingsPage.privacy.transcriptionExportDirectoryEmpty")
+                    }
+                  >
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={async () => {
+                          const result = await window.electronAPI.selectExportDirectory();
+                          if (!result.canceled && result.dirPath) {
+                            setExportDirectory(result.dirPath);
+                          }
+                        }}
+                      >
+                        {t("settingsPage.privacy.transcriptionExportChooseDirectory")}
+                      </Button>
+                      {exportDirectory && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs text-muted-foreground"
+                          onClick={() => setExportDirectory("")}
+                        >
+                          {t("settingsPage.privacy.transcriptionExportClearDirectory")}
+                        </Button>
+                      )}
+                    </div>
+                  </SettingsRow>
+                </SettingsPanelRow>
+              </SettingsPanel>
+            </div>
+
             {/* Permissions */}
             <div className="border-t border-border/40 pt-6">
               <SectionHeader
@@ -2963,6 +3041,30 @@ EOF`,
                   </SettingsPanel>
                 </div>
               )}
+            </div>
+
+            <div className="border-t border-border/40 pt-6">
+              <SectionHeader
+                title={t("settingsPage.privacy.redoSetup.title")}
+                description={t("settingsPage.privacy.redoSetup.description")}
+              />
+              <SettingsPanel>
+                <SettingsPanelRow>
+                  <SettingsRow
+                    label={t("settingsPage.privacy.redoSetup.label")}
+                    description={t("settingsPage.privacy.redoSetup.rowDescription")}
+                  >
+                    <Button
+                      onClick={handleRedoSetup}
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      {t("settingsPage.privacy.redoSetup.action")}
+                    </Button>
+                  </SettingsRow>
+                </SettingsPanelRow>
+              </SettingsPanel>
             </div>
           </div>
         );

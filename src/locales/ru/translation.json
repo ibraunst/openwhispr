@@ -233,7 +233,12 @@
       "clearAllDescription": "Все транскрипции и аудиофайлы будут безвозвратно удалены.",
       "clearAllSuccess": "История очищена",
       "clearAllErrorTitle": "Не удалось очистить историю",
-      "clearAllErrorDescription": "Что-то пошло не так. Попробуйте ещё раз."
+      "clearAllErrorDescription": "Что-то пошло не так. Попробуйте ещё раз.",
+      "exportItem": "Экспортировать транскрипцию",
+      "exportAll": "Экспортировать все",
+      "exportSuccess": "Транскрипция экспортирована",
+      "exportAllSuccess": "Экспортировано {{count}} транскрипций",
+      "exportError": "Ошибка экспорта"
     },
     "cloudMigration": {
       "title": "Добро пожаловать в OpenWhispr Pro",
@@ -1250,7 +1255,26 @@
       "description": "Контролируйте, какие данные покидают ваше устройство. По умолчанию всё отключено.",
       "title": "Конфиденциальность",
       "usageAnalytics": "Аналитика использования",
-      "usageAnalyticsDescription": "Помогите нам улучшить OpenWhispr, делясь анонимными метриками производительности. Мы никогда не отправляем содержимое транскрипций — только данные о времени и ошибках."
+      "usageAnalyticsDescription": "Помогите нам улучшить OpenWhispr, делясь анонимными метриками производительности. Мы никогда не отправляем содержимое транскрипций — только данные о времени и ошибках.",
+      "transcriptionExportTitle": "Экспорт",
+      "transcriptionExportDescription": "Настройте формат по умолчанию и место сохранения для экспортируемых транскрипций.",
+      "transcriptionExportFormat": "Формат по умолчанию",
+      "transcriptionExportFormatDescription": "Формат файла при экспорте транскрипций.",
+      "transcriptionExportFormatTxt": "Обычный текст (.txt)",
+      "transcriptionExportFormatMd": "Markdown (.md)",
+      "transcriptionExportDirectory": "Место сохранения по умолчанию",
+      "transcriptionExportDirectoryEmpty": "При каждом экспорте будет показываться диалог выбора файла",
+      "transcriptionExportChooseDirectory": "Выбрать папку",
+      "transcriptionExportClearDirectory": "Очистить",
+      "redoSetup": {
+        "title": "Setup",
+        "description": "Restart the initial setup wizard to reconfigure permissions and preferences.",
+        "label": "Redo setup",
+        "rowDescription": "Restarts the app setup wizard on next launch.",
+        "action": "Redo setup",
+        "confirmTitle": "Redo setup?",
+        "confirmDescription": "This will restart the setup wizard on next launch. Your transcription history and settings will not be affected."
+      }
     },
     "prompts": {
       "description": "Просматривайте, настраивайте и тестируйте единый системный промпт, который управляет очисткой текста и обнаружением инструкций",

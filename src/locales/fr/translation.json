@@ -233,7 +233,12 @@
       "clearAllDescription": "Toutes les transcriptions et fichiers audio seront définitivement supprimés.",
       "clearAllSuccess": "Historique effacé",
       "clearAllErrorTitle": "Impossible d'effacer l'historique",
-      "clearAllErrorDescription": "Une erreur est survenue. Veuillez réessayer."
+      "clearAllErrorDescription": "Une erreur est survenue. Veuillez réessayer.",
+      "exportItem": "Exporter la transcription",
+      "exportAll": "Tout exporter",
+      "exportSuccess": "Transcription exportée",
+      "exportAllSuccess": "{{count}} transcriptions exportées",
+      "exportError": "Échec de l'export"
     },
     "cloudMigration": {
       "title": "Bienvenue sur OpenWhispr Pro",
@@ -1250,7 +1255,26 @@
       "description": "Contrôlez quelles données quittent votre appareil. Tout est désactivé par défaut.",
       "title": "Confidentialité",
       "usageAnalytics": "Analyse d'utilisation",
-      "usageAnalyticsDescription": "Aidez-nous à améliorer OpenWhispr en partageant des métriques de performance anonymes. Nous n'envoyons jamais le contenu de vos transcriptions — uniquement des données de performance et d'erreurs."
+      "usageAnalyticsDescription": "Aidez-nous à améliorer OpenWhispr en partageant des métriques de performance anonymes. Nous n'envoyons jamais le contenu de vos transcriptions — uniquement des données de performance et d'erreurs.",
+      "transcriptionExportTitle": "Exporter",
+      "transcriptionExportDescription": "Configurer le format par défaut et l'emplacement de sauvegarde pour les transcriptions exportées.",
+      "transcriptionExportFormat": "Format par défaut",
+      "transcriptionExportFormatDescription": "Format de fichier utilisé lors de l'export des transcriptions.",
+      "transcriptionExportFormatTxt": "Texte brut (.txt)",
+      "transcriptionExportFormatMd": "Markdown (.md)",
+      "transcriptionExportDirectory": "Emplacement de sauvegarde par défaut",
+      "transcriptionExportDirectoryEmpty": "Le sélecteur de fichiers s'affiche à chaque export",
+      "transcriptionExportChooseDirectory": "Choisir un dossier",
+      "transcriptionExportClearDirectory": "Effacer",
+      "redoSetup": {
+        "title": "Setup",
+        "description": "Restart the initial setup wizard to reconfigure permissions and preferences.",
+        "label": "Redo setup",
+        "rowDescription": "Restarts the app setup wizard on next launch.",
+        "action": "Redo setup",
+        "confirmTitle": "Redo setup?",
+        "confirmDescription": "This will restart the setup wizard on next launch. Your transcription history and settings will not be affected."
+      }
     },
     "prompts": {
       "description": "Affichez, personnalisez et testez le prompt système unifié qui gère la correction du texte et la détection des instructions",

@@ -73,6 +73,8 @@ export default function ControlPanel() {
     useReasoningModel,
     setUseLocalWhisper,
     setCloudTranscriptionMode,
+    exportDirectory,
+    defaultExportFormat,
   } = useSettings();
   const { isSignedIn, isLoaded: authLoaded, user } = useAuth();
   const usage = useUsage();
@@ -318,6 +320,46 @@ export default function ControlPanel() {
       variant: "destructive",
     });
   }, [showConfirmDialog, showAlertDialog, toast, t]);
+
+  const exportTranscription = useCallback(
+    async (id: number) => {
+      try {
+        const result = await window.electronAPI.exportTranscription(
+          id,
+          defaultExportFormat,
+          exportDirectory || undefined
+        );
+        if (result.success) {
+          toast({ title: t("controlPanel.history.exportSuccess"), variant: "success", duration: 2000 });
+        } else if (result.error) {
+          toast({ title: t("controlPanel.history.exportError"), description: result.error, variant: "destructive" });
+        }
+      } catch (err) {
+        toast({ title: t("controlPanel.history.exportError"), variant: "destructive" });
+      }
+    },
+    [defaultExportFormat, exportDirectory, toast, t]
+  );
+
+  const exportAllTranscriptions = useCallback(async () => {
+    try {
+      const result = await window.electronAPI.exportAllTranscriptions(
+        defaultExportFormat,
+        exportDirectory || undefined
+      );
+      if (result.success) {
+        toast({
+          title: t("controlPanel.history.exportAllSuccess", { count: result.count }),
+          variant: "success",
+          duration: 2000,
+        });
+      } else if (result.error) {
+        toast({ title: t("controlPanel.history.exportError"), description: result.error, variant: "destructive" });
+      }
+    } catch (err) {
+      toast({ title: t("controlPanel.history.exportError"), variant: "destructive" });
+    }
+  }, [defaultExportFormat, exportDirectory, toast, t]);
 
   const showAudioInFolder = useCallback(
     async (id: number) => {
@@ -692,6 +734,8 @@ export default function ControlPanel() {
                 clearAllTranscriptions={clearAllTranscriptions}
                 onShowAudioInFolder={showAudioInFolder}
                 onRetryTranscription={retryTranscription}
+                onExportTranscription={exportTranscription}
+                exportAllTranscriptions={exportAllTranscriptions}
                 onOpenSettings={(section) => {
                   setSettingsSection(section);
                   setShowSettings(true);

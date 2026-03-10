@@ -300,6 +300,16 @@ declare global {
       clearTranscriptions: () => Promise<{ cleared: number; success: boolean }>;
       deleteTranscription: (id: number) => Promise<{ success: boolean }>;
       getTranscriptionById: (id: number) => Promise<TranscriptionItem | null>;
+      exportTranscription: (
+        id: number,
+        format: "txt" | "md",
+        defaultDirectory?: string
+      ) => Promise<{ success: boolean; filePath?: string; error?: string }>;
+      exportAllTranscriptions: (
+        format: "txt" | "md",
+        defaultDirectory?: string
+      ) => Promise<{ success: boolean; filePath?: string; count?: number; error?: string }>;
+      selectExportDirectory: () => Promise<{ canceled: boolean; dirPath?: string }>;
 
       // Audio retention operations
       saveTranscriptionAudio: (

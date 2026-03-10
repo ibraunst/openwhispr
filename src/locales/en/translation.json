@@ -249,7 +249,12 @@
       "clearAllDescription": "All transcriptions and audio files will be permanently removed.",
       "clearAllSuccess": "History cleared",
       "clearAllErrorTitle": "Couldn't clear history",
-      "clearAllErrorDescription": "Something went wrong. Please try again."
+      "clearAllErrorDescription": "Something went wrong. Please try again.",
+      "exportItem": "Export transcription",
+      "exportAll": "Export all",
+      "exportSuccess": "Transcription exported",
+      "exportAllSuccess": "{{count}} transcriptions exported",
+      "exportError": "Export failed"
     },
     "cloudMigration": {
       "title": "Welcome to OpenWhispr Pro",
@@ -1322,7 +1327,26 @@
       "audioStorageFiles": "{{count}} files, {{size}}",
       "audioStorageEmpty": "No audio files stored",
       "clearAllAudio": "Clear All Audio",
-      "clearAllAudioConfirm": "Delete all stored audio files? This cannot be undone."
+      "clearAllAudioConfirm": "Delete all stored audio files? This cannot be undone.",
+      "transcriptionExportTitle": "Export",
+      "transcriptionExportDescription": "Configure the default format and save location for exported transcriptions.",
+      "transcriptionExportFormat": "Default format",
+      "transcriptionExportFormatDescription": "File format used when exporting transcriptions.",
+      "transcriptionExportFormatTxt": "Plain text (.txt)",
+      "transcriptionExportFormatMd": "Markdown (.md)",
+      "transcriptionExportDirectory": "Default save location",
+      "transcriptionExportDirectoryEmpty": "File picker shown on each export",
+      "transcriptionExportChooseDirectory": "Choose folder",
+      "transcriptionExportClearDirectory": "Clear",
+      "redoSetup": {
+        "title": "Setup",
+        "description": "Restart the initial setup wizard to reconfigure permissions and preferences.",
+        "label": "Redo setup",
+        "rowDescription": "Restarts the app setup wizard on next launch.",
+        "action": "Redo setup",
+        "confirmTitle": "Redo setup?",
+        "confirmDescription": "This will restart the setup wizard on next launch. Your transcription history and settings will not be affected."
+      }
     },
     "prompts": {
       "description": "View, customize, and test the unified system prompt that powers text cleanup and instruction detection",

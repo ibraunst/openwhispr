@@ -50,6 +50,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   updateTranscriptionText: (id, text, rawText) =>
     ipcRenderer.invoke("update-transcription-text", id, text, rawText),
   getTranscriptionById: (id) => ipcRenderer.invoke("get-transcription-by-id", id),
+  exportTranscription: (id, format, defaultDirectory) =>
+    ipcRenderer.invoke("export-transcription", { id, format, defaultDirectory }),
+  exportAllTranscriptions: (format, defaultDirectory) =>
+    ipcRenderer.invoke("export-all-transcriptions", { format, defaultDirectory }),
+  selectExportDirectory: () => ipcRenderer.invoke("select-export-directory"),
 
   // Dictionary functions
   getDictionary: () => ipcRenderer.invoke("db-get-dictionary"),

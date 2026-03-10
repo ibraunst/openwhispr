@@ -713,6 +713,98 @@ class IPCHandlers {
       }
     });
 
+    ipcMain.handle("export-transcription", async (event, { id, format, defaultDirectory }) => {
+      try {
+        const transcription = this.databaseManager.getTranscriptionById(id);
+        if (!transcription) return { success: false, error: "Transcription not found" };
+
+        const { dialog } = require("electron");
+        const fs = require("fs");
+        const ext = format === "md" ? "md" : "txt";
+        const tsStr = transcription.timestamp.endsWith("Z")
+          ? transcription.timestamp
+          : `${transcription.timestamp}Z`;
+        const date = new Date(tsStr);
+        const datePart = Number.isNaN(date.getTime())
+          ? "transcription"
+          : date.toISOString().slice(0, 10);
+        const defaultName = `transcription-${datePart}.${ext}`;
+
+        let filePath;
+        if (defaultDirectory) {
+          filePath = path.join(defaultDirectory, defaultName);
+        } else {
+          const result = await dialog.showSaveDialog({
+            defaultPath: path.join(app.getPath("documents"), defaultName),
+            filters: [
+              { name: "Markdown", extensions: ["md"] },
+              { name: "Text", extensions: ["txt"] },
+            ],
+          });
+          if (result.canceled || !result.filePath) return { success: false };
+          filePath = result.filePath;
+        }
+
+        const content = transcription.text || transcription.raw_text || "";
+        fs.writeFileSync(filePath, content, "utf-8");
+        return { success: true, filePath };
+      } catch (error) {
+        debugLogger.error("Error exporting transcription", { error: error.message }, "transcription");
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle("export-all-transcriptions", async (event, { format, defaultDirectory }) => {
+      try {
+        const transcriptions = this.databaseManager.getTranscriptions(10000);
+        if (!transcriptions || transcriptions.length === 0)
+          return { success: false, error: "No transcriptions to export" };
+
+        const { dialog } = require("electron");
+        const fs = require("fs");
+        const ext = format === "md" ? "md" : "txt";
+        const datePart = new Date().toISOString().slice(0, 10);
+        const defaultName = `transcriptions-${datePart}.${ext}`;
+
+        let filePath;
+        if (defaultDirectory) {
+          filePath = path.join(defaultDirectory, defaultName);
+        } else {
+          const result = await dialog.showSaveDialog({
+            defaultPath: path.join(app.getPath("documents"), defaultName),
+            filters: [
+              { name: "Markdown", extensions: ["md"] },
+              { name: "Text", extensions: ["txt"] },
+            ],
+          });
+          if (result.canceled || !result.filePath) return { success: false };
+          filePath = result.filePath;
+        }
+
+        const lines = transcriptions.map((t) => {
+          const tsStr = t.timestamp.endsWith("Z") ? t.timestamp : `${t.timestamp}Z`;
+          const dateStr = new Date(tsStr).toLocaleString();
+          const text = t.text || t.raw_text || "";
+          return format === "md" ? `## ${dateStr}\n\n${text}` : `[${dateStr}]\n${text}`;
+        });
+        const separator = format === "md" ? "\n\n---\n\n" : "\n\n";
+        fs.writeFileSync(filePath, lines.join(separator), "utf-8");
+        return { success: true, filePath, count: transcriptions.length };
+      } catch (error) {
+        debugLogger.error("Error bulk exporting transcriptions", { error: error.message }, "transcription");
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle("select-export-directory", async () => {
+      const { dialog } = require("electron");
+      const result = await dialog.showOpenDialog({
+        properties: ["openDirectory", "createDirectory"],
+      });
+      if (result.canceled || !result.filePaths.length) return { canceled: true };
+      return { canceled: false, dirPath: result.filePaths[0] };
+    });
+
     ipcMain.handle("select-audio-file", async () => {
       const { dialog } = require("electron");
       const result = await dialog.showOpenDialog({

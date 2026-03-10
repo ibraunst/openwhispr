@@ -316,6 +316,11 @@ function MainApp() {
   useEffect(() => {
     if (!authLoaded) return;
 
+    // Skip onboarding in dev mode — production app already has permissions configured
+    if (import.meta.env.DEV) {
+      localStorage.setItem("onboardingCompleted", "true");
+    }
+
     const onboardingCompleted = localStorage.getItem("onboardingCompleted") === "true";
     const authSkipped =
       localStorage.getItem("authenticationSkipped") === "true" ||

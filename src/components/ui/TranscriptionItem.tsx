@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./button";
 import { Tooltip } from "./tooltip";
-import { Copy, Trash2, FileText, FolderOpen, RotateCcw, Loader2, AlertCircle } from "lucide-react";
+import { Copy, Trash2, FileText, FolderOpen, RotateCcw, Loader2, AlertCircle, Download } from "lucide-react";
 import type { TranscriptionItem as TranscriptionItemType } from "../../types/electron";
 import { cn } from "../lib/utils";
 import { getCachedPlatform } from "../../utils/platform";
@@ -22,6 +22,7 @@ interface TranscriptionItemProps {
   onShowAudioInFolder?: (id: number) => void;
   onRetryTranscription?: (id: number) => Promise<void>;
   onOpenSettings?: () => void;
+  onExport?: (id: number) => void;
 }
 
 export default function TranscriptionItem({
@@ -31,6 +32,7 @@ export default function TranscriptionItem({
   onShowAudioInFolder,
   onRetryTranscription,
   onOpenSettings,
+  onExport,
 }: TranscriptionItemProps) {
   const { t, i18n } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
@@ -196,6 +198,18 @@ export default function TranscriptionItem({
                 className="h-6 w-6 rounded-sm text-muted-foreground hover:text-foreground hover:bg-foreground/10"
               >
                 <Copy size={12} />
+              </Button>
+            </Tooltip>
+          )}
+          {!isFailed && (
+            <Tooltip content={t("controlPanel.history.exportItem")}>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => onExport?.(item.id)}
+                className="h-6 w-6 rounded-sm text-muted-foreground hover:text-foreground hover:bg-foreground/10"
+              >
+                <Download size={12} />
               </Button>
             </Tooltip>
           )}

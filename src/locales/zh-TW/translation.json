@@ -233,7 +233,12 @@
       "clearAllDescription": "所有轉錄和音訊檔案將被永久刪除。",
       "clearAllSuccess": "歷史紀錄已清除",
       "clearAllErrorTitle": "無法清除歷史紀錄",
-      "clearAllErrorDescription": "發生錯誤，請重試。"
+      "clearAllErrorDescription": "發生錯誤，請重試。",
+      "exportItem": "匯出轉錄",
+      "exportAll": "全部匯出",
+      "exportSuccess": "轉錄已匯出",
+      "exportAllSuccess": "已匯出 {{count}} 條轉錄",
+      "exportError": "匯出失敗"
     },
     "cloudMigration": {
       "title": "歡迎使用 OpenWhispr Pro",
@@ -1246,7 +1251,26 @@
       "description": "控制哪些資料會離開你的裝置。預設全部關閉。",
       "title": "隱私權",
       "usageAnalytics": "使用分析",
-      "usageAnalyticsDescription": "分享匿名的效能指標，協助我們改善 OpenWhispr。我們絕不會傳送轉錄內容——只有計時和錯誤資料。"
+      "usageAnalyticsDescription": "分享匿名的效能指標，協助我們改善 OpenWhispr。我們絕不會傳送轉錄內容——只有計時和錯誤資料。",
+      "transcriptionExportTitle": "匯出",
+      "transcriptionExportDescription": "設定匯出轉錄時的預設格式和儲存位置。",
+      "transcriptionExportFormat": "預設格式",
+      "transcriptionExportFormatDescription": "匯出轉錄時使用的檔案格式。",
+      "transcriptionExportFormatTxt": "純文字 (.txt)",
+      "transcriptionExportFormatMd": "Markdown (.md)",
+      "transcriptionExportDirectory": "預設儲存位置",
+      "transcriptionExportDirectoryEmpty": "每次匯出時將顯示檔案選擇器",
+      "transcriptionExportChooseDirectory": "選擇資料夾",
+      "transcriptionExportClearDirectory": "清除",
+      "redoSetup": {
+        "title": "Setup",
+        "description": "Restart the initial setup wizard to reconfigure permissions and preferences.",
+        "label": "Redo setup",
+        "rowDescription": "Restarts the app setup wizard on next launch.",
+        "action": "Redo setup",
+        "confirmTitle": "Redo setup?",
+        "confirmDescription": "This will restart the setup wizard on next launch. Your transcription history and settings will not be affected."
+      }
     },
     "prompts": {
       "description": "檢視、自訂和測試用於文字整理和指令偵測的統一系統提示詞",

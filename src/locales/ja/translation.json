@@ -233,7 +233,12 @@
       "clearAllDescription": "すべての文字起こしと音声ファイルが完全に削除されます。",
       "clearAllSuccess": "履歴を削除しました",
       "clearAllErrorTitle": "履歴を削除できませんでした",
-      "clearAllErrorDescription": "問題が発生しました。もう一度お試しください。"
+      "clearAllErrorDescription": "問題が発生しました。もう一度お試しください。",
+      "exportItem": "文字起こしをエクスポート",
+      "exportAll": "すべてエクスポート",
+      "exportSuccess": "エクスポートが完了しました",
+      "exportAllSuccess": "{{count}}件の文字起こしをエクスポートしました",
+      "exportError": "エクスポートに失敗しました"
     },
     "cloudMigration": {
       "title": "OpenWhispr Pro へようこそ",
@@ -1246,7 +1251,26 @@
       "description": "デバイスからのデータ送信を管理します。初期設定ではすべてオフです。",
       "title": "プライバシー",
       "usageAnalytics": "使用状況の分析",
-      "usageAnalyticsDescription": "匿名のパフォーマンスデータを共有して OpenWhispr の改善にご協力ください。文字起こしの内容は送信されません。タイミングとエラーデータのみです。"
+      "usageAnalyticsDescription": "匿名のパフォーマンスデータを共有して OpenWhispr の改善にご協力ください。文字起こしの内容は送信されません。タイミングとエラーデータのみです。",
+      "transcriptionExportTitle": "エクスポート",
+      "transcriptionExportDescription": "エクスポートするファイル形式とデフォルトの保存先を設定します。",
+      "transcriptionExportFormat": "デフォルト形式",
+      "transcriptionExportFormatDescription": "文字起こしのエクスポート時に使用するファイル形式。",
+      "transcriptionExportFormatTxt": "プレーンテキスト (.txt)",
+      "transcriptionExportFormatMd": "Markdown (.md)",
+      "transcriptionExportDirectory": "デフォルト保存先",
+      "transcriptionExportDirectoryEmpty": "エクスポートのたびにファイル選択ダイアログが表示されます",
+      "transcriptionExportChooseDirectory": "フォルダを選択",
+      "transcriptionExportClearDirectory": "クリア",
+      "redoSetup": {
+        "title": "Setup",
+        "description": "Restart the initial setup wizard to reconfigure permissions and preferences.",
+        "label": "Redo setup",
+        "rowDescription": "Restarts the app setup wizard on next launch.",
+        "action": "Redo setup",
+        "confirmTitle": "Redo setup?",
+        "confirmDescription": "This will restart the setup wizard on next launch. Your transcription history and settings will not be affected."
+      }
     },
     "prompts": {
       "description": "テキスト補正と指示検出を行う統合システムプロンプトの表示、カスタマイズ、テスト",
