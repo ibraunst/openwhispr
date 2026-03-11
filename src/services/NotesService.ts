@@ -1,4 +1,4 @@
-import { OPENWHISPR_API_URL } from "../config/constants.js";
+import { CUSTOMWHISPR_API_URL } from "../config/constants.js";
 
 interface NoteInput {
   client_note_id?: string;
@@ -29,7 +29,7 @@ interface SearchResult extends CloudNote {
 }
 
 async function create(note: NoteInput): Promise<CloudNote> {
-  const res = await fetch(`${OPENWHISPR_API_URL}/api/notes/create`, {
+  const res = await fetch(`${CUSTOMWHISPR_API_URL}/api/notes/create`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -42,7 +42,7 @@ async function create(note: NoteInput): Promise<CloudNote> {
 async function batchCreate(
   notes: NoteInput[]
 ): Promise<{ created: { client_note_id: string; id: string }[] }> {
-  const res = await fetch(`${OPENWHISPR_API_URL}/api/notes/batch-create`, {
+  const res = await fetch(`${CUSTOMWHISPR_API_URL}/api/notes/batch-create`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -53,7 +53,7 @@ async function batchCreate(
 }
 
 async function update(id: string, updates: Partial<NoteInput>): Promise<CloudNote> {
-  const res = await fetch(`${OPENWHISPR_API_URL}/api/notes/update`, {
+  const res = await fetch(`${CUSTOMWHISPR_API_URL}/api/notes/update`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -64,7 +64,7 @@ async function update(id: string, updates: Partial<NoteInput>): Promise<CloudNot
 }
 
 async function deleteNote(id: string): Promise<void> {
-  const res = await fetch(`${OPENWHISPR_API_URL}/api/notes/delete`, {
+  const res = await fetch(`${CUSTOMWHISPR_API_URL}/api/notes/delete`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -78,7 +78,7 @@ async function list(limit?: number, before?: string): Promise<{ notes: CloudNote
   if (limit !== undefined) params.set("limit", String(limit));
   if (before !== undefined) params.set("before", before);
   const query = params.toString();
-  const res = await fetch(`${OPENWHISPR_API_URL}/api/notes/list${query ? `?${query}` : ""}`, {
+  const res = await fetch(`${CUSTOMWHISPR_API_URL}/api/notes/list${query ? `?${query}` : ""}`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error(await res.text());
@@ -86,7 +86,7 @@ async function list(limit?: number, before?: string): Promise<{ notes: CloudNote
 }
 
 async function search(query: string, limit?: number): Promise<{ notes: SearchResult[] }> {
-  const res = await fetch(`${OPENWHISPR_API_URL}/api/notes/search`, {
+  const res = await fetch(`${CUSTOMWHISPR_API_URL}/api/notes/search`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

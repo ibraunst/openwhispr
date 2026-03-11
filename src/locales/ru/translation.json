@@ -4,7 +4,7 @@
       "sectionTitle": "Язык",
       "sectionDescription": "Настройте язык интерфейса и транскрипции независимо друг от друга",
       "uiLabel": "Язык интерфейса",
-      "uiDescription": "Выберите язык интерфейса OpenWhispr",
+      "uiDescription": "Выберите язык интерфейса customWhispr",
       "transcriptionLabel": "Язык транскрипции",
       "transcriptionDescription": "Выберите язык, на котором вы говорите, для более точной транскрипции"
     }
@@ -15,12 +15,12 @@
       "hide": "Скрыть панель диктовки"
     },
     "openControlPanel": "Открыть панель управления",
-    "quit": "Закрыть OpenWhispr",
-    "tooltip": "OpenWhispr — голосовая диктовка"
+    "quit": "Закрыть customWhispr",
+    "tooltip": "customWhispr — голосовая диктовка"
   },
   "menu": {
-    "appLabel": "OpenWhispr",
-    "quit": "Закрыть OpenWhispr",
+    "appLabel": "customWhispr",
+    "quit": "Закрыть customWhispr",
     "speech": "Речь",
     "help": "Справка",
     "learnMore": "Узнать больше",
@@ -37,8 +37,8 @@
       "message": "Не удалось открыть ссылку в браузере:\n{{url}}\n\nОшибка: {{error}}"
     },
     "loadFailure": {
-      "title": "OpenWhispr не удалось загрузить",
-      "message": "OpenWhispr не смог загрузить интерфейс.",
+      "title": "customWhispr не удалось загрузить",
+      "message": "customWhispr не смог загрузить интерфейс.",
       "detail": {
         "window": "Окно: {{windowName}}",
         "error": "Ошибка {{errorCode}}: {{errorDescription}}",
@@ -49,17 +49,17 @@
   },
   "startup": {
     "error": {
-      "title": "Ошибка запуска OpenWhispr",
+      "title": "Ошибка запуска customWhispr",
       "message": "Не удалось запустить приложение:\n\n{{error}}\n\nПожалуйста, сообщите об этой проблеме."
     },
     "globeHotkey": {
       "title": "Клавиша Globe недоступна",
-      "message": "OpenWhispr не смог активировать горячую клавишу Globe.",
+      "message": "customWhispr не смог активировать горячую клавишу Globe.",
       "details": {
         "unknown": "Неизвестная ошибка при запуске слушателя клавиши Globe.",
         "fallback": "Сочетание с клавишей Globe будет отключено; остальные горячие клавиши продолжат работать.",
         "devHint": "Выполните `npm run compile:globe` и пересоберите приложение для генерации бинарного файла слушателя.",
-        "reinstallHint": "Попробуйте переустановить OpenWhispr или обратитесь в поддержку, если проблема сохраняется."
+        "reinstallHint": "Попробуйте переустановить customWhispr или обратитесь в поддержку, если проблема сохраняется."
       }
     }
   },
@@ -79,9 +79,9 @@
     "accessibility": "Настройки универсального доступа недоступны на этой платформе."
   },
   "titleBar": {
-    "quitTitle": "Закрыть OpenWhispr",
-    "quitConfirmTitle": "Закрыть OpenWhispr?",
-    "quitConfirmDescription": "Это закроет OpenWhispr и остановит фоновые процессы.",
+    "quitTitle": "Закрыть customWhispr",
+    "quitConfirmTitle": "Закрыть customWhispr?",
+    "quitConfirmDescription": "Это закроет customWhispr и остановит фоновые процессы.",
     "quit": "Закрыть",
     "cancel": "Отмена"
   },
@@ -111,6 +111,7 @@
   },
   "common": {
     "back": "Назад",
+      "localProcessing": "Transcribing recording...",
     "next": "Далее",
     "complete": "Готово",
     "reset": "Сбросить",
@@ -157,7 +158,7 @@
       "accessibilityTitle": "Универсальный доступ",
       "accessibilityDescription": "Включите в Системных настройках",
       "testAndGrant": "Проверить и предоставить",
-      "requiredForApp": "Необходимо для работы OpenWhispr",
+      "requiredForApp": "Необходимо для работы customWhispr",
       "microphoneRequired": "Требуется доступ к микрофону",
       "openSystemSettings": "Открыть Системные настройки"
     },
@@ -186,7 +187,7 @@
       "problemTitle": "Проблема с обновлением",
       "problemDescription": "Не удалось завершить обновление. Попробуйте позже.",
       "installTitle": "Установить обновление",
-      "installDescription": "OpenWhispr перезапустится для применения обновления. Текущая работа будет сохранена.",
+      "installDescription": "customWhispr перезапустится для применения обновления. Текущая работа будет сохранена.",
       "couldNotInstallTitle": "Не удалось установить обновление",
       "couldNotInstallDescription": "Что-то пошло не так. Попробуйте ещё раз.",
       "couldNotDownloadTitle": "Не удалось скачать обновление",
@@ -241,8 +242,8 @@
       "exportError": "Ошибка экспорта"
     },
     "cloudMigration": {
-      "title": "Добро пожаловать в OpenWhispr Pro",
-      "description": "Ваш 7-дневный бесплатный пробный период активирован! Мы переключили транскрипцию на OpenWhispr Cloud для более быстрых и точных результатов. Ваши предыдущие настройки сохранены — вы можете вернуться к ним в любой момент в настройках.",
+      "title": "Добро пожаловать в customWhispr Pro",
+      "description": "Ваш 7-дневный бесплатный пробный период активирован! Мы переключили транскрипцию на customWhispr Cloud для более быстрых и точных результатов. Ваши предыдущие настройки сохранены — вы можете вернуться к ним в любой момент в настройках.",
       "viewSettings": "Открыть настройки"
     },
     "aiCta": {
@@ -394,7 +395,7 @@
       "micErrors": {
         "accessFailed": "Не удалось получить доступ к микрофону. Попробуйте ещё раз.",
         "noMicrophones": "Микрофоны не обнаружены. Подключите микрофон или выберите его в {{settingsPath}}.",
-        "permissionDenied": "Разрешение отклонено. Откройте {{privacyPath}} и разрешите доступ для OpenWhispr.",
+        "permissionDenied": "Разрешение отклонено. Откройте {{privacyPath}} и разрешите доступ для customWhispr.",
         "couldNotStart": "Не удалось запустить выбранный микрофон. Выберите устройство ввода в {{settingsPath}} и повторите тест.",
         "noActiveInput": "Активное устройство ввода звука не найдено. Выберите микрофон в {{settingsPath}}.",
         "unknown": "Ошибка доступа к микрофону: {{error}}. Выберите другое устройство ввода и попробуйте снова.",
@@ -423,8 +424,8 @@
         "accessibilityNeeded": "Предоставьте разрешения универсального доступа в системных настройках для автоматической вставки текста.",
         "windowsReady": "Windows не требует специальных разрешений для автоматической вставки. Всё готово!",
         "linuxReadyWithMethod": "Автоматическая вставка доступна через {{method}}. Всё готово!",
-        "waylandClipboardMode": "Автоматическая вставка недоступна в этой сессии Wayland. OpenWhispr скопирует текст в буфер обмена, и вы сможете вставить его с помощью Ctrl+V.",
-        "optionalPasteTool": "Для автоматической вставки установите {{tool}}:\n\n{{installCmd}}{{waylandNote}}\n\nБез этого инструмента OpenWhispr будет копировать текст в буфер обмена, и вы сможете вставить его с помощью Ctrl+V."
+        "waylandClipboardMode": "Автоматическая вставка недоступна в этой сессии Wayland. customWhispr скопирует текст в буфер обмена, и вы сможете вставить его с помощью Ctrl+V.",
+        "optionalPasteTool": "Для автоматической вставки установите {{tool}}:\n\n{{installCmd}}{{waylandNote}}\n\nБез этого инструмента customWhispr будет копировать текст в буфер обмена, и вы сможете вставить его с помощью Ctrl+V."
       },
       "alerts": {
         "accessibilityNeeded": "Требуются разрешения универсального доступа! Предоставьте их в системных настройках."
@@ -437,7 +438,7 @@
         "defaultPasteTool": "xdotool",
         "xdotoolXwayland": "xdotool (приложения XWayland)"
       },
-      "accessibilityTestText": "Тест универсального доступа OpenWhispr",
+      "accessibilityTestText": "Тест универсального доступа customWhispr",
       "warning": {
         "messages": {
           "macos": "Проверьте настройки звука, чтобы выбрать устройство ввода",
@@ -507,7 +508,7 @@
       "continueWithGoogle": "Продолжить с Google"
     },
     "welcomeSubtitle": "Диктуйте где угодно голосом",
-    "welcomeTitle": "Добро пожаловать в OpenWhispr",
+    "welcomeTitle": "Добро пожаловать в customWhispr",
     "sessionExpired": "Сессия истекла. Пожалуйста, войдите снова."
   },
   "cleanupPrompt": "Очистка",
@@ -713,10 +714,10 @@
     "recheckChecking": "Проверка...",
     "title": "Автоматическая вставка",
     "usingMethodPrefix": "Используется",
-    "waylandClipboardDescription": "Автоматическая вставка недоступна в этой сессии Wayland. OpenWhispr скопирует текст в буфер обмена, и вы сможете вставить его вручную с помощью Ctrl+V.",
+    "waylandClipboardDescription": "Автоматическая вставка недоступна в этой сессии Wayland. customWhispr скопирует текст в буфер обмена, и вы сможете вставить его вручную с помощью Ctrl+V.",
     "waylandClipboardTitle": "Режим буфера обмена в Wayland",
     "windowsReady": "Windows поддерживает автоматическую вставку из коробки. Настройка не требуется!",
-    "withoutToolPrefix": "Без этого инструмента OpenWhispr скопирует текст в буфер обмена. Вы сможете вставить его вручную с помощью Ctrl+V.",
+    "withoutToolPrefix": "Без этого инструмента customWhispr скопирует текст в буфер обмена. Вы сможете вставить его вручную с помощью Ctrl+V.",
     "xwaylandAppsOnly": "автоматическая вставка работает только для приложений XWayland"
   },
   "promptStudio": {
@@ -766,7 +767,7 @@
       "none": "Нет",
       "outputLabel": "Результат",
       "processing": "Обработка...",
-      "openwhisprCloud": "OpenWhispr Cloud",
+      "customwhisprCloud": "customWhispr Cloud",
       "providerLabel": "Провайдер",
       "run": "Запустить тест",
       "customEndpoint": "Пользовательская конечная точка"
@@ -1004,13 +1005,13 @@
       "description": "Очищайте транскрипции, обрабатывайте команды и исправляйте ошибки, сохраняя вашу манеру речи.",
       "enableTextCleanup": "Включить очистку текста",
       "enableTextCleanupDescription": "ИИ улучшает качество транскрипции",
-      "openwhisprCloud": "OpenWhispr Cloud",
-      "openwhisprCloudDescription": "Просто работает. Настройка не требуется.",
+      "customwhisprCloud": "customWhispr Cloud",
+      "customwhisprCloudDescription": "Просто работает. Настройка не требуется.",
       "title": "ИИ-улучшение текста",
       "toasts": {
         "switchedCloud": {
-          "description": "Улучшение текста будет использовать облачный сервис OpenWhispr.",
-          "title": "Переключено на OpenWhispr Cloud"
+          "description": "Улучшение текста будет использовать облачный сервис customWhispr.",
+          "title": "Переключено на customWhispr Cloud"
         },
         "switchedCustom": {
           "description": "Настройте собственного провайдера и API-ключ.",
@@ -1073,7 +1074,7 @@
       "appearance": {
         "auto": "Авто",
         "dark": "Тёмная",
-        "description": "Управляйте внешним видом OpenWhispr",
+        "description": "Управляйте внешним видом customWhispr",
         "light": "Светлая",
         "theme": "Тема",
         "themeDescription": "Выберите светлую, тёмную тему или следуйте системным настройкам",
@@ -1109,9 +1110,9 @@
       },
       "startup": {
         "launchAtLogin": "Запускать при входе",
-        "launchAtLoginDescription": "Автоматически запускать OpenWhispr при входе в систему",
+        "launchAtLoginDescription": "Автоматически запускать customWhispr при входе в систему",
         "title": "Автозапуск",
-        "description": "Управляйте поведением OpenWhispr при запуске",
+        "description": "Управляйте поведением customWhispr при запуске",
         "startMinimized": "Запуск в свёрнутом виде",
         "startMinimizedDescription": "Запускать без отображения окна панели управления"
       },
@@ -1157,7 +1158,7 @@
           "group": {
             "step1Title": "Добавить пользователя в группу input",
             "step2Title": "Выйти и войти снова",
-            "step2Desc": "Изменения групп вступают в силу только после нового входа в систему. Выйдите из рабочего стола, войдите снова и откройте OpenWhispr."
+            "step2Desc": "Изменения групп вступают в силу только после нового входа в систему. Выйдите из рабочего стола, войдите снова и откройте customWhispr."
           },
           "service": {
             "step1Title": "Создать каталог службы",
@@ -1201,7 +1202,7 @@
           },
           "installUpdate": {
             "confirmText": "Установить и перезапустить",
-            "description": "OpenWhispr перезапустится для применения обновления.",
+            "description": "customWhispr перезапустится для применения обновления.",
             "title": "Установить обновление"
           },
           "noUpdates": {
@@ -1232,13 +1233,13 @@
     "permissions": {
       "accessibilityDescription": "Необходимо для автоматической вставки после транскрипции",
       "accessibilityTitle": "Универсальный доступ",
-      "description": "Проверяйте и управляйте системными разрешениями, необходимыми для работы OpenWhispr",
+      "description": "Проверяйте и управляйте системными разрешениями, необходимыми для работы customWhispr",
       "microphoneDescription": "Необходимо для записи голоса и диктовки",
       "microphoneTitle": "Микрофон",
       "resetAccessibility": {
-        "description": "OpenWhispr будет удалён из разрешений универсального доступа. Вам потребуется повторно предоставить доступ в Системные настройки > Конфиденциальность и безопасность > Универсальный доступ.",
+        "description": "customWhispr будет удалён из разрешений универсального доступа. Вам потребуется повторно предоставить доступ в Системные настройки > Конфиденциальность и безопасность > Универсальный доступ.",
         "label": "Сбросить разрешения универсального доступа",
-        "rowDescription": "Исправьте проблемы после переустановки или пересборки приложения, удалив и повторно добавив OpenWhispr в системных настройках",
+        "rowDescription": "Исправьте проблемы после переустановки или пересборки приложения, удалив и повторно добавив customWhispr в системных настройках",
         "title": "Сбросить разрешения универсального доступа"
       },
       "test": "Тест",
@@ -1255,7 +1256,7 @@
       "description": "Контролируйте, какие данные покидают ваше устройство. По умолчанию всё отключено.",
       "title": "Конфиденциальность",
       "usageAnalytics": "Аналитика использования",
-      "usageAnalyticsDescription": "Помогите нам улучшить OpenWhispr, делясь анонимными метриками производительности. Мы никогда не отправляем содержимое транскрипций — только данные о времени и ошибках.",
+      "usageAnalyticsDescription": "Помогите нам улучшить customWhispr, делясь анонимными метриками производительности. Мы никогда не отправляем содержимое транскрипций — только данные о времени и ошибках.",
       "transcriptionExportTitle": "Экспорт",
       "transcriptionExportDescription": "Настройте формат по умолчанию и место сохранения для экспортируемых транскрипций.",
       "transcriptionExportFormat": "Формат по умолчанию",
@@ -1283,14 +1284,14 @@
     "transcription": {
       "customSetup": "Пользовательская настройка",
       "customSetupDescription": "Используйте собственного провайдера и API-ключ.",
-      "description": "Выберите, как OpenWhispr будет транскрибировать вашу речь",
-      "openwhisprCloud": "OpenWhispr Cloud",
-      "openwhisprCloudDescription": "Просто работает. Настройка не требуется.",
+      "description": "Выберите, как customWhispr будет транскрибировать вашу речь",
+      "customwhisprCloud": "customWhispr Cloud",
+      "customwhisprCloudDescription": "Просто работает. Настройка не требуется.",
       "title": "Распознавание речи",
       "toasts": {
         "switchedCloud": {
-          "description": "Транскрипция будет использовать облачный сервис OpenWhispr.",
-          "title": "Переключено на OpenWhispr Cloud"
+          "description": "Транскрипция будет использовать облачный сервис customWhispr.",
+          "title": "Переключено на customWhispr Cloud"
         },
         "switchedCustom": {
           "description": "Настройте собственного провайдера и API-ключ.",
@@ -1426,7 +1427,7 @@
     },
     "tryAgain": "Попробовать снова",
     "card": {
-      "brand": "OpenWhispr",
+      "brand": "customWhispr",
       "signalId": "Signal ID",
       "audioSignature": "Ваша аудиоподпись",
       "stop": "Стоп",
@@ -1500,7 +1501,7 @@
       "setupTitle": "Настройте транскрибирование",
       "setupDescription": "Выберите способ транскрибирования аудио. Это также применяется к живой диктовке.",
       "continue": "Продолжить",
-      "openwhisprCloud": "OpenWhispr Cloud",
+      "customwhisprCloud": "customWhispr Cloud",
       "custom": "Другой",
       "selectFolder": "Выбрать папку",
       "transcriptionFailed": "Ошибка транскрибирования",
@@ -1511,15 +1512,15 @@
       "fileTooLarge": "Этот файл превышает ограничение в 500 MB.",
       "largeFileNote": "Большие файлы разделяются и транскрибируются параллельно.",
       "chunkProgress": "Транскрибирование части {{completed}} из {{total}}...",
-      "paidPlanRequired": "Облачная транскрипция файлов более 25 МБ требует платного плана. Большие файлы обрабатываются через OpenWhispr Cloud для надёжных и качественных результатов.",
+      "paidPlanRequired": "Облачная транскрипция файлов более 25 МБ требует платного плана. Большие файлы обрабатываются через customWhispr Cloud для надёжных и качественных результатов.",
       "byokTooLarge": "Сторонние API-ключи поддерживают файлы только до 25 МБ.",
-      "byokTooLargeDetail": "Для файлов более 25 МБ OpenWhispr Cloud выполняет разделение, параллельную обработку и сборку — для надёжных результатов без ограничений сторонних провайдеров.",
-      "byokTooLargeNeedsAccount": "Создайте аккаунт и перейдите на платный план, чтобы транскрибировать большие файлы через OpenWhispr Cloud.",
-      "byokTooLargeNeedsUpgrade": "Перейдите на платный план, чтобы транскрибировать большие файлы через OpenWhispr Cloud.",
-      "switchToCloudForLargeFiles": "Переключитесь на OpenWhispr Cloud, чтобы транскрибировать этот файл.",
+      "byokTooLargeDetail": "Для файлов более 25 МБ customWhispr Cloud выполняет разделение, параллельную обработку и сборку — для надёжных результатов без ограничений сторонних провайдеров.",
+      "byokTooLargeNeedsAccount": "Создайте аккаунт и перейдите на платный план, чтобы транскрибировать большие файлы через customWhispr Cloud.",
+      "byokTooLargeNeedsUpgrade": "Перейдите на платный план, чтобы транскрибировать большие файлы через customWhispr Cloud.",
+      "switchToCloudForLargeFiles": "Переключитесь на customWhispr Cloud, чтобы транскрибировать этот файл.",
       "createAccount": "Создать аккаунт",
       "upgrade": "Обновить",
-      "switchToCloud": "OpenWhispr Cloud"
+      "switchToCloud": "customWhispr Cloud"
     },
     "meeting": {
       "title": "Заметки со встреч",
@@ -1691,7 +1692,12 @@
         "description": "Не удалось зарегистрировать выбранную комбинацию. Выберите другую в настройках."
       },
       "addedToDict": "{{words}} добавлено в ваш словарь",
-      "undo": "Отменить"
+      "undo": "Отменить",
+      "permissionsRevoked": {
+        "title": "Разрешения сброшены",
+        "description": "Разрешения были сброшены после обновления — нажмите для восстановления",
+        "action": "Открыть настройки"
+      }
     },
     "mic": {
       "hotkeyToSpeak": "Нажмите {{hotkey}} для записи",
@@ -1726,8 +1732,8 @@
       "systemPrompt": "Системный промпт",
       "systemPromptDescription": "Пользовательские инструкции для агента",
       "systemPromptPlaceholder": "Введите пользовательский системный промпт...",
-      "openwhisprCloud": "OpenWhispr Cloud",
-      "openwhisprCloudDescription": "Использовать облачный ИИ OpenWhispr для разговоров с агентом",
+      "customwhisprCloud": "customWhispr Cloud",
+      "customwhisprCloudDescription": "Использовать облачный ИИ customWhispr для разговоров с агентом",
       "customSetup": "Своя настройка (BYOK)",
       "customSetupDescription": "Используйте собственные API-ключи и выберите предпочтительную модель"
     },
@@ -1785,11 +1791,11 @@
       "description": "Мы всё ещё работаем над тем, как лучше интегрировать эту функцию. Будем рады вашим отзывам!",
       "freeTier": "Бесплатный план: 5 часов / месяц",
       "proTier": "Pro-план: 20 часов / месяц",
-      "feedback": "Нужно больше 20 часов? Напишите на gabe@openwhispr.com"
+      "feedback": "Нужно больше 20 часов? Напишите на gabe@customwhispr.com"
     },
     "notABot": {
-      "title": "OpenWhispr — это запись встреч, а не бот",
-      "description": "OpenWhispr захватывает аудио напрямую из вашей системы — он никогда не присоединяется к встречам как участник. Просто подключите календарь и делайте заметки как обычно."
+      "title": "customWhispr — это запись встреч, а не бот",
+      "description": "customWhispr захватывает аудио напрямую из вашей системы — он никогда не присоединяется к встречам как участник. Просто подключите календарь и делайте заметки как обычно."
     }
   },
   "upcoming": {
@@ -1804,7 +1810,7 @@
     "signInDescription": "Создайте аккаунт или войдите для записи и транскрипции встреч.",
     "connectCalendar": "Подключите календарь",
     "connectCalendarDescription": "Свяжите Google Календарь, чтобы видеть предстоящие встречи и автоматически записывать заметки.",
-    "notABot": "OpenWhispr записывает через системный звук — он никогда не присоединяется к встречам как бот.",
+    "notABot": "customWhispr записывает через системный звук — он никогда не присоединяется к встречам как бот.",
     "connectCalendarButton": "Подключить календарь"
   },
   "notesView": {

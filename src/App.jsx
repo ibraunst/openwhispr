@@ -146,10 +146,32 @@ export default function App() {
       }
     });
 
+    const unsubscribePermissions = window.electronAPI?.onPermissionsNeedReauth?.((revoked) => {
+      if (!revoked || revoked.length === 0) return;
+      toast({
+        title: t("app.toasts.permissionsRevoked.title"),
+        description: t("app.toasts.permissionsRevoked.description"),
+        duration: Infinity,
+        action: (
+          <button
+            onClick={() => window.electronAPI?.showControlPanel?.()}
+            className="text-[10px] font-medium px-2.5 py-1 rounded-sm whitespace-nowrap
+              text-amber-100/90 hover:text-white
+              bg-amber-500/15 hover:bg-amber-500/25
+              border border-amber-400/20 hover:border-amber-400/35
+              transition-all duration-150"
+          >
+            {t("app.toasts.permissionsRevoked.action")}
+          </button>
+        ),
+      });
+    });
+
     return () => {
       unsubscribeFallback?.();
       unsubscribeFailed?.();
       unsubscribeCorrections?.();
+      unsubscribePermissions?.();
     };
   }, [toast, dismiss, t]);
 

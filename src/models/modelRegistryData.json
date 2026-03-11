@@ -590,7 +590,7 @@
       ]
     }
   ],
-  "openwhisprCloudModels": {
+  "customwhisprCloudModels": {
     "tiers": [
       {
         "id": "fast",

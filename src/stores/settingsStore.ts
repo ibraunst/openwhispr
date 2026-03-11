@@ -241,9 +241,9 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   ),
   cloudTranscriptionMode: readString(
     "cloudTranscriptionMode",
-    hasStoredByokKey() ? "byok" : "openwhispr"
+    hasStoredByokKey() ? "byok" : "customwhispr"
   ),
-  cloudReasoningMode: readString("cloudReasoningMode", "openwhispr"),
+  cloudReasoningMode: readString("cloudReasoningMode", "customwhispr"),
   cloudReasoningBaseUrl: readString("cloudReasoningBaseUrl", API_ENDPOINTS.OPENAI_BASE),
   customDictionary: readStringArray("customDictionary", []),
   assemblyAiStreaming: readBoolean("assemblyAiStreaming", true),
@@ -315,7 +315,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   agentKey: readString("agentKey", ""),
   agentSystemPrompt: readString("agentSystemPrompt", ""),
   agentEnabled: readBoolean("agentEnabled", true),
-  cloudAgentMode: readString("cloudAgentMode", "openwhispr"),
+  cloudAgentMode: readString("cloudAgentMode", "customwhispr"),
 
   exportDirectory: readString("exportDirectory", ""),
   defaultExportFormat: (readString("defaultExportFormat", "txt") === "md" ? "md" : "txt") as
@@ -580,13 +580,13 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
 // --- Selectors (derived state, not stored) ---
 
 export const selectIsCloudReasoningMode = (state: SettingsState) =>
-  state.isSignedIn && state.cloudReasoningMode === "openwhispr";
+  state.isSignedIn && state.cloudReasoningMode === "customwhispr";
 
 export const selectEffectiveReasoningProvider = (state: SettingsState) =>
-  selectIsCloudReasoningMode(state) ? "openwhispr" : state.reasoningProvider;
+  selectIsCloudReasoningMode(state) ? "customwhispr" : state.reasoningProvider;
 
 export const selectIsCloudAgentMode = (state: SettingsState) =>
-  state.isSignedIn && state.cloudAgentMode === "openwhispr";
+  state.isSignedIn && state.cloudAgentMode === "customwhispr";
 
 export function isCloudAgentMode() {
   return selectIsCloudAgentMode(useSettingsStore.getState());

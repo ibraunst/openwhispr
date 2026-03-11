@@ -97,7 +97,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   } = useSettings();
 
   const [hotkey, setHotkey] = useState(dictationKey || getDefaultHotkey());
-  const [agentName, setAgentName] = useState("OpenWhispr");
+  const [agentName, setAgentName] = useState("customWhispr");
   const [skipAuth, setSkipAuth] = useState(false);
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
   const [isModelDownloaded, setIsModelDownloaded] = useState(false);
@@ -269,7 +269,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     localStorage.setItem("skipAuth", skippedAuth.toString());
 
     // Non-signed-in users in cloud mode default to BYOK to avoid
-    // "OpenWhispr Cloud requires sign-in" errors.
+    // "customWhispr Cloud requires sign-in" errors.
     if (!isSignedIn && !useLocalWhisper) {
       updateTranscriptionSettings({ cloudTranscriptionMode: "byok" });
     }

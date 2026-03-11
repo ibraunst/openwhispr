@@ -828,6 +828,9 @@ class WindowManager {
       if (!this.mainWindow.isVisible()) {
         if (typeof this.mainWindow.showInactive === "function") {
           this.mainWindow.showInactive();
+          // Safety net: surrender any accidental focus immediately so the
+          // previous app keeps keyboard input.
+          this.mainWindow.blur();
         } else {
           this.mainWindow.show();
         }

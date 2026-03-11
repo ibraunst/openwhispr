@@ -1,4 +1,4 @@
-# OpenWhispr Complete Cleanup Instructions
+# customWhispr Complete Cleanup Instructions
 
 ## The Problem
 
@@ -21,12 +21,12 @@ This can lead to issues like:
 ### Step 1: Run the automated cleanup script
 
 ```bash
-cd /path/to/open-whispr
+cd /path/to/custom-whispr
 bash scripts/complete-uninstall.sh
 ```
 
 This script will:
-- Stop all OpenWhispr processes
+- Stop all customWhispr processes
 - Remove the production app
 - Delete all application data
 - Clear caches and logs
@@ -58,52 +58,52 @@ npm run dev
 
 ## Manual Cleanup (if script doesn't work)
 
-### 1. Stop all OpenWhispr processes
+### 1. Stop all customWhispr processes
 
 ```bash
 # Kill production app
-pkill -f "OpenWhispr"
+pkill -f "customWhispr"
 
 # Kill dev processes
-pkill -f "open-whispr"
+pkill -f "custom-whispr"
 pkill -f "electron"
 ```
 
 ### 2. Remove the Application
 
 ```bash
-rm -rf /Applications/OpenWhispr.app
+rm -rf /Applications/customWhispr.app
 ```
 
 ### 3. Remove Application Data
 
 **Application Support** (contains databases, settings, logs):
 ```bash
-rm -rf "$HOME/Library/Application Support/OpenWhispr"
-rm -rf "$HOME/Library/Application Support/open-whispr"
+rm -rf "$HOME/Library/Application Support/customWhispr"
+rm -rf "$HOME/Library/Application Support/custom-whispr"
 ```
 
 **Preferences** (system-level settings):
 ```bash
-rm -rf "$HOME/Library/Preferences/com.openwhispr.app.plist"
-rm -rf "$HOME/Library/Preferences/com.electron.openwhispr.plist"
+rm -rf "$HOME/Library/Preferences/com.customwhispr.app.plist"
+rm -rf "$HOME/Library/Preferences/com.electron.customwhispr.plist"
 ```
 
 **Caches**:
 ```bash
-rm -rf "$HOME/Library/Caches/OpenWhispr"
-rm -rf "$HOME/Library/Caches/open-whispr"
+rm -rf "$HOME/Library/Caches/customWhispr"
+rm -rf "$HOME/Library/Caches/custom-whispr"
 ```
 
 **Logs**:
 ```bash
-rm -rf "$HOME/Library/Logs/OpenWhispr"
-rm -rf "$HOME/Library/Logs/open-whispr"
+rm -rf "$HOME/Library/Logs/customWhispr"
+rm -rf "$HOME/Library/Logs/custom-whispr"
 ```
 
 **Saved Application State**:
 ```bash
-rm -rf "$HOME/Library/Saved Application State/com.openwhispr.app.savedState"
+rm -rf "$HOME/Library/Saved Application State/com.customwhispr.app.savedState"
 ```
 
 ### 4. Remove Whisper Models (optional, ~2-3GB)
@@ -117,7 +117,7 @@ rm -rf "$HOME/.cache/huggingface"
 
 ```bash
 find /tmp -name "whisper_audio_*" -delete
-find /tmp -name "openwhispr_*" -delete
+find /tmp -name "customwhispr_*" -delete
 ```
 
 ### 6. Clean Development Environment
@@ -125,7 +125,7 @@ find /tmp -name "openwhispr_*" -delete
 If you're setting up for development:
 
 ```bash
-cd /path/to/open-whispr
+cd /path/to/custom-whispr
 
 # Remove dev database and env file
 rm -f .env
@@ -146,10 +146,10 @@ The cleanup script **cannot** remove macOS system permissions. These persist eve
 
 ```bash
 # Reset microphone permission
-tccutil reset Microphone com.openwhispr.app
+tccutil reset Microphone com.customwhispr.app
 
 # Reset accessibility permission
-tccutil reset Accessibility com.openwhispr.app
+tccutil reset Accessibility com.customwhispr.app
 
 # For dev mode (Terminal)
 tccutil reset Microphone com.apple.Terminal
@@ -190,7 +190,7 @@ nvm use --lts
 ### 2. Clean Install Dependencies
 
 ```bash
-cd /path/to/open-whispr
+cd /path/to/custom-whispr
 
 # Remove everything
 rm -rf node_modules package-lock.json
@@ -246,8 +246,8 @@ bash scripts/complete-uninstall.sh
 **Solution:**
 ```bash
 # Remove database files specifically
-rm -rf "$HOME/Library/Application Support/OpenWhispr"
-rm -rf "$HOME/Library/Application Support/open-whispr"
+rm -rf "$HOME/Library/Application Support/customWhispr"
+rm -rf "$HOME/Library/Application Support/custom-whispr"
 
 # Rebuild dependencies
 npm run postinstall
@@ -266,19 +266,19 @@ npm run postinstall
 
 ## Data Locations Reference
 
-All OpenWhispr data is stored in these locations:
+All customWhispr data is stored in these locations:
 
 | Type | Location |
 |------|----------|
-| **Databases** | `~/Library/Application Support/OpenWhispr/transcriptions.db` |
-| **Dev Database** | `~/Library/Application Support/OpenWhispr/transcriptions-dev.db` |
+| **Databases** | `~/Library/Application Support/customWhispr/transcriptions.db` |
+| **Dev Database** | `~/Library/Application Support/customWhispr/transcriptions-dev.db` |
 | **Settings** | Browser localStorage (in Electron's userData) |
 | **API Keys** | `.env` file in project root (dev) |
-| **Logs** | `~/Library/Application Support/OpenWhispr/logs/` |
-| **Debug Logs** | `~/Library/Logs/OpenWhispr/` |
+| **Logs** | `~/Library/Application Support/customWhispr/logs/` |
+| **Debug Logs** | `~/Library/Logs/customWhispr/` |
 | **Whisper Models** | `~/.cache/whisper/` |
-| **Preferences** | `~/Library/Preferences/com.openwhispr.app.plist` |
-| **Caches** | `~/Library/Caches/OpenWhispr/` |
+| **Preferences** | `~/Library/Preferences/com.customwhispr.app.plist` |
+| **Caches** | `~/Library/Caches/customWhispr/` |
 | **Temp Audio** | `/tmp/whisper_audio_*.wav` |
 
 ---
@@ -301,6 +301,6 @@ If cleanup doesn't solve your issue:
 2. Check Node version: `node -v`
 3. Check Electron version: `npm list electron`
 4. Run with debug mode: `npm run dev -- --debug`
-5. Check logs in: `~/Library/Application Support/OpenWhispr/logs/`
+5. Check logs in: `~/Library/Application Support/customWhispr/logs/`
 
-Report issues with this information at: [GitHub Issues](https://github.com/your-repo/open-whispr/issues)
+Report issues with this information at: [GitHub Issues](https://github.com/your-repo/custom-whispr/issues)

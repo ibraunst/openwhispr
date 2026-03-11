@@ -13,7 +13,7 @@ const {
 } = require("./downloadUtils");
 const { getSafeTempDir } = require("./safeTempDir");
 
-const GITHUB_RELEASE_URL = "https://api.github.com/repos/OpenWhispr/whisper.cpp/releases/latest";
+const GITHUB_RELEASE_URL = "https://api.github.com/repos/customWhispr/whisper.cpp/releases/latest";
 
 const PLATFORM_BINARY_NAMES = {
   linux: "whisper-server-linux-x64-cuda",
@@ -228,7 +228,7 @@ class WhisperCudaManager {
           url,
           {
             headers: {
-              "User-Agent": "OpenWhispr/1.0",
+              "User-Agent": "customWhispr/1.0",
               Accept: "application/vnd.github+json",
             },
             timeout: 15000,

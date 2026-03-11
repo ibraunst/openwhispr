@@ -310,6 +310,11 @@ declare global {
         defaultDirectory?: string
       ) => Promise<{ success: boolean; filePath?: string; count?: number; error?: string }>;
       selectExportDirectory: () => Promise<{ canceled: boolean; dirPath?: string }>;
+      saveTranscriptToFile: (
+        text: string,
+        filename: string,
+        directory: string
+      ) => Promise<{ success: boolean; filePath?: string; error?: string }>;
 
       // Audio retention operations
       saveTranscriptionAudio: (
@@ -671,6 +676,7 @@ declare global {
       onHotkeyRegistrationFailed?: (
         callback: (data: { hotkey: string; error: string; suggestions: string[] }) => void
       ) => () => void;
+      onPermissionsNeedReauth?: (callback: (revoked: string[]) => void) => () => void;
 
       // Gemini API key management
       getGeminiKey: () => Promise<string | null>;
@@ -757,7 +763,7 @@ declare global {
       // Auth
       authClearSession?: () => Promise<void>;
 
-      // OpenWhispr Cloud API
+      // customWhispr Cloud API
       cloudTranscribe?: (
         audioBuffer: ArrayBuffer,
         opts: { language?: string; prompt?: string; useCase?: string; diarization?: boolean }
@@ -1109,15 +1115,20 @@ declare global {
       onMeetingTranscriptionPartial?: (callback: (text: string) => void) => () => void;
       onMeetingTranscriptionFinal?: (callback: (text: string) => void) => () => void;
       onMeetingTranscriptionError?: (callback: (error: string) => void) => () => void;
+      meetingTranscribeLocal?: (
+        audioBuffer: ArrayBuffer,
+        options?: { localProvider?: string; language?: string; whisperModel?: string; parakeetModel?: string }
+      ) => Promise<{ success: boolean; transcript?: string; error?: string }>;
+      onMeetingProcessEnded?: (callback: (data: { processKey: string; appName: string }) => void) => () => void;
 
       // Dictation realtime streaming
       dictationRealtimeWarmup?: (options: {
         model?: string;
-        mode?: "byok" | "openwhispr";
+        mode?: "byok" | "customwhispr";
       }) => Promise<{ success: boolean; error?: string }>;
       dictationRealtimeStart?: (options: {
         model?: string;
-        mode?: "byok" | "openwhispr";
+        mode?: "byok" | "customwhispr";
       }) => Promise<{ success: boolean; error?: string }>;
       dictationRealtimeSend?: (buffer: ArrayBuffer) => void;
       dictationRealtimeStop?: () => Promise<{ success: boolean; text: string }>;

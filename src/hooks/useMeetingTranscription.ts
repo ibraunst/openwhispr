@@ -5,6 +5,7 @@ import logger from "../utils/logger";
 
 interface UseMeetingTranscriptionReturn {
   isRecording: boolean;
+  isLocalProcessing: boolean;
   transcript: string;
   partialTranscript: string;
   error: string | null;
@@ -19,11 +20,30 @@ const MEETING_STOP_FLUSH_TIMEOUT_MS = 50;
 const REALTIME_MODELS = new Set(["gpt-4o-mini-transcribe", "gpt-4o-transcribe"]);
 
 const getMeetingTranscriptionOptions = () => {
-  const { cloudTranscriptionMode, cloudTranscriptionModel, openaiApiKey } = getSettings();
+  const {
+    cloudTranscriptionMode,
+    cloudTranscriptionModel,
+    openaiApiKey,
+    useLocalWhisper,
+    localTranscriptionProvider,
+  } = getSettings();
+
+  const hasOpenAIKey = !!openaiApiKey && openaiApiKey.trim() !== "";
+  const canUseCloud =
+    cloudTranscriptionMode === "customwhispr" ||
+    (cloudTranscriptionMode === "byok" && hasOpenAIKey);
+
+  if (useLocalWhisper || !canUseCloud) {
+    return {
+      provider: "local" as const,
+      localProvider: localTranscriptionProvider || "whisper",
+    };
+  }
+
   const model = REALTIME_MODELS.has(cloudTranscriptionModel)
     ? cloudTranscriptionModel
     : "gpt-4o-mini-transcribe";
-  const mode = cloudTranscriptionMode === "byok" && !!openaiApiKey ? "byok" : "openwhispr";
+  const mode = cloudTranscriptionMode === "byok" ? "byok" : "customwhispr";
   return { provider: "openai-realtime" as const, model, mode };
 };
 
@@ -227,10 +247,12 @@ const getSystemAudioStream = async (): Promise<MediaStream | null> => {
 
 export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
   const [isRecording, setIsRecording] = useState(false);
+  const [isLocalProcessing, setIsLocalProcessing] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [partialTranscript, setPartialTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // Cloud path refs
   const audioContextRef = useRef<AudioContext | null>(null);
   const micContextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -239,6 +261,13 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
   const micProcessorRef = useRef<AudioWorkletNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
+
+  // Local path refs
+  const localMediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const localChunksRef = useRef<Blob[]>([]);
+  const localMixContextRef = useRef<AudioContext | null>(null);
+  const localModeRef = useRef(false);
+
   const isRecordingRef = useRef(false);
   const isStartingRef = useRef(false);
   const isPreparedRef = useRef(false);
@@ -246,6 +275,23 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
   const ipcCleanupsRef = useRef<Array<() => void>>([]);
 
   const cleanup = useCallback(async () => {
+    // Stop local recorder if active
+    if (localMediaRecorderRef.current) {
+      try {
+        if (localMediaRecorderRef.current.state !== "inactive") {
+          localMediaRecorderRef.current.stop();
+        }
+      } catch {}
+      localMediaRecorderRef.current = null;
+    }
+
+    if (localMixContextRef.current) {
+      try {
+        await localMixContextRef.current.close();
+      } catch {}
+      localMixContextRef.current = null;
+    }
+
     if (processorRef.current) {
       await flushAndDisconnectProcessor(processorRef.current);
       processorRef.current = null;
@@ -307,38 +353,101 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     isStartingRef.current = false;
     setIsRecording(false);
 
-    await cleanup();
+    const wasLocalMode = localModeRef.current;
+    localModeRef.current = false;
 
-    try {
-      const result = await window.electronAPI?.meetingTranscriptionStop?.();
-      if (result?.success && result.transcript) {
-        setTranscript(result.transcript);
-      } else if (result?.error) {
-        setError(result.error);
+    if (wasLocalMode) {
+      // Local path: stop MediaRecorder, wait for onstop, then transcribe
+      const recorder = localMediaRecorderRef.current;
+
+      const blobPromise = new Promise<Blob>((resolve) => {
+        if (!recorder || recorder.state === "inactive") {
+          resolve(new Blob(localChunksRef.current, { type: "audio/webm;codecs=opus" }));
+          return;
+        }
+        recorder.onstop = () => {
+          resolve(new Blob(localChunksRef.current, { type: "audio/webm;codecs=opus" }));
+        };
+        try {
+          recorder.stop();
+        } catch {
+          resolve(new Blob(localChunksRef.current, { type: "audio/webm;codecs=opus" }));
+        }
+      });
+
+      await cleanup();
+
+      const blob = await blobPromise;
+      localChunksRef.current = [];
+
+      if (blob.size < 1000) {
+        setError("Recording was too short to transcribe.");
+        logger.warn("Local meeting recording too short", { size: blob.size }, "meeting");
+        return;
       }
-    } catch (err) {
-      setError((err as Error).message);
-      logger.error(
-        "Meeting transcription stop failed",
-        { error: (err as Error).message },
-        "meeting"
-      );
+
+      logger.info("Local meeting recording complete, transcribing...", { size: blob.size }, "meeting");
+      setIsLocalProcessing(true);
+
+      try {
+        const arrayBuffer = await blob.arrayBuffer();
+        const { localProvider } = getMeetingTranscriptionOptions() as { provider: "local"; localProvider: string };
+        const result = await window.electronAPI?.meetingTranscribeLocal?.(arrayBuffer, { localProvider });
+
+        if (result?.success && result.transcript) {
+          setTranscript(result.transcript);
+        } else {
+          setError(result?.error || "Transcription failed.");
+          logger.error("Local meeting transcription failed", { error: result?.error }, "meeting");
+        }
+      } catch (err) {
+        setError((err as Error).message);
+        logger.error("Local meeting transcription error", { error: (err as Error).message }, "meeting");
+      } finally {
+        setIsLocalProcessing(false);
+      }
+    } else {
+      // Cloud path: unchanged
+      await cleanup();
+
+      try {
+        const result = await window.electronAPI?.meetingTranscriptionStop?.();
+        if (result?.success && result.transcript) {
+          setTranscript(result.transcript);
+        } else if (result?.error) {
+          setError(result.error);
+        }
+      } catch (err) {
+        setError((err as Error).message);
+        logger.error(
+          "Meeting transcription stop failed",
+          { error: (err as Error).message },
+          "meeting"
+        );
+      }
     }
 
-    logger.info("Meeting transcription stopped", {}, "meeting");
+    logger.info("Meeting transcription stopped", { wasLocalMode }, "meeting");
   }, [cleanup]);
 
   const prepareTranscription = useCallback(async () => {
     if (isPreparedRef.current || isRecordingRef.current || isStartingRef.current) return;
-    if (preparePromiseRef.current) return; // already preparing
+    if (preparePromiseRef.current) return;
+
+    const options = getMeetingTranscriptionOptions();
+
+    // Local mode: nothing to warm up
+    if (options.provider === "local") {
+      isPreparedRef.current = true;
+      logger.info("Local meeting transcription ready (no warmup needed)", {}, "meeting");
+      return;
+    }
 
     logger.info("Meeting transcription preparing (pre-warming WebSocket)...", {}, "meeting");
 
     const promise = (async () => {
       try {
-        const result = await window.electronAPI?.meetingTranscriptionPrepare?.(
-          getMeetingTranscriptionOptions()
-        );
+        const result = await window.electronAPI?.meetingTranscriptionPrepare?.(options);
 
         if (result?.success) {
           isPreparedRef.current = true;
@@ -374,10 +483,99 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     setPartialTranscript("");
     setError(null);
 
+    const options = getMeetingTranscriptionOptions();
+
     // Set recording state immediately for instant UI feedback
     isRecordingRef.current = true;
     setIsRecording(true);
 
+    if (options.provider === "local") {
+      // Local recording path: capture audio with MediaRecorder
+      localModeRef.current = true;
+      localChunksRef.current = [];
+
+      try {
+        const [stream, micResult] = await Promise.all([
+          getSystemAudioStream(),
+          getMeetingMicConstraints().then((constraints) =>
+            navigator.mediaDevices.getUserMedia(constraints).catch((err) => {
+              logger.error(
+                "Mic capture failed, recording system audio only",
+                { error: (err as Error).message },
+                "meeting"
+              );
+              return null;
+            })
+          ),
+        ]);
+
+        // Abort if stop was called during setup
+        if (!isRecordingRef.current) {
+          stream?.getTracks().forEach((t) => t.stop());
+          micResult?.getTracks().forEach((t) => t.stop());
+          isStartingRef.current = false;
+          localModeRef.current = false;
+          return;
+        }
+
+        if (!stream) {
+          setError("Could not capture system audio. Check Screen Recording permission.");
+          micResult?.getTracks().forEach((t) => t.stop());
+          isRecordingRef.current = false;
+          isStartingRef.current = false;
+          setIsRecording(false);
+          localModeRef.current = false;
+          return;
+        }
+
+        streamRef.current = stream;
+        if (micResult) micStreamRef.current = micResult;
+
+        // Mix system audio + mic into a single stream for MediaRecorder
+        const mixContext = new AudioContext();
+        localMixContextRef.current = mixContext;
+        const destination = mixContext.createMediaStreamDestination();
+
+        const systemSource = mixContext.createMediaStreamSource(stream);
+        systemSource.connect(destination);
+
+        if (micResult) {
+          const micSource = mixContext.createMediaStreamSource(micResult);
+          micSource.connect(destination);
+        }
+
+        const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus"
+          : "audio/webm";
+
+        const recorder = new MediaRecorder(destination.stream, { mimeType });
+        localMediaRecorderRef.current = recorder;
+
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) localChunksRef.current.push(e.data);
+        };
+
+        recorder.start();
+        isStartingRef.current = false;
+
+        logger.info(
+          "Local meeting recording started",
+          { mimeType, hasMic: !!micResult },
+          "meeting"
+        );
+      } catch (err) {
+        logger.error("Local meeting recording setup failed", { error: (err as Error).message }, "meeting");
+        isRecordingRef.current = false;
+        isStartingRef.current = false;
+        setIsRecording(false);
+        localModeRef.current = false;
+        await cleanup();
+      }
+
+      return;
+    }
+
+    // Cloud (OpenAI Realtime) path — unchanged
     // Wait for in-flight prepare to reuse the warm connection
     if (preparePromiseRef.current) {
       logger.debug("Waiting for in-flight prepare to finish...", {}, "meeting");
@@ -388,7 +586,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
       const startTime = performance.now();
 
       const [startResult, stream, micResult] = await Promise.all([
-        window.electronAPI?.meetingTranscriptionStart?.(getMeetingTranscriptionOptions()),
+        window.electronAPI?.meetingTranscriptionStart?.(options),
         getSystemAudioStream(),
         getMeetingMicConstraints().then((constraints) =>
           navigator.mediaDevices.getUserMedia(constraints).catch((err) => {
@@ -570,6 +768,17 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     }
   }, [cleanup]);
 
+  // Auto-stop when the meeting app (e.g. Zoom) closes
+  useEffect(() => {
+    const unsubscribe = window.electronAPI?.onMeetingProcessEnded?.(() => {
+      if (isRecordingRef.current) {
+        logger.info("Meeting app closed — auto-stopping transcription", {}, "meeting");
+        void stopTranscription();
+      }
+    });
+    return () => unsubscribe?.();
+  }, [stopTranscription]);
+
   useEffect(() => {
     getMeetingWorkletBlobUrl();
   }, []);
@@ -585,6 +794,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
 
   return {
     isRecording,
+    isLocalProcessing,
     transcript,
     partialTranscript,
     error,

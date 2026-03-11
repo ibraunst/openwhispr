@@ -53,16 +53,23 @@ class TextEditMonitor extends EventEmitter {
     this._lastValue = null;
     this._stdoutBuffer = "";
     this.lastTargetPid = null;
+    this._axEnhancedPid = null;
   }
 
   /**
    * macOS: capture the active app's PID via NSWorkspace before the overlay steals focus.
    * Must be called at hotkey press time, BEFORE showDictationPanel()/mainWindow.show().
    * NSWorkspace.frontmostApplication correctly identifies the key window owner,
-   * ignoring panel-type windows like the OpenWhispr overlay.
+   * ignoring panel-type windows like the customWhispr overlay.
    */
   captureTargetPid() {
     if (process.platform !== "darwin") return;
+    // If a previous monitoring session left an app in screen-reader mode, reset it
+    // now — before the overlay appears — so Chromium stops routing focus to new windows.
+    if (this._axEnhancedPid) {
+      this._resetAccessibility(this._axEnhancedPid);
+      this._axEnhancedPid = null;
+    }
     const script =
       'ObjC.import("AppKit"); $.NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier';
     execFile("osascript", ["-l", "JavaScript", "-e", script], { timeout: 2000 }, (err, stdout) => {
@@ -177,6 +184,10 @@ class TextEditMonitor extends EventEmitter {
       this.process = null;
     }
     this.currentOriginalText = null;
+    if (process.platform === "darwin" && this._axEnhancedPid) {
+      this._resetAccessibility(this._axEnhancedPid);
+      this._axEnhancedPid = null;
+    }
   }
 
   _handleProcessStdoutChunk(chunk) {
@@ -238,8 +249,10 @@ class TextEditMonitor extends EventEmitter {
   /**
    * macOS: tell the target app that an assistive technology is present.
    * This causes Chromium/Electron apps to build their accessibility tree.
+   * Tracks the PID so we can reset it in stopMonitoring().
    */
   _enableAccessibility(pid) {
+    this._axEnhancedPid = pid;
     return new Promise((resolve) => {
       const script = MACOS_AX_ENABLE_SCRIPT(pid);
       execFile("osascript", ["-e", script], { timeout: 3000 }, (err) => {
@@ -252,6 +265,33 @@ class TextEditMonitor extends EventEmitter {
         }
         resolve();
       });
+    });
+  }
+
+  /**
+   * macOS: reset AXEnhancedUserInterface on the target app after monitoring.
+   * Chromium-based apps (Chrome, Electron) enter screen-reader mode when this
+   * attribute is set to true, and stay in that mode indefinitely. In screen-reader
+   * mode Chromium routes keyboard focus to new windows as they appear, which causes
+   * our overlay to steal focus from the target app on subsequent hotkey presses.
+   * Resetting to false restores normal focus behaviour.
+   */
+  _resetAccessibility(pid) {
+    const script =
+      `tell application "System Events"\n` +
+      `\tset targetProc to first application process whose unix id is ${pid}\n` +
+      `\ttry\n` +
+      `\t\tset value of attribute "AXEnhancedUserInterface" of targetProc to false\n` +
+      `\tend try\n` +
+      `end tell`;
+    execFile("osascript", ["-e", script], { timeout: 2000 }, (err) => {
+      if (err) {
+        debugLogger.debug("[TextEditMonitor] macOS: AXEnhancedUserInterface reset failed", {
+          error: err.message,
+        });
+      } else {
+        debugLogger.debug("[TextEditMonitor] macOS: AXEnhancedUserInterface reset", { pid });
+      }
     });
   }
 

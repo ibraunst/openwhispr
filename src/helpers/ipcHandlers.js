@@ -28,7 +28,7 @@ const AUDIO_MIME_TYPES = {
 };
 
 function buildMultipartBody(fileBuffer, fileName, contentType, fields = {}) {
-  const boundary = `----OpenWhispr${Date.now()}`;
+  const boundary = `----customWhispr${Date.now()}`;
   const parts = [];
 
   parts.push(
@@ -792,6 +792,18 @@ class IPCHandlers {
         return { success: true, filePath, count: transcriptions.length };
       } catch (error) {
         debugLogger.error("Error bulk exporting transcriptions", { error: error.message }, "transcription");
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle("save-transcript-to-file", async (event, { text, filename, directory }) => {
+      try {
+        const fs = require("fs");
+        const filePath = path.join(directory, filename);
+        fs.writeFileSync(filePath, text, "utf-8");
+        return { success: true, filePath };
+      } catch (error) {
+        debugLogger.error("Error auto-saving transcript to file", { error: error.message }, "transcription");
         return { success: false, error: error.message };
       }
     });
@@ -2032,9 +2044,9 @@ class IPCHandlers {
     })();
 
     const getApiUrl = () =>
-      process.env.OPENWHISPR_API_URL ||
-      process.env.VITE_OPENWHISPR_API_URL ||
-      runtimeEnv.VITE_OPENWHISPR_API_URL ||
+      process.env.CUSTOMWHISPR_API_URL ||
+      process.env.VITE_CUSTOMWHISPR_API_URL ||
+      runtimeEnv.VITE_CUSTOMWHISPR_API_URL ||
       "";
 
     const getAuthUrl = () =>
@@ -2098,7 +2110,7 @@ class IPCHandlers {
     ipcMain.handle("cloud-transcribe", async (event, audioBuffer, opts = {}) => {
       try {
         const apiUrl = getApiUrl();
-        if (!apiUrl) throw new Error("OpenWhispr API URL not configured");
+        if (!apiUrl) throw new Error("customWhispr API URL not configured");
 
         const cookieHeader = await getSessionCookies(event);
         if (!cookieHeader) throw new Error("No session cookies available");
@@ -2168,7 +2180,7 @@ class IPCHandlers {
     ipcMain.handle("meeting-transcribe-chain", async (event, blobUrl, opts = {}) => {
       try {
         const apiUrl = getApiUrl();
-        if (!apiUrl) throw new Error("OpenWhispr API URL not configured");
+        if (!apiUrl) throw new Error("customWhispr API URL not configured");
 
         const cookieHeader = await getSessionCookies(event);
         if (!cookieHeader) throw new Error("No session cookies available");
@@ -2243,7 +2255,7 @@ class IPCHandlers {
                   Cookie: cookieHeader,
                 });
                 if (data.statusCode === 200 && data.data?.text) {
-                  result = { text: data.data.text, source: "openwhispr", model: "cloud" };
+                  result = { text: data.data.text, source: "customwhispr", model: "cloud" };
                 }
               }
             }
@@ -2311,7 +2323,7 @@ class IPCHandlers {
       }
 
       const apiUrl = getApiUrl();
-      if (!apiUrl) throw new Error("OpenWhispr API URL not configured");
+      if (!apiUrl) throw new Error("customWhispr API URL not configured");
 
       const cookieHeader = await getSessionCookies(event);
       if (!cookieHeader) throw new Error("No session cookies available");
@@ -2468,6 +2480,57 @@ class IPCHandlers {
       }
     });
 
+    ipcMain.handle("meeting-transcribe-local", async (_event, audioBuffer, options = {}) => {
+      const localProvider =
+        options.localProvider || process.env.LOCAL_TRANSCRIPTION_PROVIDER || "whisper";
+
+      debugLogger.info(
+        "Local meeting transcription started",
+        { audioBlobSize: audioBuffer?.byteLength || 0, localProvider },
+        "meeting"
+      );
+
+      try {
+        let result;
+
+        if (localProvider === "nvidia" && this.parakeetManager) {
+          result = await this.parakeetManager.transcribeLocalParakeet(audioBuffer, {
+            model: options.parakeetModel || process.env.PARAKEET_MODEL || "parakeet-tdt-0.6b-v3",
+            language: options.language || null,
+          });
+        } else if (this.whisperManager) {
+          result = await this.whisperManager.transcribeLocalWhisper(audioBuffer, {
+            model: options.whisperModel || process.env.WHISPER_MODEL || "base",
+            language: options.language || null,
+            initialPrompt: options.initialPrompt || null,
+          });
+        } else {
+          return {
+            success: false,
+            error: "No local transcription engine available. Please download a model in Settings.",
+          };
+        }
+
+        if (!result?.success || !result?.text) {
+          return {
+            success: false,
+            error: result?.error || result?.message || "Transcription produced no output.",
+          };
+        }
+
+        debugLogger.info(
+          "Local meeting transcription complete",
+          { textLength: result.text.length },
+          "meeting"
+        );
+
+        return { success: true, transcript: result.text };
+      } catch (error) {
+        debugLogger.error("Local meeting transcription error", { error: error.message }, "meeting");
+        return { success: false, error: error.message };
+      }
+    });
+
     ipcMain.handle("dictation-realtime-warmup", async (event, options = {}) => {
       try {
         await connectDictationStreaming(event, options);
@@ -2517,7 +2580,7 @@ class IPCHandlers {
     ipcMain.handle("cloud-reason", async (event, text, opts = {}) => {
       try {
         const apiUrl = getApiUrl();
-        if (!apiUrl) throw new Error("OpenWhispr API URL not configured");
+        if (!apiUrl) throw new Error("customWhispr API URL not configured");
 
         const cookieHeader = await getSessionCookies(event);
         if (!cookieHeader) throw new Error("No session cookies available");
@@ -2600,7 +2663,7 @@ class IPCHandlers {
     ipcMain.handle("cloud-agent-stream", async (event, messages, opts = {}) => {
       try {
         const apiUrl = getApiUrl();
-        if (!apiUrl) throw new Error("OpenWhispr API URL not configured");
+        if (!apiUrl) throw new Error("customWhispr API URL not configured");
 
         const cookieHeader = await getSessionCookies(event);
         if (!cookieHeader) throw new Error("No session cookies available");
@@ -2666,7 +2729,7 @@ class IPCHandlers {
       async (event, text, audioDurationSeconds, opts = {}) => {
         try {
           const apiUrl = getApiUrl();
-          if (!apiUrl) throw new Error("OpenWhispr API URL not configured");
+          if (!apiUrl) throw new Error("customWhispr API URL not configured");
 
           const cookieHeader = await getSessionCookies(event);
           if (!cookieHeader) throw new Error("No session cookies available");
@@ -2714,7 +2777,7 @@ class IPCHandlers {
     ipcMain.handle("cloud-usage", async (event) => {
       try {
         const apiUrl = getApiUrl();
-        if (!apiUrl) throw new Error("OpenWhispr API URL not configured");
+        if (!apiUrl) throw new Error("customWhispr API URL not configured");
 
         const cookieHeader = await getSessionCookies(event);
         if (!cookieHeader) throw new Error("No session cookies available");
@@ -2741,7 +2804,7 @@ class IPCHandlers {
     const fetchStripeUrl = async (event, endpoint, errorPrefix, body) => {
       try {
         const apiUrl = getApiUrl();
-        if (!apiUrl) throw new Error("OpenWhispr API URL not configured");
+        if (!apiUrl) throw new Error("customWhispr API URL not configured");
 
         const cookieHeader = await getSessionCookies(event);
         if (!cookieHeader) throw new Error("No session cookies available");
@@ -2787,7 +2850,7 @@ class IPCHandlers {
     ipcMain.handle("get-stt-config", async (event) => {
       try {
         const apiUrl = getApiUrl();
-        if (!apiUrl) throw new Error("OpenWhispr API URL not configured");
+        if (!apiUrl) throw new Error("customWhispr API URL not configured");
 
         const cookieHeader = await getSessionCookies(event);
         if (!cookieHeader) throw new Error("No session cookies available");
@@ -2819,7 +2882,7 @@ class IPCHandlers {
       const CONCURRENCY_LIMIT = 5;
       try {
         const apiUrl = getApiUrl();
-        if (!apiUrl) throw new Error("OpenWhispr API URL not configured");
+        if (!apiUrl) throw new Error("customWhispr API URL not configured");
 
         const cookieHeader = await getSessionCookies(event);
         if (!cookieHeader) throw new Error("No session cookies available");
@@ -3047,7 +3110,7 @@ class IPCHandlers {
       try {
         const apiUrl = getApiUrl();
         if (!apiUrl) {
-          throw new Error("OpenWhispr API URL not configured");
+          throw new Error("customWhispr API URL not configured");
         }
 
         const cookieHeader = await getSessionCookies(event);
@@ -3080,7 +3143,7 @@ class IPCHandlers {
       try {
         const apiUrl = getApiUrl();
         if (!apiUrl) {
-          throw new Error("OpenWhispr API URL not configured");
+          throw new Error("customWhispr API URL not configured");
         }
 
         const cookieHeader = await getSessionCookies(event);
@@ -3118,7 +3181,7 @@ class IPCHandlers {
       try {
         const apiUrl = getApiUrl();
         if (!apiUrl) {
-          throw new Error("OpenWhispr API URL not configured");
+          throw new Error("customWhispr API URL not configured");
         }
 
         const cookieHeader = await getSessionCookies(event);
@@ -3191,25 +3254,25 @@ class IPCHandlers {
         // Parse lines
         const lines = envContent.split("\n");
         const logLevelIndex = lines.findIndex((line) =>
-          line.trim().startsWith("OPENWHISPR_LOG_LEVEL=")
+          line.trim().startsWith("CUSTOMWHISPR_LOG_LEVEL=")
         );
 
         if (enabled) {
           // Set to debug
           if (logLevelIndex !== -1) {
-            lines[logLevelIndex] = "OPENWHISPR_LOG_LEVEL=debug";
+            lines[logLevelIndex] = "CUSTOMWHISPR_LOG_LEVEL=debug";
           } else {
             // Add new line
             if (lines.length > 0 && lines[lines.length - 1] !== "") {
               lines.push("");
             }
             lines.push("# Debug logging setting");
-            lines.push("OPENWHISPR_LOG_LEVEL=debug");
+            lines.push("CUSTOMWHISPR_LOG_LEVEL=debug");
           }
         } else {
           // Remove or set to info
           if (logLevelIndex !== -1) {
-            lines[logLevelIndex] = "OPENWHISPR_LOG_LEVEL=info";
+            lines[logLevelIndex] = "CUSTOMWHISPR_LOG_LEVEL=info";
           }
         }
 
@@ -3217,7 +3280,7 @@ class IPCHandlers {
         fs.writeFileSync(envPath, lines.join("\n"), "utf8");
 
         // Update environment variable
-        process.env.OPENWHISPR_LOG_LEVEL = enabled ? "debug" : "info";
+        process.env.CUSTOMWHISPR_LOG_LEVEL = enabled ? "debug" : "info";
 
         // Refresh logger state
         debugLogger.refreshLogLevel();
@@ -3271,7 +3334,7 @@ class IPCHandlers {
     const fetchStreamingToken = async (event) => {
       const apiUrl = getApiUrl();
       if (!apiUrl) {
-        throw new Error("OpenWhispr API URL not configured");
+        throw new Error("customWhispr API URL not configured");
       }
 
       const cookieHeader = await getSessionCookies(event);
@@ -3472,7 +3535,7 @@ class IPCHandlers {
 
     const fetchDeepgramStreamingTokenFromWindow = async (windowId) => {
       const apiUrl = getApiUrl();
-      if (!apiUrl) throw new Error("OpenWhispr API URL not configured");
+      if (!apiUrl) throw new Error("customWhispr API URL not configured");
 
       const win = BrowserWindow.fromId(windowId);
       if (!win || win.isDestroyed()) throw new Error("Window not available for token refresh");
@@ -3502,7 +3565,7 @@ class IPCHandlers {
     const fetchDeepgramStreamingToken = async (event) => {
       const apiUrl = getApiUrl();
       if (!apiUrl) {
-        throw new Error("OpenWhispr API URL not configured");
+        throw new Error("customWhispr API URL not configured");
       }
 
       const cookieHeader = await getSessionCookies(event);

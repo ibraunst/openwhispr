@@ -64,7 +64,9 @@ interface NoteEditorProps {
   actionProcessingState?: ActionProcessingState;
   actionName?: string | null;
   isMeetingRecording?: boolean;
+  isMeetingLocalProcessing?: boolean;
   meetingTranscript?: string;
+  onStartMeetingRecording?: () => void;
   onStopMeetingRecording?: () => void;
   onGenerateNotes?: () => void;
 }
@@ -160,7 +162,9 @@ export default function NoteEditor({
   actionProcessingState,
   actionName,
   isMeetingRecording,
+  isMeetingLocalProcessing,
   meetingTranscript,
+  onStartMeetingRecording,
   onStopMeetingRecording,
   onGenerateNotes,
 }: NoteEditorProps) {
@@ -173,7 +177,7 @@ export default function NoteEditor({
   const isSignedIn = useSettingsStore((s) => s.isSignedIn);
   const cloudMode = useSettingsStore((s) => s.cloudTranscriptionMode);
   const useLocalWhisper = useSettingsStore((s) => s.useLocalWhisper);
-  const canStream = isSignedIn && cloudMode === "openwhispr" && !useLocalWhisper;
+  const canStream = isSignedIn && cloudMode === "customwhispr" && !useLocalWhisper;
 
   const [liveMode, setLiveMode] = useState(() => {
     const pref = localStorage.getItem("notesStreamingPreference");
@@ -819,8 +823,8 @@ export default function NoteEditor({
         />
         <DictationWidget
           isRecording={isRecording || !!isMeetingRecording}
-          isProcessing={isProcessing}
-          onStart={handleStartRecording}
+          isProcessing={isProcessing || !!isMeetingLocalProcessing}
+          onStart={onStartMeetingRecording && !isMeetingRecording ? onStartMeetingRecording : handleStartRecording}
           onStop={isMeetingRecording ? onStopMeetingRecording! : onStopRecording}
           actionPicker={
             isMeetingRecording

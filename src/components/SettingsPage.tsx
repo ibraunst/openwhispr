@@ -214,7 +214,7 @@ function TranscriptionSection({
 }: TranscriptionSectionProps) {
   const { t } = useTranslation();
   const isCustomMode = cloudTranscriptionMode === "byok" || useLocalWhisper;
-  const isCloudMode = isSignedIn && cloudTranscriptionMode === "openwhispr" && !useLocalWhisper;
+  const isCloudMode = isSignedIn && cloudTranscriptionMode === "customwhispr" && !useLocalWhisper;
 
   return (
     <div className="space-y-4">
@@ -230,7 +230,7 @@ function TranscriptionSection({
             <button
               onClick={() => {
                 if (!isCloudMode) {
-                  setCloudTranscriptionMode("openwhispr");
+                  setCloudTranscriptionMode("customwhispr");
                   setUseLocalWhisper(false);
                   updateTranscriptionSettings({ useLocalWhisper: false });
                   toast({
@@ -259,7 +259,7 @@ function TranscriptionSection({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium text-foreground">
-                    {t("settingsPage.transcription.openwhisprCloud")}
+                    {t("settingsPage.transcription.customwhisprCloud")}
                   </span>
                   {isCloudMode && (
                     <span className="text-xs font-medium text-primary bg-primary/10 dark:bg-primary/15 px-1.5 py-px rounded-sm">
@@ -268,7 +268,7 @@ function TranscriptionSection({
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground/80 mt-0.5">
-                  {t("settingsPage.transcription.openwhisprCloudDescription")}
+                  {t("settingsPage.transcription.customwhisprCloudDescription")}
                 </p>
               </div>
               <div
@@ -451,7 +451,7 @@ function AiModelsSection({
 }: AiModelsSectionProps) {
   const { t } = useTranslation();
   const isCustomMode = cloudReasoningMode === "byok";
-  const isCloudMode = isSignedIn && cloudReasoningMode === "openwhispr";
+  const isCloudMode = isSignedIn && cloudReasoningMode === "customwhispr";
 
   return (
     <div className="space-y-4">
@@ -481,7 +481,7 @@ function AiModelsSection({
                 <button
                   onClick={() => {
                     if (!isCloudMode) {
-                      setCloudReasoningMode("openwhispr");
+                      setCloudReasoningMode("customwhispr");
                       window.electronAPI?.llamaServerStop?.();
                       toast({
                         title: t("settingsPage.aiModels.toasts.switchedCloud.title"),
@@ -509,7 +509,7 @@ function AiModelsSection({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-medium text-foreground">
-                        {t("settingsPage.aiModels.openwhisprCloud")}
+                        {t("settingsPage.aiModels.customwhisprCloud")}
                       </span>
                       {isCloudMode && (
                         <span className="text-xs font-medium text-primary bg-primary/10 dark:bg-primary/15 px-1.5 py-px rounded-sm">
@@ -518,7 +518,7 @@ function AiModelsSection({
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground/80 mt-0.5">
-                      {t("settingsPage.aiModels.openwhisprCloudDescription")}
+                      {t("settingsPage.aiModels.customwhisprCloudDescription")}
                     </p>
                   </div>
                   <div
@@ -723,8 +723,8 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
   const [isRemovingModels, setIsRemovingModels] = useState(false);
   const cachePathHint =
     typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent)
-      ? "%USERPROFILE%\\.cache\\openwhispr"
-      : "~/.cache/openwhispr";
+      ? "%USERPROFILE%\\.cache\\customwhispr"
+      : "~/.cache/customwhispr";
 
   const {
     status: updateStatus,
@@ -1056,7 +1056,7 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
               description: t("settingsPage.developer.removeModels.failedDescription"),
             });
           } else {
-            window.dispatchEvent(new Event("openwhispr-models-cleared"));
+            window.dispatchEvent(new Event("customwhispr-models-cleared"));
             showAlertDialog({
               title: t("settingsPage.developer.removeModels.successTitle"),
               description: t("settingsPage.developer.removeModels.successDescription"),
@@ -1418,7 +1418,7 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
                         <Button
                           onClick={() =>
                             window.electronAPI?.openExternal?.(
-                              `https://openwhispr.com/get-started?plan=${billingPeriod}`
+                              `https://customwhispr.com/get-started?plan=${billingPeriod}`
                             )
                           }
                           size="sm"
@@ -1462,7 +1462,7 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
                         size="sm"
                         className="mt-2 w-full h-6 text-[10px]"
                         onClick={() =>
-                          window.electronAPI?.openExternal?.("mailto:gabe@openwhispr.com")
+                          window.electronAPI?.openExternal?.("mailto:gabe@customwhispr.com")
                         }
                       >
                         <Mail size={10} />
@@ -2153,7 +2153,7 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
                           }),
                           desc: t("settingsPage.general.waylandPaste.guide.group.step2Desc", {
                             defaultValue:
-                              "Group changes only take effect after a new login session. Log out of your desktop and log back in, then reopen OpenWhispr.",
+                              "Group changes only take effect after a new login session. Log out of your desktop and log back in, then reopen customWhispr.",
                           }),
                         },
                       ],

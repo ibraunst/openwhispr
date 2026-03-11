@@ -92,7 +92,7 @@ export default function AgentOverlay() {
     ]);
     setAgentState("streaming");
 
-    const isCloudAgent = settings.isSignedIn && settings.cloudAgentMode === "openwhispr";
+    const isCloudAgent = settings.isSignedIn && settings.cloudAgentMode === "customwhispr";
 
     try {
       let fullContent = "";

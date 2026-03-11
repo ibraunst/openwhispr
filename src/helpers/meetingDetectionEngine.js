@@ -28,6 +28,7 @@ class MeetingDetectionEngine {
 
     this.meetingProcessDetector.on("meeting-process-ended", (data) => {
       this.activeDetections.delete(`process:${data.processKey}`);
+      this.broadcastToWindows("meeting-process-ended", data);
     });
 
     this.audioActivityDetector.on("sustained-audio-detected", (data) => {

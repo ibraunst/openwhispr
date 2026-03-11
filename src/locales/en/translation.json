@@ -4,7 +4,7 @@
       "sectionTitle": "Language",
       "sectionDescription": "Set interface and transcription languages independently",
       "uiLabel": "Interface language",
-      "uiDescription": "Choose the language used throughout OpenWhispr's interface",
+      "uiDescription": "Choose the language used throughout customWhispr's interface",
       "transcriptionLabel": "Transcription language",
       "transcriptionDescription": "Choose the language you speak for more accurate transcription"
     }
@@ -15,12 +15,12 @@
       "hide": "Hide Dictation Panel"
     },
     "openControlPanel": "Open Control Panel",
-    "quit": "Quit OpenWhispr",
-    "tooltip": "OpenWhispr - Voice Dictation"
+    "quit": "Quit customWhispr",
+    "tooltip": "customWhispr - Voice Dictation"
   },
   "menu": {
-    "appLabel": "OpenWhispr",
-    "quit": "Quit OpenWhispr",
+    "appLabel": "customWhispr",
+    "quit": "Quit customWhispr",
     "speech": "Speech",
     "help": "Help",
     "learnMore": "Learn More",
@@ -37,8 +37,8 @@
       "message": "Failed to open the link in your browser:\n{{url}}\n\nError: {{error}}"
     },
     "loadFailure": {
-      "title": "OpenWhispr failed to load",
-      "message": "OpenWhispr could not load its UI.",
+      "title": "customWhispr failed to load",
+      "message": "customWhispr could not load its UI.",
       "detail": {
         "window": "Window: {{windowName}}",
         "error": "Error {{errorCode}}: {{errorDescription}}",
@@ -49,17 +49,17 @@
   },
   "startup": {
     "error": {
-      "title": "OpenWhispr Startup Error",
+      "title": "customWhispr Startup Error",
       "message": "Failed to start the application:\n\n{{error}}\n\nPlease report this issue."
     },
     "globeHotkey": {
       "title": "Globe Hotkey Unavailable",
-      "message": "OpenWhispr could not activate the Globe key hotkey.",
+      "message": "customWhispr could not activate the Globe key hotkey.",
       "details": {
         "unknown": "Unknown error occurred while starting the Globe listener.",
         "fallback": "The Globe key shortcut will remain disabled; existing keyboard shortcuts continue to work.",
         "devHint": "Run `npm run compile:globe` and rebuild the app to regenerate the listener binary.",
-        "reinstallHint": "Try reinstalling OpenWhispr or contact support if the issue persists."
+        "reinstallHint": "Try reinstalling customWhispr or contact support if the issue persists."
       }
     }
   },
@@ -79,9 +79,9 @@
     "accessibility": "Accessibility settings are not available on this platform."
   },
   "titleBar": {
-    "quitTitle": "Quit OpenWhispr",
-    "quitConfirmTitle": "Quit OpenWhispr?",
-    "quitConfirmDescription": "This will close OpenWhispr and stop background processes.",
+    "quitTitle": "Quit customWhispr",
+    "quitConfirmTitle": "Quit customWhispr?",
+    "quitConfirmDescription": "This will close customWhispr and stop background processes.",
     "quit": "Quit",
     "cancel": "Cancel"
   },
@@ -157,7 +157,7 @@
       "accessibilityTitle": "Accessibility",
       "accessibilityDescription": "Enable in System Settings by toggling it on",
       "testAndGrant": "Test & Grant",
-      "requiredForApp": "Required for OpenWhispr to work",
+      "requiredForApp": "Required for customWhispr to work",
       "microphoneRequired": "Microphone access required",
       "openSystemSettings": "Open System Settings",
       "screenRecordingTitle": "Screen Recording",
@@ -189,7 +189,7 @@
       "problemTitle": "Update ran into a problem",
       "problemDescription": "We couldn't complete the update. Please try again later.",
       "installTitle": "Install Update",
-      "installDescription": "OpenWhispr will restart to apply the update. Any in-progress work will be saved.",
+      "installDescription": "customWhispr will restart to apply the update. Any in-progress work will be saved.",
       "couldNotInstallTitle": "Couldn't install update",
       "couldNotInstallDescription": "Something went wrong. Please try again.",
       "couldNotDownloadTitle": "Couldn't download update",
@@ -257,8 +257,8 @@
       "exportError": "Export failed"
     },
     "cloudMigration": {
-      "title": "Welcome to OpenWhispr Pro",
-      "description": "Your 7-day free trial is active! We've switched your transcription to OpenWhispr Cloud for faster, more accurate results. Your previous settings are saved - switch back anytime in Settings.",
+      "title": "Welcome to customWhispr Pro",
+      "description": "Your 7-day free trial is active! We've switched your transcription to customWhispr Cloud for faster, more accurate results. Your previous settings are saved - switch back anytime in Settings.",
       "viewSettings": "View Settings"
     },
     "aiCta": {
@@ -410,7 +410,7 @@
       "micErrors": {
         "accessFailed": "Microphone access failed. Please try again.",
         "noMicrophones": "No microphones were detected. Connect or select a microphone in {{settingsPath}}.",
-        "permissionDenied": "Permission was denied. Open {{privacyPath}} and allow OpenWhispr.",
+        "permissionDenied": "Permission was denied. Open {{privacyPath}} and allow customWhispr.",
         "couldNotStart": "Could not start the selected microphone. Choose an input device in {{settingsPath}}, then rerun the test.",
         "noActiveInput": "No active audio input was found. Pick a microphone in {{settingsPath}}.",
         "unknown": "Microphone access failed: {{error}}. Select a different input device and try again.",
@@ -439,8 +439,8 @@
         "accessibilityNeeded": "Please grant accessibility permissions in System Settings to enable automatic text pasting.",
         "windowsReady": "Windows does not require special permissions for automatic pasting. You're all set!",
         "linuxReadyWithMethod": "Automatic pasting is available using {{method}}. You are all set!",
-        "waylandClipboardMode": "Automatic pasting is not available on this Wayland session. OpenWhispr will copy text to your clipboard and you can paste with Ctrl+V.",
-        "optionalPasteTool": "For automatic pasting, install {{tool}}:\n\n{{installCmd}}{{waylandNote}}\n\nWithout this, you can still use OpenWhispr - text will be copied to your clipboard and you can paste with Ctrl+V."
+        "waylandClipboardMode": "Automatic pasting is not available on this Wayland session. customWhispr will copy text to your clipboard and you can paste with Ctrl+V.",
+        "optionalPasteTool": "For automatic pasting, install {{tool}}:\n\n{{installCmd}}{{waylandNote}}\n\nWithout this, you can still use customWhispr - text will be copied to your clipboard and you can paste with Ctrl+V."
       },
       "alerts": {
         "accessibilityNeeded": "Accessibility permissions needed! Please grant them in System Settings."
@@ -453,7 +453,7 @@
         "defaultPasteTool": "xdotool",
         "xdotoolXwayland": "xdotool (XWayland apps)"
       },
-      "accessibilityTestText": "OpenWhispr accessibility test",
+      "accessibilityTestText": "customWhispr accessibility test",
       "warning": {
         "messages": {
           "macos": "Check Sound settings to select your input device",
@@ -523,7 +523,7 @@
       "continueWithGoogle": "Continue with Google"
     },
     "welcomeSubtitle": "Dictate anywhere using your voice",
-    "welcomeTitle": "Welcome to OpenWhispr",
+    "welcomeTitle": "Welcome to customWhispr",
     "sessionExpired": "Session expired. Please restart the sign-up process."
   },
   "calendar": {
@@ -771,10 +771,10 @@
     "recheckChecking": "Checking...",
     "title": "Automatic Pasting",
     "usingMethodPrefix": "Using",
-    "waylandClipboardDescription": "Automatic pasting isn't available on this Wayland session. OpenWhispr will copy text to your clipboard so you can paste manually with Ctrl+V.",
+    "waylandClipboardDescription": "Automatic pasting isn't available on this Wayland session. customWhispr will copy text to your clipboard so you can paste manually with Ctrl+V.",
     "waylandClipboardTitle": "Clipboard Mode on Wayland",
     "windowsReady": "Windows supports automatic pasting out of the box. No setup required!",
-    "withoutToolPrefix": "Without this tool, OpenWhispr will copy text to your clipboard. You can then paste manually with Ctrl+V.",
+    "withoutToolPrefix": "Without this tool, customWhispr will copy text to your clipboard. You can then paste manually with Ctrl+V.",
     "xwaylandAppsOnly": "automatic pasting works for XWayland apps only"
   },
   "promptStudio": {
@@ -824,7 +824,7 @@
       "none": "None",
       "outputLabel": "Output",
       "processing": "Processing...",
-      "openwhisprCloud": "OpenWhispr Cloud",
+      "customwhisprCloud": "customWhispr Cloud",
       "providerLabel": "Provider",
       "run": "Run Test",
       "customEndpoint": "Custom endpoint"
@@ -1058,13 +1058,13 @@
       "description": "Clean up transcriptions, handle commands, and fix errors while preserving your tone.",
       "enableTextCleanup": "Enable text cleanup",
       "enableTextCleanupDescription": "AI improves transcription quality",
-      "openwhisprCloud": "OpenWhispr Cloud",
-      "openwhisprCloudDescription": "Just works. No configuration needed.",
+      "customwhisprCloud": "customWhispr Cloud",
+      "customwhisprCloudDescription": "Just works. No configuration needed.",
       "title": "AI Text Enhancement",
       "toasts": {
         "switchedCloud": {
-          "description": "Text enhancement will use OpenWhispr's cloud service.",
-          "title": "Switched to OpenWhispr Cloud"
+          "description": "Text enhancement will use customWhispr's cloud service.",
+          "title": "Switched to customWhispr Cloud"
         },
         "switchedCustom": {
           "description": "Configure your own provider and API key.",
@@ -1127,7 +1127,7 @@
       "appearance": {
         "auto": "Auto",
         "dark": "Dark",
-        "description": "Control how OpenWhispr looks",
+        "description": "Control how customWhispr looks",
         "light": "Light",
         "theme": "Theme",
         "themeDescription": "Choose light, dark, or match your system",
@@ -1168,9 +1168,9 @@
       },
       "startup": {
         "launchAtLogin": "Launch at login",
-        "launchAtLoginDescription": "Start OpenWhispr automatically when you log in",
+        "launchAtLoginDescription": "Start customWhispr automatically when you log in",
         "title": "Startup",
-        "description": "Control how OpenWhispr behaves when it launches",
+        "description": "Control how customWhispr behaves when it launches",
         "startMinimized": "Start minimized",
         "startMinimizedDescription": "Launch without showing the control panel window"
       },
@@ -1216,7 +1216,7 @@
           "group": {
             "step1Title": "Add your user to the input group",
             "step2Title": "Log out and back in",
-            "step2Desc": "Group changes only take effect after a new login session. Log out of your desktop and log back in, then reopen OpenWhispr."
+            "step2Desc": "Group changes only take effect after a new login session. Log out of your desktop and log back in, then reopen customWhispr."
           },
           "service": {
             "step1Title": "Create the service directory",
@@ -1260,7 +1260,7 @@
           },
           "installUpdate": {
             "confirmText": "Install & Restart",
-            "description": "OpenWhispr will restart to apply the update.",
+            "description": "customWhispr will restart to apply the update.",
             "title": "Install Update"
           },
           "noUpdates": {
@@ -1291,13 +1291,13 @@
     "permissions": {
       "accessibilityDescription": "Required for auto-paste to work after transcription",
       "accessibilityTitle": "Accessibility",
-      "description": "Test and manage system permissions required for OpenWhispr to function correctly",
+      "description": "Test and manage system permissions required for customWhispr to function correctly",
       "microphoneDescription": "Required for voice recording and dictation",
       "microphoneTitle": "Microphone",
       "resetAccessibility": {
-        "description": "This will remove OpenWhispr from accessibility permissions. You'll need to re-grant access in System Settings > Privacy & Security > Accessibility.",
+        "description": "This will remove customWhispr from accessibility permissions. You'll need to re-grant access in System Settings > Privacy & Security > Accessibility.",
         "label": "Reset accessibility permissions",
-        "rowDescription": "Fix issues after reinstalling or rebuilding the app by removing and re-adding OpenWhispr in System Settings",
+        "rowDescription": "Fix issues after reinstalling or rebuilding the app by removing and re-adding customWhispr in System Settings",
         "title": "Reset Accessibility Permissions"
       },
       "optional": "Optional",
@@ -1317,7 +1317,7 @@
       "description": "Control what data leaves your device. Everything is off by default.",
       "title": "Privacy",
       "usageAnalytics": "Usage analytics",
-      "usageAnalyticsDescription": "Help us improve OpenWhispr by sharing anonymous performance metrics. We never send transcription content — only timing and error data.",
+      "usageAnalyticsDescription": "Help us improve customWhispr by sharing anonymous performance metrics. We never send transcription content — only timing and error data.",
       "audioRetention": "Audio Retention",
       "audioRetentionDescription": "Store audio recordings locally for re-transcription and download. Files are automatically deleted after the retention period.",
       "audioRetentionDisabled": "Disabled",
@@ -1355,14 +1355,14 @@
     "transcription": {
       "customSetup": "Custom Setup",
       "customSetupDescription": "Use your own provider and API key.",
-      "description": "Choose how OpenWhispr transcribes your voice",
-      "openwhisprCloud": "OpenWhispr Cloud",
-      "openwhisprCloudDescription": "Just works. No configuration needed.",
+      "description": "Choose how customWhispr transcribes your voice",
+      "customwhisprCloud": "customWhispr Cloud",
+      "customwhisprCloudDescription": "Just works. No configuration needed.",
       "title": "Speech to Text",
       "toasts": {
         "switchedCloud": {
-          "description": "Transcription will use OpenWhispr's cloud service.",
-          "title": "Switched to OpenWhispr Cloud"
+          "description": "Transcription will use customWhispr's cloud service.",
+          "title": "Switched to customWhispr Cloud"
         },
         "switchedCustom": {
           "description": "Configure your own provider and API key.",
@@ -1521,7 +1521,7 @@
     },
     "tryAgain": "Try Again",
     "card": {
-      "brand": "OpenWhispr",
+      "brand": "customWhispr",
       "signalId": "Signal ID",
       "audioSignature": "Your audio signature",
       "stop": "Stop",
@@ -1609,7 +1609,7 @@
       "setupTitle": "Set up transcription",
       "setupDescription": "Choose how to transcribe your audio. This also applies to live dictation.",
       "continue": "Continue",
-      "openwhisprCloud": "OpenWhispr Cloud",
+      "customwhisprCloud": "customWhispr Cloud",
       "custom": "Custom",
       "selectFolder": "Select folder",
       "transcriptionFailed": "Transcription failed",
@@ -1618,23 +1618,24 @@
       "noProviderDescription": "Add an API key or download a local model to start transcribing.",
       "noProviderAction": "Open Transcription Settings",
       "fileTooLarge": "This file exceeds the 500 MB limit.",
-      "paidPlanRequired": "Cloud transcription for files over 25 MB requires a paid plan. Large files are processed with OpenWhispr Cloud for reliable, high-quality results.",
+      "paidPlanRequired": "Cloud transcription for files over 25 MB requires a paid plan. Large files are processed with customWhispr Cloud for reliable, high-quality results.",
       "largeFileNote": "Large files are split and transcribed in parallel.",
       "chunkProgress": "Transcribing part {{completed}} of {{total}}...",
       "byokTooLarge": "Third-party API keys only support files up to 25 MB.",
-      "byokTooLargeDetail": "For files over 25 MB, OpenWhispr Cloud handles splitting, parallel processing, and reassembly — so you get reliable results without depending on third-party provider limits.",
-      "byokTooLargeNeedsAccount": "Create an account and upgrade to a paid plan to transcribe larger files with OpenWhispr Cloud.",
-      "byokTooLargeNeedsUpgrade": "Upgrade to a paid plan to transcribe larger files with OpenWhispr Cloud.",
-      "switchToCloudForLargeFiles": "Switch to OpenWhispr Cloud to transcribe this file.",
+      "byokTooLargeDetail": "For files over 25 MB, customWhispr Cloud handles splitting, parallel processing, and reassembly — so you get reliable results without depending on third-party provider limits.",
+      "byokTooLargeNeedsAccount": "Create an account and upgrade to a paid plan to transcribe larger files with customWhispr Cloud.",
+      "byokTooLargeNeedsUpgrade": "Upgrade to a paid plan to transcribe larger files with customWhispr Cloud.",
+      "switchToCloudForLargeFiles": "Switch to customWhispr Cloud to transcribe this file.",
       "createAccount": "Create Account",
       "upgrade": "Upgrade",
-      "switchToCloud": "OpenWhispr Cloud"
+      "switchToCloud": "customWhispr Cloud"
     },
     "meeting": {
       "title": "Meeting Notes",
       "description": "Transcriptions & structured summaries",
       "comingSoon": "Coming Soon",
-      "back": "Back"
+      "back": "Back",
+      "localProcessing": "Transcribing recording..."
     },
     "empty": {
       "title": "No notes here yet",
@@ -1763,7 +1764,12 @@
         "description": "The selected hotkey could not be registered. Please choose a different one in settings."
       },
       "addedToDict": "Added {{words}} to your dictionary",
-      "undo": "Undo"
+      "undo": "Undo",
+      "permissionsRevoked": {
+        "title": "Permissions reset",
+        "description": "Permissions were reset after update — tap to restore",
+        "action": "Open Settings"
+      }
     },
     "mic": {
       "hotkeyToSpeak": "Press {{hotkey}} to speak",
@@ -1798,8 +1804,8 @@
       "systemPrompt": "System Prompt",
       "systemPromptDescription": "Custom instructions for the agent",
       "systemPromptPlaceholder": "Enter custom system prompt...",
-      "openwhisprCloud": "OpenWhispr Cloud",
-      "openwhisprCloudDescription": "Use OpenWhispr's cloud AI for agent conversations",
+      "customwhisprCloud": "customWhispr Cloud",
+      "customwhisprCloudDescription": "Use customWhispr's cloud AI for agent conversations",
       "customSetup": "Custom Setup (BYOK)",
       "customSetupDescription": "Use your own API keys and choose your preferred model"
     },
@@ -1841,7 +1847,7 @@
       "disconnectConfirm": "Disconnect {{email}}?",
       "disconnectDescription": "Meeting notes will no longer be recorded from this calendar.",
       "screenRecordingRequired": "Screen Recording Permission Required",
-      "screenRecordingDescription": "To transcribe meetings, OpenWhispr needs the Screen Recording permission to capture audio from other apps. You'll be taken to System Settings to enable it.",
+      "screenRecordingDescription": "To transcribe meetings, customWhispr needs the Screen Recording permission to capture audio from other apps. You'll be taken to System Settings to enable it.",
       "openSettings": "Open System Settings"
     },
     "plan": {
@@ -1860,11 +1866,11 @@
       "description": "We're still working on how best to build this into the product. Feedback is very welcome!",
       "freeTier": "Free plan: 5 hours / month",
       "proTier": "Pro plan: 20 hours / month",
-      "feedback": "Need more than 20 hours? Contact gabe@openwhispr.com"
+      "feedback": "Need more than 20 hours? Contact gabe@customwhispr.com"
     },
     "notABot": {
-      "title": "OpenWhispr is a meeting recorder, not a bot",
-      "description": "OpenWhispr captures audio directly from your system — it never joins your meetings as a participant. Just connect your calendar and take notes as normal."
+      "title": "customWhispr is a meeting recorder, not a bot",
+      "description": "customWhispr captures audio directly from your system — it never joins your meetings as a participant. Just connect your calendar and take notes as normal."
     }
   },
   "upcoming": {
@@ -1881,7 +1887,7 @@
     "signInDescription": "Create an account or sign in to record and transcribe meetings.",
     "connectCalendar": "Connect your calendar",
     "connectCalendarDescription": "Link your Google Calendar to see upcoming meetings and automatically record notes.",
-    "notABot": "OpenWhispr records using your system audio — it never joins meetings as a bot.",
+    "notABot": "customWhispr records using your system audio — it never joins meetings as a bot.",
     "connectCalendarButton": "Connect Calendar"
   },
   "notesView": {

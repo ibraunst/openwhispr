@@ -36,7 +36,7 @@ export default function AgentModeSettings() {
     setCloudReasoningBaseUrl,
   } = useSettingsStore();
 
-  const isCloudMode = isSignedIn && cloudAgentMode === "openwhispr";
+  const isCloudMode = isSignedIn && cloudAgentMode === "customwhispr";
   const isCustomMode = cloudAgentMode === "byok";
 
   return (
@@ -75,7 +75,7 @@ export default function AgentModeSettings() {
               <SettingsPanelRow>
                 <button
                   onClick={() => {
-                    if (!isCloudMode) setCloudAgentMode("openwhispr");
+                    if (!isCloudMode) setCloudAgentMode("customwhispr");
                   }}
                   className="w-full flex items-center gap-3 text-left cursor-pointer group"
                 >
@@ -95,7 +95,7 @@ export default function AgentModeSettings() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-medium text-foreground">
-                        {t("agentMode.settings.openwhisprCloud")}
+                        {t("agentMode.settings.customwhisprCloud")}
                       </span>
                       {isCloudMode && (
                         <span className="text-xs font-medium text-primary bg-primary/10 dark:bg-primary/15 px-1.5 py-px rounded-sm">
@@ -104,7 +104,7 @@ export default function AgentModeSettings() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground/80 mt-0.5">
-                      {t("agentMode.settings.openwhisprCloudDescription")}
+                      {t("agentMode.settings.customwhisprCloudDescription")}
                     </p>
                   </div>
                   <div

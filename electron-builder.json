@@ -2,8 +2,8 @@
   "appId": "com.herotools.customwhispr",
   "productName": "customWhispr",
   "protocols": {
-    "name": "OpenWhispr Protocol",
-    "schemes": ["openwhispr"]
+    "name": "customWhispr Protocol",
+    "schemes": ["customwhispr"]
   },
   "directories": {
     "output": "dist"
@@ -88,6 +88,7 @@
     "src/assets/**/*",
     "resources/bin/macos-globe-listener",
     "resources/bin/macos-fast-paste",
+    "resources/bin/macos-media-remote",
     "resources/bin/macos-mic-check",
     "resources/bin/macos-text-monitor",
     "resources/bin/linux-fast-paste",
@@ -121,8 +122,8 @@
     "notarize": true,
     "extendInfo": {
       "LSUIElement": false,
-      "NSMicrophoneUsageDescription": "OpenWhispr needs microphone access for speech-to-text transcription.",
-      "NSAccessibilityUsageDescription": "OpenWhispr needs accessibility permissions to paste transcribed text into other applications."
+      "NSMicrophoneUsageDescription": "customWhispr needs microphone access for speech-to-text transcription.",
+      "NSAccessibilityUsageDescription": "customWhispr needs accessibility permissions to paste transcribed text into other applications."
     }
   },
   "win": {
@@ -197,7 +198,7 @@
     "include": "resources/nsis/cleanup-models.nsh"
   },
   "dmg": {
-    "title": "OpenWhispr",
+    "title": "customWhispr",
     "icon": "src/assets/icon.icns",
     "window": {
       "width": 540,
@@ -206,8 +207,8 @@
   },
   "publish": {
     "provider": "github",
-    "owner": "OpenWhispr",
-    "repo": "openwhispr",
+    "owner": "customWhispr",
+    "repo": "customwhispr",
     "private": false,
     "releaseType": "draft"
   }

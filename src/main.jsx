@@ -27,21 +27,21 @@ let root = null;
 
 const VALID_CHANNELS = new Set(["development", "staging", "production"]);
 const DEFAULT_OAUTH_PROTOCOL_BY_CHANNEL = {
-  development: "openwhispr-dev",
-  staging: "openwhispr-staging",
-  production: "openwhispr",
+  development: "customwhispr-dev",
+  staging: "customwhispr-staging",
+  production: "customwhispr",
 };
 const inferredChannel = import.meta.env.DEV ? "development" : "production";
-const configuredChannel = (import.meta.env.VITE_OPENWHISPR_CHANNEL || inferredChannel)
+const configuredChannel = (import.meta.env.VITE_CUSTOMWHISPR_CHANNEL || inferredChannel)
   .trim()
   .toLowerCase();
 const APP_CHANNEL = VALID_CHANNELS.has(configuredChannel) ? configuredChannel : inferredChannel;
 const defaultOAuthProtocol =
   DEFAULT_OAUTH_PROTOCOL_BY_CHANNEL[APP_CHANNEL] || DEFAULT_OAUTH_PROTOCOL_BY_CHANNEL.production;
-const OAUTH_PROTOCOL = (import.meta.env.VITE_OPENWHISPR_PROTOCOL || defaultOAuthProtocol)
+const OAUTH_PROTOCOL = (import.meta.env.VITE_CUSTOMWHISPR_PROTOCOL || defaultOAuthProtocol)
   .trim()
   .toLowerCase();
-const OAUTH_AUTH_BRIDGE_URL = (import.meta.env.VITE_OPENWHISPR_AUTH_BRIDGE_URL || "").trim();
+const OAUTH_AUTH_BRIDGE_URL = (import.meta.env.VITE_CUSTOMWHISPR_AUTH_BRIDGE_URL || "").trim();
 
 // OAuth callback handler: when the browser redirects back from Google/Neon Auth
 // with a session verifier, redirect to the configured custom protocol so Electron
@@ -244,7 +244,7 @@ function isOAuthBrowserRedirect() {
       <div id="oauth-container" role="status" aria-live="polite">
         <div class="auth-card">
           <div class="logo-wrapper">
-            <svg class="logo" viewBox="0 0 1024 1024" width="64" height="64" aria-label="OpenWhispr">
+            <svg class="logo" viewBox="0 0 1024 1024" width="64" height="64" aria-label="customWhispr">
               <rect width="1024" height="1024" rx="241" fill="#2056DF"/>
               <circle cx="512" cy="512" r="314" fill="#2056DF" stroke="white" stroke-width="74"/>
               <path d="M512 383V641" stroke="white" stroke-width="74" stroke-linecap="round"/>
@@ -435,7 +435,7 @@ function LoadingFallback({ message }) {
         <svg
           viewBox="0 0 1024 1024"
           className="w-12 h-12 drop-shadow-[0_2px_8px_rgba(37,99,235,0.18)] dark:drop-shadow-[0_2px_12px_rgba(100,149,237,0.25)]"
-          aria-label="OpenWhispr"
+          aria-label="customWhispr"
         >
           <rect width="1024" height="1024" rx="241" fill="#2056DF" />
           <circle cx="512" cy="512" r="314" fill="#2056DF" stroke="white" strokeWidth="74" />

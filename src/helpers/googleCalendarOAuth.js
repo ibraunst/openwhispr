@@ -7,12 +7,12 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CALENDAR_SCOPE = "openid email https://www.googleapis.com/auth/calendar.readonly";
 const OAUTH_TIMEOUT_MS = 120000;
-const DEFAULT_DESKTOP_CALLBACK_URL = "https://openwhispr.com/auth/desktop-callback";
+const DEFAULT_DESKTOP_CALLBACK_URL = "https://customwhispr.com/auth/desktop-callback";
 
 const PROTOCOL_BY_CHANNEL = {
-  development: "openwhispr-dev",
-  staging: "openwhispr-staging",
-  production: "openwhispr",
+  development: "customwhispr-dev",
+  staging: "customwhispr-staging",
+  production: "customwhispr",
 };
 
 class GoogleCalendarOAuth {
@@ -29,11 +29,11 @@ class GoogleCalendarOAuth {
   }
 
   _getDesktopCallbackUrl() {
-    return process.env.VITE_OPENWHISPR_OAUTH_CALLBACK_URL || DEFAULT_DESKTOP_CALLBACK_URL;
+    return process.env.VITE_CUSTOMWHISPR_OAUTH_CALLBACK_URL || DEFAULT_DESKTOP_CALLBACK_URL;
   }
 
   _getProtocol() {
-    const channel = process.env.OPENWHISPR_CHANNEL || "production";
+    const channel = process.env.CUSTOMWHISPR_CHANNEL || "production";
     return PROTOCOL_BY_CHANNEL[channel] || PROTOCOL_BY_CHANNEL.production;
   }
 

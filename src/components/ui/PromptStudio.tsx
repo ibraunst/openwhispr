@@ -37,7 +37,7 @@ const PROVIDER_CONFIG: Record<string, ProviderConfig> = {
   anthropic: { label: "Anthropic", apiKeyStorageKey: "anthropicApiKey" },
   gemini: { label: "Gemini", apiKeyStorageKey: "geminiApiKey" },
   groq: { label: "Groq", apiKeyStorageKey: "groqApiKey" },
-  openwhispr: { label: "OpenWhispr Cloud" },
+  customwhispr: { label: "customWhispr Cloud" },
   custom: {
     label: "Custom endpoint",
     apiKeyStorageKey: "openaiApiKey",
@@ -130,7 +130,7 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
 
     try {
       const reasoningProvider = isCloudMode
-        ? "openwhispr"
+        ? "customwhispr"
         : reasoningModel
           ? getModelProvider(reasoningModel)
           : "openai";
@@ -360,7 +360,7 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
         {activeTab === "test" &&
           (() => {
             const reasoningProvider = isCloudMode
-              ? "openwhispr"
+              ? "customwhispr"
               : reasoningModel
                 ? getModelProvider(reasoningModel)
                 : "openai";
@@ -369,7 +369,7 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
             };
 
             const displayModel = isCloudMode
-              ? t("promptStudio.test.openwhisprCloud")
+              ? t("promptStudio.test.customwhisprCloud")
               : reasoningModel || t("promptStudio.test.none");
             const displayProvider =
               reasoningProvider === "custom"

@@ -55,6 +55,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   exportAllTranscriptions: (format, defaultDirectory) =>
     ipcRenderer.invoke("export-all-transcriptions", { format, defaultDirectory }),
   selectExportDirectory: () => ipcRenderer.invoke("select-export-directory"),
+  saveTranscriptToFile: (text, filename, directory) =>
+    ipcRenderer.invoke("save-transcript-to-file", { text, filename, directory }),
 
   // Dictionary functions
   getDictionary: () => ipcRenderer.invoke("db-get-dictionary"),
@@ -376,7 +378,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openWhisperModelsFolder: () => ipcRenderer.invoke("open-whisper-models-folder"),
   authClearSession: () => ipcRenderer.invoke("auth-clear-session"),
 
-  // OpenWhispr Cloud API
+  // customWhispr Cloud API
   cloudTranscribe: (audioBuffer, opts) => ipcRenderer.invoke("cloud-transcribe", audioBuffer, opts),
   cloudReason: (text, opts) => ipcRenderer.invoke("cloud-reason", text, opts),
   cloudStreamingUsage: (text, audioDurationSeconds, opts) =>
@@ -461,6 +463,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("meeting-transcription-start", options),
   meetingTranscriptionSend: (buffer) => ipcRenderer.send("meeting-transcription-send", buffer),
   meetingTranscriptionStop: () => ipcRenderer.invoke("meeting-transcription-stop"),
+  meetingTranscribeLocal: (audioBuffer, options) =>
+    ipcRenderer.invoke("meeting-transcribe-local", audioBuffer, options),
+  onMeetingProcessEnded: registerListener(
+    "meeting-process-ended",
+    (callback) => (_event, data) => callback(data)
+  ),
   onMeetingTranscriptionPartial: registerListener(
     "meeting-transcription-partial",
     (callback) => (_event, data) => callback(data)
@@ -524,6 +532,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeListener("hotkey-registration-failed", listener);
   },
   onWindowsPushToTalkUnavailable: registerListener("windows-ptt-unavailable"),
+  onPermissionsNeedReauth: registerListener(
+    "permissions-need-reauth",
+    (callback) => (_event, revoked) => callback(revoked)
+  ),
 
   // Notify main process of activation mode changes (for Windows Push-to-Talk)
   notifyActivationModeChanged: (mode) => ipcRenderer.send("activation-mode-changed", mode),
