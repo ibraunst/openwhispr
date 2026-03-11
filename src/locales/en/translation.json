@@ -1871,6 +1871,16 @@
     "notABot": {
       "title": "customWhispr is a meeting recorder, not a bot",
       "description": "customWhispr captures audio directly from your system — it never joins your meetings as a participant. Just connect your calendar and take notes as normal."
+    },
+    "appleCalendar": {
+      "title": "Apple Calendar",
+      "description": "Automatically detect meetings from your Calendar.app and start recording.",
+      "connect": "Connect",
+      "connected": "Connected",
+      "disconnect": "Disconnect",
+      "disconnectConfirm": "Disconnect Apple Calendar?",
+      "disconnectDescription": "Meeting detection from Apple Calendar will be disabled.",
+      "connecting": "Requesting access..."
     }
   },
   "upcoming": {

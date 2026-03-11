@@ -1796,6 +1796,16 @@
     "notABot": {
       "title": "O customWhispr é um gravador de reuniões, não um bot",
       "description": "O customWhispr captura áudio diretamente do seu sistema — ele nunca entra nas suas reuniões como participante. Basta conectar seu calendário e fazer anotações normalmente."
+    },
+    "appleCalendar": {
+      "title": "Calendário Apple",
+      "description": "Detecte reuniões automaticamente do Calendário.app e inicie a gravação.",
+      "connect": "Conectar",
+      "connected": "Conectado",
+      "disconnect": "Desconectar",
+      "disconnectConfirm": "Desconectar Calendário Apple?",
+      "disconnectDescription": "A detecção de reuniões do Calendário Apple será desativada.",
+      "connecting": "Solicitando acesso..."
     }
   },
   "upcoming": {

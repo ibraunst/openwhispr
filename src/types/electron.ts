@@ -1059,6 +1059,21 @@ declare global {
       onAgentStreamChunk?: (callback: (chunk: string) => void) => () => void;
       onAgentStreamDone?: (callback: () => void) => () => void;
 
+      // Calendar helpers
+      getImminentCalendarEvent?: () => Promise<{
+        event: { summary: string; start_time: string; end_time: string } | null;
+      }>;
+
+      // Apple Calendar
+      acalConnect?: () => Promise<{ success: boolean; error?: string }>;
+      acalDisconnect?: () => Promise<{ success: boolean; error?: string }>;
+      acalGetStatus?: () => Promise<{ connected: boolean }>;
+      onAcalConnectionChanged?: (callback: (data: { connected: boolean }) => void) => () => void;
+      onAcalMeetingStarting?: (callback: (data: { event: any }) => void) => () => void;
+      onAcalMeetingEnded?: (callback: (data: { event: any }) => void) => () => void;
+      onAcalStartRecording?: (callback: (data: { event: any }) => void) => () => void;
+      onAcalEventsSynced?: (callback: (data: Record<string, never>) => void) => () => void;
+
       // Google Calendar
       gcalStartOAuth?: () => Promise<{ success: boolean; email?: string; error?: string }>;
       gcalDisconnect?: (email?: string) => Promise<{ success: boolean; error?: string }>;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { FlaskConical, Info, Loader2, Mail, Plus, Unlink } from "lucide-react";
+import { CalendarDays, FlaskConical, Info, Loader2, Mail, Plus, Unlink } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { SettingsPanel, SettingsPanelRow } from "./ui/SettingsSection";
@@ -9,13 +9,18 @@ import { useSettingsStore } from "../stores/settingsStore";
 import { useScreenRecordingPermission } from "../hooks/useScreenRecordingPermission";
 import googleCalendarIcon from "../assets/icons/google-calendar.svg";
 
+const isMacOS = navigator.userAgent.includes("Mac");
+
 export default function IntegrationsView() {
   const { t } = useTranslation();
-  const { gcalAccounts, setGcalAccounts } = useSettingsStore();
+  const { gcalAccounts, setGcalAccounts, appleCalendarConnected, setAppleCalendarConnected } =
+    useSettingsStore();
   const [isConnecting, setIsConnecting] = useState(false);
   const [disconnectingEmail, setDisconnectingEmail] = useState<string | null>(null);
   const [confirmDisconnectEmail, setConfirmDisconnectEmail] = useState<string | null>(null);
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
+  const [isConnectingAcal, setIsConnectingAcal] = useState(false);
+  const [confirmDisconnectAcal, setConfirmDisconnectAcal] = useState(false);
   const screenRecording = useScreenRecordingPermission();
   const hasAccounts = gcalAccounts.length > 0;
 
@@ -77,6 +82,36 @@ export default function IntegrationsView() {
     );
     return () => unsub?.();
   }, [setGcalAccounts]);
+
+  const handleAcalConnect = useCallback(async () => {
+    setIsConnectingAcal(true);
+    try {
+      const result = await window.electronAPI?.acalConnect?.();
+      if (result?.success) {
+        setAppleCalendarConnected(true);
+      }
+    } finally {
+      setIsConnectingAcal(false);
+    }
+  }, [setAppleCalendarConnected]);
+
+  const handleAcalDisconnect = useCallback(async () => {
+    try {
+      await window.electronAPI?.acalDisconnect?.();
+      setAppleCalendarConnected(false);
+    } catch {
+      // failure is non-fatal; state remains unchanged
+    }
+  }, [setAppleCalendarConnected]);
+
+  useEffect(() => {
+    const unsub = window.electronAPI?.onAcalConnectionChanged?.(
+      (data: { connected: boolean }) => {
+        setAppleCalendarConnected(data.connected);
+      }
+    );
+    return () => unsub?.();
+  }, [setAppleCalendarConnected]);
 
   return (
     <div className="max-w-lg mx-auto w-full px-6 py-6 space-y-6">
@@ -163,6 +198,57 @@ export default function IntegrationsView() {
         )}
       </SettingsPanel>
 
+      {isMacOS && (
+        <SettingsPanel>
+          <SettingsPanelRow>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-white dark:bg-surface-raised shadow-[0_0_0_1px_rgba(0,0,0,0.04)] dark:shadow-none dark:border dark:border-white/5 flex items-center justify-center shrink-0">
+                <CalendarDays className="w-5 h-5 text-red-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground">
+                  {t("integrations.appleCalendar.title")}
+                </p>
+                <p className="text-xs text-muted-foreground/70 mt-0.5 leading-relaxed">
+                  {t("integrations.appleCalendar.description")}
+                </p>
+              </div>
+              {!appleCalendarConnected && (
+                <Button
+                  size="sm"
+                  onClick={handleAcalConnect}
+                  disabled={isConnectingAcal}
+                  className="shrink-0"
+                >
+                  {isConnectingAcal ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    t("integrations.appleCalendar.connect")
+                  )}
+                </Button>
+              )}
+              {appleCalendarConnected && (
+                <Badge variant="success" className="shrink-0">
+                  {t("integrations.appleCalendar.connected")}
+                </Badge>
+              )}
+            </div>
+          </SettingsPanelRow>
+
+          {appleCalendarConnected && (
+            <SettingsPanelRow>
+              <button
+                onClick={() => setConfirmDisconnectAcal(true)}
+                className="flex items-center gap-2 pl-12 text-xs text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <Unlink className="h-3.5 w-3.5" />
+                {t("integrations.appleCalendar.disconnect")}
+              </button>
+            </SettingsPanelRow>
+          )}
+        </SettingsPanel>
+      )}
+
       {!hasAccounts && (
         <div className="rounded-lg border border-border/40 dark:border-border-subtle/40 bg-muted/20 dark:bg-surface-2/30 p-4 flex items-start gap-3">
           <Info size={15} className="text-primary/60 shrink-0 mt-0.5" />
@@ -217,6 +303,16 @@ export default function IntegrationsView() {
         description={t("integrations.googleCalendar.screenRecordingDescription")}
         confirmText={t("integrations.googleCalendar.openSettings")}
         onConfirm={screenRecording.openSettings}
+      />
+
+      <ConfirmDialog
+        open={confirmDisconnectAcal}
+        onOpenChange={setConfirmDisconnectAcal}
+        title={t("integrations.appleCalendar.disconnectConfirm")}
+        description={t("integrations.appleCalendar.disconnectDescription")}
+        confirmText={t("integrations.appleCalendar.disconnect")}
+        variant="destructive"
+        onConfirm={handleAcalDisconnect}
       />
     </div>
   );

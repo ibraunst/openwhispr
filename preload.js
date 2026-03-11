@@ -612,6 +612,34 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Desktop audio capture
   getDesktopSources: (types) => ipcRenderer.invoke("get-desktop-sources", types),
 
+  // Calendar helpers
+  getImminentCalendarEvent: () => ipcRenderer.invoke("get-imminent-calendar-event"),
+
+  // Apple Calendar
+  acalConnect: () => ipcRenderer.invoke("acal-connect"),
+  acalDisconnect: () => ipcRenderer.invoke("acal-disconnect"),
+  acalGetStatus: () => ipcRenderer.invoke("acal-get-status"),
+  onAcalConnectionChanged: registerListener(
+    "acal-connection-changed",
+    (callback) => (_event, data) => callback(data)
+  ),
+  onAcalMeetingStarting: registerListener(
+    "acal-meeting-starting",
+    (callback) => (_event, data) => callback(data)
+  ),
+  onAcalMeetingEnded: registerListener(
+    "acal-meeting-ended",
+    (callback) => (_event, data) => callback(data)
+  ),
+  onAcalStartRecording: registerListener(
+    "acal-start-recording",
+    (callback) => (_event, data) => callback(data)
+  ),
+  onAcalEventsSynced: registerListener(
+    "acal-events-synced",
+    (callback) => (_event, data) => callback(data)
+  ),
+
   // Google Calendar event listeners
   onGcalMeetingStarting: registerListener(
     "gcal-meeting-starting",

@@ -1792,6 +1792,16 @@
     "notABot": {
       "title": "customWhispr はミーティング録音ツールであり、ボットではありません",
       "description": "customWhispr はシステムから直接オーディオをキャプチャします — 参加者としてミーティングに参加することはありません。カレンダーを接続して、通常通りノートを取るだけです。"
+    },
+    "appleCalendar": {
+      "title": "Appleカレンダー",
+      "description": "カレンダー.appからミーティングを自動検出して録音を開始します。",
+      "connect": "接続",
+      "connected": "接続済み",
+      "disconnect": "切断",
+      "disconnectConfirm": "Appleカレンダーを切断しますか？",
+      "disconnectDescription": "Appleカレンダーからのミーティング検出が無効になります。",
+      "connecting": "アクセスをリクエスト中..."
     }
   },
   "upcoming": {

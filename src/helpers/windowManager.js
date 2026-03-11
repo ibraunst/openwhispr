@@ -964,7 +964,7 @@ class WindowManager {
 
     this._notificationTimeout = setTimeout(() => {
       this.dismissMeetingNotification();
-    }, 30000);
+    }, 60000);
 
     this.notificationWindow.on("closed", () => {
       this.notificationWindow = null;

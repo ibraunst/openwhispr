@@ -1796,6 +1796,16 @@
     "notABot": {
       "title": "customWhispr est un enregistreur de réunions, pas un bot",
       "description": "customWhispr capture l'audio directement depuis votre système — il ne rejoint jamais vos réunions en tant que participant. Connectez simplement votre calendrier et prenez vos notes normalement."
+    },
+    "appleCalendar": {
+      "title": "Calendrier Apple",
+      "description": "Détectez automatiquement vos réunions depuis Calendrier.app et lancez l'enregistrement.",
+      "connect": "Connecter",
+      "connected": "Connecté",
+      "disconnect": "Déconnecter",
+      "disconnectConfirm": "Déconnecter Calendrier Apple ?",
+      "disconnectDescription": "La détection des réunions depuis Calendrier Apple sera désactivée.",
+      "connecting": "Demande d'accès..."
     }
   },
   "upcoming": {

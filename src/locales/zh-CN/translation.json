@@ -1792,6 +1792,16 @@
     "notABot": {
       "title": "customWhispr 是会议录制工具，不是机器人",
       "description": "customWhispr 直接从您的系统捕获音频 — 它不会以参与者身份加入您的会议。只需连接日历，正常记录笔记即可。"
+    },
+    "appleCalendar": {
+      "title": "苹果日历",
+      "description": "自动检测日历.app中的会议并开始录制。",
+      "connect": "连接",
+      "connected": "已连接",
+      "disconnect": "断开连接",
+      "disconnectConfirm": "断开苹果日历连接？",
+      "disconnectDescription": "将禁用来自苹果日历的会议检测。",
+      "connecting": "正在请求访问权限..."
     }
   },
   "upcoming": {

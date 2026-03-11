@@ -173,6 +173,7 @@ const WindowsKeyManager = require("./src/helpers/windowsKeyManager");
 const TextEditMonitor = require("./src/helpers/textEditMonitor");
 const WhisperCudaManager = require("./src/helpers/whisperCudaManager");
 const GoogleCalendarManager = require("./src/helpers/googleCalendarManager");
+const AppleCalendarManager = require("./src/helpers/appleCalendarManager");
 const MeetingProcessDetector = require("./src/helpers/meetingProcessDetector");
 const AudioActivityDetector = require("./src/helpers/audioActivityDetector");
 const MeetingDetectionEngine = require("./src/helpers/meetingDetectionEngine");
@@ -195,6 +196,7 @@ let windowsKeyManager = null;
 let textEditMonitor = null;
 let whisperCudaManager = null;
 let googleCalendarManager = null;
+let appleCalendarManager = null;
 let meetingDetectionEngine = null;
 let ipcHandlers = null;
 let globeKeyAlertShown = false;
@@ -260,8 +262,10 @@ function initializeCoreManagers() {
   }
   parakeetManager = new ParakeetManager();
   googleCalendarManager = new GoogleCalendarManager(databaseManager, windowManager);
+  appleCalendarManager = new AppleCalendarManager(databaseManager, windowManager);
   meetingDetectionEngine = new MeetingDetectionEngine(
     googleCalendarManager,
+    appleCalendarManager,
     new MeetingProcessDetector(),
     new AudioActivityDetector(),
     windowManager,
@@ -286,6 +290,7 @@ function initializeCoreManagers() {
     textEditMonitor,
     whisperCudaManager,
     googleCalendarManager,
+    appleCalendarManager,
     meetingDetectionEngine,
     getTrayManager: () => trayManager,
   });
@@ -332,6 +337,23 @@ function initializeDeferredManagers() {
   }
 
   googleCalendarManager.start();
+
+  // Auto-start Apple Calendar if previously connected
+  if (process.platform === "darwin") {
+    try {
+      const acalConnected = databaseManager.getSetting("appleCalendarConnected", "false");
+      if (acalConnected === "true") {
+        appleCalendarManager.start();
+      }
+    } catch (err) {
+      debugLogger.warn(
+        "Apple Calendar auto-start check failed (non-fatal)",
+        { error: err?.message },
+        "acal"
+      );
+    }
+  }
+
   meetingDetectionEngine.start();
 }
 
@@ -615,6 +637,7 @@ async function startApp() {
 
   app.on("browser-window-focus", () => {
     if (googleCalendarManager) googleCalendarManager.syncOnFocus();
+    if (appleCalendarManager) appleCalendarManager.syncOnFocus();
   });
 
   const { powerMonitor } = require("electron");
@@ -622,6 +645,7 @@ async function startApp() {
     if (googleCalendarManager) {
       googleCalendarManager.onWakeFromSleep();
     }
+    if (appleCalendarManager) appleCalendarManager.onWakeFromSleep();
   });
 
   // Non-blocking server pre-warming
@@ -1074,6 +1098,9 @@ if (gotSingleInstanceLock) {
     }
     if (googleCalendarManager) {
       googleCalendarManager.stop();
+    }
+    if (appleCalendarManager) {
+      appleCalendarManager.stop();
     }
     if (ipcHandlers) {
       ipcHandlers._cleanupTextEditMonitor();

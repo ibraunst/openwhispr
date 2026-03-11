@@ -102,6 +102,7 @@ class IPCHandlers {
     this.getTrayManager = managers.getTrayManager;
     this.whisperCudaManager = managers.whisperCudaManager;
     this.googleCalendarManager = managers.googleCalendarManager;
+    this.appleCalendarManager = managers.appleCalendarManager;
     this.meetingDetectionEngine = managers.meetingDetectionEngine;
     this.sessionId = crypto.randomUUID();
     this.assemblyAiStreaming = null;
@@ -3934,6 +3935,81 @@ class IPCHandlers {
         };
       } catch (error) {
         return { success: false, events: [] };
+      }
+    });
+
+    // Apple Calendar
+    ipcMain.handle("acal-connect", async () => {
+      try {
+        if (!this.appleCalendarManager) {
+          return { success: false, error: "Apple Calendar not available on this platform" };
+        }
+        const result = await this.appleCalendarManager.connect();
+        try {
+          this.databaseManager.setSetting("appleCalendarConnected", "true");
+        } catch (settingErr) {
+          debugLogger.warn(
+            "Failed to persist Apple Calendar connection state",
+            { error: settingErr.message },
+            "acal"
+          );
+        }
+        return result;
+      } catch (error) {
+        debugLogger.error("Apple Calendar connect failed", { error: error.message }, "calendar");
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle("acal-disconnect", async () => {
+      try {
+        if (!this.appleCalendarManager) {
+          return { success: false, error: "Apple Calendar not available on this platform" };
+        }
+        this.appleCalendarManager.disconnect();
+        try {
+          this.databaseManager.setSetting("appleCalendarConnected", "false");
+        } catch (settingErr) {
+          debugLogger.warn(
+            "Failed to persist Apple Calendar disconnection state",
+            { error: settingErr.message },
+            "acal"
+          );
+        }
+        return { success: true };
+      } catch (error) {
+        debugLogger.error("Apple Calendar disconnect failed", { error: error.message }, "calendar");
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle("acal-get-status", async () => {
+      try {
+        if (!this.appleCalendarManager) {
+          return { connected: false };
+        }
+        return this.appleCalendarManager.getConnectionStatus();
+      } catch (error) {
+        return { connected: false };
+      }
+    });
+
+    ipcMain.handle("get-imminent-calendar-event", async () => {
+      try {
+        const gcalState = this.googleCalendarManager?.getActiveMeetingState?.();
+        const acalState = this.appleCalendarManager?.getActiveMeetingState?.();
+        const events = [
+          ...(gcalState?.activeEvents || []),
+          ...(gcalState?.upcomingEvents || []),
+          ...(acalState?.activeEvents || []),
+          ...(acalState?.upcomingEvents || []),
+        ];
+        if (events.length === 0) return { event: null };
+        events.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+        return { event: events[0] };
+      } catch (error) {
+        debugLogger.error("get-imminent-calendar-event failed", { error: error.message }, "calendar");
+        return { event: null };
       }
     });
 

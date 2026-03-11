@@ -6,12 +6,14 @@ const IMMINENT_THRESHOLD_MS = 5 * 60 * 1000;
 class MeetingDetectionEngine {
   constructor(
     googleCalendarManager,
+    appleCalendarManager,
     meetingProcessDetector,
     audioActivityDetector,
     windowManager,
     databaseManager
   ) {
     this.googleCalendarManager = googleCalendarManager;
+    this.appleCalendarManager = appleCalendarManager;
     this.meetingProcessDetector = meetingProcessDetector;
     this.audioActivityDetector = audioActivityDetector;
     this.windowManager = windowManager;
@@ -36,6 +38,18 @@ class MeetingDetectionEngine {
     });
   }
 
+  _getCalendarState() {
+    const gcal = this.googleCalendarManager?.getActiveMeetingState?.();
+    const acal = this.appleCalendarManager?.getActiveMeetingState?.();
+    const activeMeeting = gcal?.activeMeeting || acal?.activeMeeting;
+    const upcomingEvents = [
+      ...(gcal?.upcomingEvents || []),
+      ...(acal?.upcomingEvents || []),
+    ].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+    if (!activeMeeting && upcomingEvents.length === 0) return null;
+    return { activeMeeting, upcomingEvents };
+  }
+
   _handleDetection(source, key, data) {
     const detectionId = `${source}:${key}`;
 
@@ -53,7 +67,7 @@ class MeetingDetectionEngine {
       return;
     }
 
-    const calendarState = this.googleCalendarManager?.getActiveMeetingState?.();
+    const calendarState = this._getCalendarState();
     if (calendarState) {
       if (calendarState.activeMeeting) {
         debugLogger.info(

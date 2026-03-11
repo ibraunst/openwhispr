@@ -332,6 +332,13 @@ class DatabaseManager {
         if (!err.message.includes("duplicate column")) throw err;
       }
 
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        )
+      `);
+
       return true;
     } catch (error) {
       debugLogger.error("Database initialization failed", { error: error.message }, "database");
@@ -1205,6 +1212,45 @@ class DatabaseManager {
       return { success: true };
     } catch (error) {
       debugLogger.error("Error removing calendar events", { error: error.message }, "gcal");
+      throw error;
+    }
+  }
+
+  clearEventsByCalendarId(calendarId) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      this.db.prepare("DELETE FROM calendar_events WHERE calendar_id = ?").run(calendarId);
+      return { success: true };
+    } catch (error) {
+      debugLogger.error(
+        "Error clearing events by calendar",
+        { calendarId, error: error.message },
+        "calendar"
+      );
+      throw error;
+    }
+  }
+
+  getSetting(key, defaultValue = null) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      const row = this.db.prepare("SELECT value FROM settings WHERE key = ?").get(key);
+      return row ? row.value : defaultValue;
+    } catch (error) {
+      debugLogger.error("Error getting setting", { key, error: error.message }, "database");
+      return defaultValue;
+    }
+  }
+
+  setSetting(key, value) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      this.db
+        .prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)")
+        .run(key, String(value));
+      return { success: true };
+    } catch (error) {
+      debugLogger.error("Error setting setting", { key, error: error.message }, "database");
       throw error;
     }
   }

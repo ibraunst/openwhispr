@@ -100,6 +100,7 @@ export interface SettingsState
   gcalAccounts: GoogleCalendarAccount[];
   gcalConnected: boolean;
   gcalEmail: string;
+  appleCalendarConnected: boolean;
   meetingProcessDetection: boolean;
   meetingAudioDetection: boolean;
   panelStartPosition: "bottom-right" | "center" | "bottom-left";
@@ -149,6 +150,7 @@ export interface SettingsState
   setFloatingIconAutoHide: (enabled: boolean) => void;
   setStartMinimized: (enabled: boolean) => void;
   setGcalAccounts: (accounts: GoogleCalendarAccount[]) => void;
+  setAppleCalendarConnected: (value: boolean) => void;
   setMeetingProcessDetection: (value: boolean) => void;
   setMeetingAudioDetection: (value: boolean) => void;
   setPanelStartPosition: (position: "bottom-right" | "center" | "bottom-left") => void;
@@ -300,6 +302,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       gcalEmail: accounts[0]?.email ?? "",
     };
   })(),
+  appleCalendarConnected: readBoolean("appleCalendarConnected", false),
   meetingProcessDetection: readBoolean("meetingProcessDetection", true),
   meetingAudioDetection: readBoolean("meetingAudioDetection", true),
   panelStartPosition: (() => {
@@ -318,7 +321,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   cloudAgentMode: readString("cloudAgentMode", "customwhispr"),
 
   exportDirectory: readString("exportDirectory", ""),
-  defaultExportFormat: (readString("defaultExportFormat", "txt") === "md" ? "md" : "txt") as
+  defaultExportFormat: (readString("defaultExportFormat", "md") === "md" ? "md" : "txt") as
     | "txt"
     | "md",
 
@@ -475,6 +478,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       gcalEmail: accounts[0]?.email ?? "",
     });
   },
+  setAppleCalendarConnected: createBooleanSetter("appleCalendarConnected"),
   setMeetingProcessDetection: createBooleanSetter("meetingProcessDetection"),
   setMeetingAudioDetection: createBooleanSetter("meetingAudioDetection"),
   setPanelStartPosition: (position: "bottom-right" | "center" | "bottom-left") => {
