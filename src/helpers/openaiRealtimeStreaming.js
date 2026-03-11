@@ -252,7 +252,10 @@ class OpenAIRealtimeStreaming {
           // Server VAD may have already committed all audio, causing an
           // empty-buffer error. Resolve immediately instead of waiting for timeout.
           this.onError = (err) => {
-            if (err?.message?.includes("buffer too small") || err?.message?.includes("commit_empty")) {
+            if (
+              err?.message?.includes("buffer too small") ||
+              err?.message?.includes("commit_empty")
+            ) {
               done();
             } else {
               prevOnError?.(err);

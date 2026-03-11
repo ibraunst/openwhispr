@@ -200,6 +200,10 @@
       "weeklyTitle": "Límite semanal alcanzado",
       "weeklyDescription": "Tu límite se restablece de forma continua. Mejora a Pro o usa tu propia clave API para uso ilimitado."
     },
+    "accessibilityMissing": {
+      "title": "Se necesitan permisos de accesibilidad",
+      "description": "Hemos detectado que OpenWhispr necesita permisos de accesibilidad para funcionar correctamente. Actívalos a continuación."
+    },
     "billing": {
       "pastDueTitle": "No pudimos procesar tu pago",
       "pastDueDescription": "No te preocupes: estás en el plan gratuito por ahora. Actualiza tu pago en Ajustes para volver a Pro.",
@@ -1593,7 +1597,13 @@
         "createDescription": "Define una acción personalizada con tu propio prompt de IA. Puedes editar o agregar más después en los ajustes.",
         "created": "¡Creada!"
       },
-      "getStarted": "Comenzar"
+      "getStarted": "Comenzar",
+      "systemAudio": {
+        "title": "Audio del sistema",
+        "description": "Captura audio de reuniones y otras aplicaciones junto con tu micrófono.",
+        "grant": "Conceder permiso",
+        "enabled": "Activado"
+      }
     },
     "realtimeBanner": {
       "message": "Transcripción en tiempo real disponible con Pro",
@@ -1697,6 +1707,10 @@
         "title": "Permisos restablecidos",
         "description": "Los permisos se restablecieron tras la actualización — toca para restaurar",
         "action": "Abrir ajustes"
+      },
+      "accessibilityMissing": {
+        "title": "Se requieren permisos de accesibilidad",
+        "description": "OpenWhispr necesita permisos de accesibilidad para detectar tu atajo y pegar texto. Actívalos en el Panel de Control."
       }
     },
     "mic": {

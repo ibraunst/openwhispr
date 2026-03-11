@@ -200,6 +200,10 @@
       "weeklyTitle": "已达到周限额",
       "weeklyDescription": "你的额度按滚动方式重置。升级到 Pro 或使用自己的 API Key 可不受限制。"
     },
+    "accessibilityMissing": {
+      "title": "需要辅助功能权限",
+      "description": "我们检测到 OpenWhispr 需要辅助功能权限才能正常工作。请在下方启用。"
+    },
     "billing": {
       "pastDueTitle": "我们无法处理你的付款",
       "pastDueDescription": "别担心——你目前使用的是免费版。在设置中更新支付方式即可恢复 Pro 版。",
@@ -1589,7 +1593,13 @@
         "createDescription": "使用你自己的 AI 提示词定义自定义操作。你可以随时在设置中编辑或添加更多。",
         "created": "已创建！"
       },
-      "getStarted": "开始使用"
+      "getStarted": "开始使用",
+      "systemAudio": {
+        "title": "系统音频",
+        "description": "在使用麦克风的同时捕获会议和其他应用程序的音频。",
+        "grant": "授予权限",
+        "enabled": "已启用"
+      }
     },
     "realtimeBanner": {
       "message": "Pro 版可使用实时转录",
@@ -1693,6 +1703,10 @@
         "title": "权限已重置",
         "description": "更新后权限已被重置 — 点击以恢复",
         "action": "打开设置"
+      },
+      "accessibilityMissing": {
+        "title": "需要辅助功能权限",
+        "description": "OpenWhispr 需要辅助功能权限来检测快捷键和粘贴文本。请在控制面板中启用。"
       }
     },
     "mic": {

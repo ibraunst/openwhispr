@@ -69,6 +69,7 @@ interface NoteEditorProps {
   onStartMeetingRecording?: () => void;
   onStopMeetingRecording?: () => void;
   onGenerateNotes?: () => void;
+  liveTranscript?: string;
 }
 
 interface DictationRange {
@@ -167,6 +168,7 @@ export default function NoteEditor({
   onStartMeetingRecording,
   onStopMeetingRecording,
   onGenerateNotes,
+  liveTranscript,
 }: NoteEditorProps) {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<MeetingViewMode>("raw");
@@ -369,7 +371,7 @@ export default function NoteEditor({
   const segmentContainerRef = useRef<HTMLDivElement>(null);
   const [indicatorStyle, setIndicatorStyle] = useState<React.CSSProperties>({ opacity: 0 });
 
-  const effectiveTranscript = meetingTranscript || note.transcript || "";
+  const effectiveTranscript = liveTranscript || meetingTranscript || note.transcript || "";
   const hasMeetingTranscript = !isMeetingRecording && !!effectiveTranscript;
 
   const updateSegmentIndicator = useCallback(() => {
@@ -459,6 +461,8 @@ export default function NoteEditor({
     onStartRecording();
   }, [onStartRecording, syncSelectionRefs]);
 
+  const pendingTranscriptSwitchRef = useRef(false);
+
   useEffect(() => {
     if (isRecording && !prevRecordingRef.current) {
       const selStart = cursorPosRef.current;
@@ -470,6 +474,8 @@ export default function NoteEditor({
         committedChars: 0,
       };
       if (viewMode === "enhanced") setViewMode("raw");
+      // Mark that we should switch to transcript view once transcript arrives
+      pendingTranscriptSwitchRef.current = true;
     }
     if (!isRecording && prevRecordingRef.current) {
       // Only clear if no progressive text was inserted (non-streaming case).
@@ -482,6 +488,14 @@ export default function NoteEditor({
     }
     prevRecordingRef.current = isRecording;
   }, [isRecording]);
+
+  // Auto-switch to transcript view after recording stops and transcript is ready
+  useEffect(() => {
+    if (!isRecording && !isProcessing && pendingTranscriptSwitchRef.current && liveTranscript) {
+      pendingTranscriptSwitchRef.current = false;
+      setViewMode("transcript");
+    }
+  }, [isRecording, isProcessing, liveTranscript]);
 
   // Partial effect: only replace the active partial zone [partialStart, end].
   // Committed text before partialStart is untouched — users can edit it freely.

@@ -327,7 +327,8 @@ function MainApp() {
       localStorage.getItem("skipAuth") === "true";
 
     // Valid session proves prior onboarding — restore flag if localStorage was wiped
-    if (!onboardingCompleted && isSignedIn) {
+    const isReturningUser = !onboardingCompleted && isSignedIn;
+    if (isReturningUser) {
       localStorage.setItem("onboardingCompleted", "true");
     }
 
@@ -338,6 +339,12 @@ function MainApp() {
         setShowOnboarding(true);
       } else if (!isSignedIn && !authSkipped) {
         setNeedsReauth(true);
+      }
+
+      // Returning users who skipped onboarding may lack accessibility permissions.
+      // Trigger an immediate check so the main process sends accessibility-missing.
+      if (isReturningUser) {
+        window.electronAPI?.checkAccessibilityTrusted?.();
       }
     }
 

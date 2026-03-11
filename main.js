@@ -1,4 +1,12 @@
-const { app, globalShortcut, BrowserWindow, dialog, ipcMain, session } = require("electron");
+const {
+  app,
+  globalShortcut,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  session,
+  systemPreferences,
+} = require("electron");
 const path = require("path");
 const http = require("http");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
@@ -848,6 +856,33 @@ async function startApp() {
     });
 
     globeKeyManager.start();
+
+    // After starting globe-listener, check if accessibility is granted.
+    // If not, notify both windows so they can prompt the user.
+    const checkAndNotifyAccessibility = () => {
+      if (!systemPreferences.isTrustedAccessibilityClient(false)) {
+        debugLogger.info("[Accessibility] macOS accessibility not trusted — notifying renderers");
+        if (isLiveWindow(windowManager.controlPanelWindow)) {
+          windowManager.controlPanelWindow.webContents.send("accessibility-missing");
+        }
+        if (isLiveWindow(windowManager.mainWindow)) {
+          windowManager.mainWindow.webContents.send("accessibility-missing");
+        }
+      }
+    };
+
+    // Check shortly after startup (give windows time to load)
+    setTimeout(checkAndNotifyAccessibility, 3000);
+
+    // Allow renderer to request an accessibility check (e.g. on sign-in).
+    // Also sends accessibility-missing events if untrusted.
+    ipcMain.handle("check-accessibility-trusted", () => {
+      const trusted = systemPreferences.isTrustedAccessibilityClient(false);
+      if (!trusted) {
+        checkAndNotifyAccessibility();
+      }
+      return trusted;
+    });
 
     // Reset native key state when hotkey changes
     ipcMain.on("hotkey-changed", (_event, _newHotkey) => {

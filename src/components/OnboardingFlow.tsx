@@ -281,7 +281,15 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     }
 
     return true;
-  }, [hotkey, agentName, setDictationKey, ensureHotkeyRegistered, isSignedIn, useLocalWhisper, updateTranscriptionSettings]);
+  }, [
+    hotkey,
+    agentName,
+    setDictationKey,
+    ensureHotkeyRegistered,
+    isSignedIn,
+    useLocalWhisper,
+    updateTranscriptionSettings,
+  ]);
 
   const nextStep = useCallback(async () => {
     if (currentStep >= steps.length - 1) {

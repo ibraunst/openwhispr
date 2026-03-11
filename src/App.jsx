@@ -113,6 +113,14 @@ export default function App() {
       });
     });
 
+    const unsubscribeAccessibility = window.electronAPI?.onAccessibilityMissing?.(() => {
+      toast({
+        title: t("app.toasts.accessibilityMissing.title"),
+        description: t("app.toasts.accessibilityMissing.description"),
+        duration: 12000,
+      });
+    });
+
     const unsubscribeCorrections = window.electronAPI?.onCorrectionsLearned?.((words) => {
       if (words && words.length > 0) {
         const wordList = words.map((w) => `\u201c${w}\u201d`).join(", ");
@@ -170,6 +178,7 @@ export default function App() {
     return () => {
       unsubscribeFallback?.();
       unsubscribeFailed?.();
+      unsubscribeAccessibility?.();
       unsubscribeCorrections?.();
       unsubscribePermissions?.();
     };

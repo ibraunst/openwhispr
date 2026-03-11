@@ -678,6 +678,10 @@ declare global {
       ) => () => void;
       onPermissionsNeedReauth?: (callback: (revoked: string[]) => void) => () => void;
 
+      // Accessibility permission events (macOS)
+      onAccessibilityMissing?: (callback: () => void) => () => void;
+      checkAccessibilityTrusted?: () => Promise<boolean>;
+
       // Gemini API key management
       getGeminiKey: () => Promise<string | null>;
       saveGeminiKey: (key: string) => Promise<void>;
