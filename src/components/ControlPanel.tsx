@@ -1,13 +1,13 @@
 import React, { Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
-import { Download, RefreshCw, Loader2, AlertTriangle, Zap, ChevronLeft } from "lucide-react";
+import { ChevronLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import UpgradePrompt from "./UpgradePrompt";
 import { ConfirmDialog, AlertDialog } from "./ui/dialog";
 import { useDialogs } from "../hooks/useDialogs";
 import { useHotkey } from "../hooks/useHotkey";
 import { useToast } from "./ui/Toast";
-import { useUpdater } from "../hooks/useUpdater";
+
 import { useSettings } from "../hooks/useSettings";
 import { useAuth } from "../hooks/useAuth";
 import { useUsage } from "../hooks/useUsage";
@@ -22,8 +22,8 @@ import ControlPanelSidebar, { type ControlPanelView } from "./ControlPanelSideba
 import WindowControls from "./WindowControls";
 
 import { getCachedPlatform } from "../utils/platform";
+import { cn } from "./lib/utils";
 import { setActiveNoteId, setActiveFolderId } from "../stores/noteStore";
-import HistoryView from "./HistoryView";
 
 const platform = getCachedPlatform();
 
@@ -52,6 +52,7 @@ export default function ControlPanel() {
   const [showSearch, setShowSearch] = useState(false);
   const [showCloudMigrationBanner, setShowCloudMigrationBanner] = useState(false);
   const [activeView, setActiveView] = useState<ControlPanelView>("home");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMeetingMode, setIsMeetingMode] = useState(false);
   const [meetingRecordingRequest, setMeetingRecordingRequest] = useState<{
     noteId: number;
@@ -81,23 +82,15 @@ export default function ControlPanel() {
   const usage = useUsage();
 
   const {
-    status: updateStatus,
-    downloadProgress,
-    isDownloading,
-    isInstalling,
-    downloadUpdate,
-    installUpdate,
-    error: updateError,
-  } = useUpdater();
-
-  const {
     confirmDialog,
     alertDialog,
     showConfirmDialog,
-    showAlertDialog,
     hideConfirmDialog,
+    showAlertDialog,
     hideAlertDialog,
   } = useDialogs();
+
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
   useEffect(() => {
     loadTranscriptions();
@@ -114,26 +107,6 @@ export default function ControlPanel() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  useEffect(() => {
-    if (updateStatus.updateDownloaded && !isDownloading) {
-      toast({
-        title: t("controlPanel.update.readyTitle"),
-        description: t("controlPanel.update.readyDescription"),
-        variant: "success",
-      });
-    }
-  }, [updateStatus.updateDownloaded, isDownloading, toast, t]);
-
-  useEffect(() => {
-    if (updateError) {
-      toast({
-        title: t("controlPanel.update.problemTitle"),
-        description: t("controlPanel.update.problemDescription"),
-        variant: "destructive",
-      });
-    }
-  }, [updateError, toast, t]);
 
   useEffect(() => {
     const dispose = window.electronAPI?.onLimitReached?.(
@@ -454,72 +427,6 @@ export default function ControlPanel() {
     [toast, t, useReasoningModel]
   );
 
-  const handleUpdateClick = async () => {
-    if (updateStatus.updateDownloaded) {
-      showConfirmDialog({
-        title: t("controlPanel.update.installTitle"),
-        description: t("controlPanel.update.installDescription"),
-        onConfirm: async () => {
-          try {
-            await installUpdate();
-          } catch (error) {
-            toast({
-              title: t("controlPanel.update.couldNotInstallTitle"),
-              description: t("controlPanel.update.couldNotInstallDescription"),
-              variant: "destructive",
-            });
-          }
-        },
-      });
-    } else if (updateStatus.updateAvailable && !isDownloading) {
-      try {
-        await downloadUpdate();
-      } catch (error) {
-        toast({
-          title: t("controlPanel.update.couldNotDownloadTitle"),
-          description: t("controlPanel.update.couldNotDownloadDescription"),
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const getUpdateButtonContent = () => {
-    if (isInstalling) {
-      return (
-        <>
-          <Loader2 size={14} className="animate-spin" />
-          <span>{t("controlPanel.update.installing")}</span>
-        </>
-      );
-    }
-    if (isDownloading) {
-      return (
-        <>
-          <Loader2 size={14} className="animate-spin" />
-          <span>{Math.round(downloadProgress)}%</span>
-        </>
-      );
-    }
-    if (updateStatus.updateDownloaded) {
-      return (
-        <>
-          <RefreshCw size={14} />
-          <span>{t("controlPanel.update.installButton")}</span>
-        </>
-      );
-    }
-    if (updateStatus.updateAvailable) {
-      return (
-        <>
-          <Download size={14} />
-          <span>{t("controlPanel.update.availableButton")}</span>
-        </>
-      );
-    }
-    return null;
-  };
-
   return (
     <div className="h-screen bg-background flex flex-col">
       <ConfirmDialog
@@ -582,60 +489,60 @@ export default function ControlPanel() {
         </Suspense>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
-        <div
-          className="shrink-0 overflow-hidden transition-[width] duration-300 ease-out"
-          style={{ width: isMeetingMode ? 0 : undefined }}
-        >
-          <ControlPanelSidebar
-            activeView={activeView}
-            onViewChange={setActiveView}
-            onOpenSearch={() => setShowSearch(true)}
-            onOpenSettings={() => {
-              setSettingsSection(undefined);
-              setShowSettings(true);
-            }}
-            onOpenReferrals={() => setShowReferrals(true)}
-            onUpgrade={() => {
-              setSettingsSection("plansBilling");
-              setShowSettings(true);
-            }}
-            onUpgradeCheckout={() => usage?.openCheckout()}
-            isOverLimit={usage?.isOverLimit ?? false}
-            userName={user?.name}
-            userEmail={user?.email}
-            userImage={user?.image}
-            isSignedIn={isSignedIn}
-            authLoaded={authLoaded}
-            isProUser={!!(usage?.isSubscribed || usage?.isTrial)}
-            usageLoaded={usage?.hasLoaded ?? false}
-            updateAction={
-              !updateStatus.isDevelopment &&
-              (updateStatus.updateAvailable ||
-                updateStatus.updateDownloaded ||
-                isDownloading ||
-                isInstalling) ? (
-                <Button
-                  variant={updateStatus.updateDownloaded ? "default" : "outline"}
-                  size="sm"
-                  onClick={handleUpdateClick}
-                  disabled={isInstalling || isDownloading}
-                  className="gap-1.5 text-xs w-full h-7"
-                >
-                  {getUpdateButtonContent()}
-                </Button>
-              ) : undefined
-            }
-          />
-        </div>
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Sidebar overlay */}
+        {!isMeetingMode && (
+          <>
+            {/* Backdrop */}
+            <div
+              className={cn(
+                "absolute inset-0 z-10 bg-black/20 transition-opacity duration-200",
+                sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+              )}
+              onClick={() => setSidebarOpen(false)}
+            />
+            <div
+              className={cn(
+                "absolute top-0 left-0 bottom-0 z-20 transition-transform duration-200 ease-out",
+                sidebarOpen ? "translate-x-0" : "-translate-x-full"
+              )}
+            >
+              <ControlPanelSidebar
+                activeView={activeView}
+                onViewChange={setActiveView}
+                onCollapse={() => setSidebarOpen(false)}
+                onOpenSearch={() => setShowSearch(true)}
+                onOpenSettings={() => {
+                  setSettingsSection(undefined);
+                  setShowSettings(true);
+                }}
+                onOpenReferrals={() => setShowReferrals(true)}
+                onUpgrade={() => {
+                  setSettingsSection("plansBilling");
+                  setShowSettings(true);
+                }}
+                onUpgradeCheckout={() => usage?.openCheckout()}
+                isOverLimit={usage?.isOverLimit ?? false}
+                userName={user?.name}
+                userEmail={user?.email}
+                userImage={user?.image}
+                isSignedIn={isSignedIn}
+                authLoaded={authLoaded}
+                isProUser={!!(usage?.isSubscribed || usage?.isTrial)}
+                usageLoaded={usage?.hasLoaded ?? false}
+              />
+            </div>
+          </>
+        )}
         <main className="flex-1 flex flex-col overflow-hidden">
-          <div
-            className="flex items-center justify-between w-full h-10 shrink-0"
-            style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-          >
+          <div className="w-full shrink-0 relative" style={{ height: 40 }}>
+            <div
+              className="absolute inset-0"
+              style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+            />
             {isMeetingMode && (
               <div
-                className={platform === "darwin" ? "ml-[84px] mt-[16px]" : "ml-2"}
+                className={cn("absolute flex items-center", platform === "darwin" ? "left-[84px] top-[12px]" : "left-2 top-[6px]")}
                 style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
               >
                 <Button
@@ -649,113 +556,17 @@ export default function ControlPanel() {
                 </Button>
               </div>
             )}
-            <div className="flex-1" />
             {platform !== "darwin" && (
-              <div className="pr-1" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+              <div className="absolute right-1 top-0 h-full flex items-center" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
                 <WindowControls />
               </div>
             )}
           </div>
           <div className="flex-1 overflow-y-auto pt-1">
-            {usage?.isPastDue && activeView === "home" && (
-              <div className="max-w-3xl mx-auto w-full mb-3">
-                <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/50 p-3">
-                  <div className="flex items-start gap-3">
-                    <div className="shrink-0 w-8 h-8 rounded-md bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
-                      <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-amber-900 dark:text-amber-200 mb-0.5">
-                        {t("controlPanel.billing.pastDueTitle")}
-                      </p>
-                      <p className="text-xs text-amber-700 dark:text-amber-300/80 mb-2">
-                        {t("controlPanel.billing.bannerDescription", {
-                          limit: usage.limit.toLocaleString(),
-                        })}
-                      </p>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => {
-                          setSettingsSection("account");
-                          setShowSettings(true);
-                        }}
-                      >
-                        {t("controlPanel.billing.updatePayment")}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            {(gpuAccelAvailable.cuda || gpuAccelAvailable.vulkan) &&
-              activeView === "home" &&
-              !gpuBannerDismissed && (
-                <div className="max-w-3xl mx-auto w-full mb-3">
-                  <div className="rounded-lg border border-primary/20 dark:border-primary/15 bg-primary/5 p-3">
-                    <div className="flex items-start gap-3">
-                      <div className="shrink-0 w-8 h-8 rounded-md bg-primary/10 dark:bg-primary/15 flex items-center justify-center">
-                        <Zap size={16} className="text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-foreground mb-0.5">
-                          {t("controlPanel.gpu.bannerTitle")}
-                        </p>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          {t("controlPanel.gpu.bannerDescription")}
-                        </p>
-                        <div className="flex items-center gap-3">
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => {
-                              setSettingsSection(
-                                gpuAccelAvailable.cuda ? "transcription" : "intelligence"
-                              );
-                              setShowSettings(true);
-                            }}
-                          >
-                            {t("controlPanel.gpu.enableButton")}
-                          </Button>
-                          <button
-                            onClick={() => {
-                              setGpuBannerDismissed(true);
-                              localStorage.setItem("gpuBannerDismissedUnified", "true");
-                            }}
-                            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            {t("controlPanel.gpu.dismissButton")}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             {activeView === "home" && (
-              <HistoryView
-                history={history}
-                isLoading={isLoading}
-                hotkey={hotkey}
-                showCloudMigrationBanner={showCloudMigrationBanner}
-                setShowCloudMigrationBanner={setShowCloudMigrationBanner}
-                aiCTADismissed={aiCTADismissed}
-                setAiCTADismissed={setAiCTADismissed}
-                useReasoningModel={useReasoningModel}
-                copyToClipboard={copyToClipboard}
-                deleteTranscription={deleteTranscription}
-                clearAllTranscriptions={clearAllTranscriptions}
-                onShowAudioInFolder={showAudioInFolder}
-                onRetryTranscription={retryTranscription}
-                onExportTranscription={exportTranscription}
-                exportAllTranscriptions={exportAllTranscriptions}
-                onOpenSettings={(section) => {
-                  setSettingsSection(section);
-                  setShowSettings(true);
-                }}
-              />
+              <Suspense fallback={null}>
+                <CalendarView />
+              </Suspense>
             )}
             {activeView === "personal-notes" && (
               <Suspense fallback={null}>
@@ -768,11 +579,6 @@ export default function ControlPanel() {
                   onMeetingRecordingRequestHandled={handleMeetingRecordingRequestHandled}
                   isMeetingMode={isMeetingMode}
                 />
-              </Suspense>
-            )}
-            {activeView === "calendar" && (
-              <Suspense fallback={null}>
-                <CalendarView />
               </Suspense>
             )}
             {activeView === "dictionary" && (
@@ -802,6 +608,36 @@ export default function ControlPanel() {
             )}
           </div>
         </main>
+        {/* Sidebar toggle — rendered after main so it paints above the drag region */}
+        {!isMeetingMode && (
+          <div
+            className={cn(
+              "absolute flex items-center z-30",
+              platform === "darwin" ? "left-[80px] top-[15px]" : "left-2 top-[6px]"
+            )}
+            style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+          >
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleSidebar(); }}
+              aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+              title={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+              className="group flex items-center justify-center w-7 h-7 rounded-md hover:bg-foreground/4 dark:hover:bg-white/4 transition-colors duration-150"
+              style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+            >
+              {sidebarOpen ? (
+                <PanelLeftClose
+                  size={15}
+                  className="shrink-0 text-foreground/60 group-hover:text-foreground/75 dark:text-foreground/50 dark:group-hover:text-foreground/65 transition-colors duration-150"
+                />
+              ) : (
+                <PanelLeftOpen
+                  size={15}
+                  className="shrink-0 text-foreground/60 group-hover:text-foreground/75 dark:text-foreground/50 dark:group-hover:text-foreground/65 transition-colors duration-150"
+                />
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -163,7 +163,11 @@ export default function CalendarView() {
   }, [active, upcoming]);
 
   const pastGroups = useMemo(() => {
-    return groupEventsByDate(past);
+    const groups = groupEventsByDate(past).sort((a, b) => b.date.localeCompare(a.date));
+    for (const group of groups) {
+      group.events.reverse();
+    }
+    return groups;
   }, [past]);
 
   const todayKey = getDateKey(new Date().toISOString());
@@ -180,16 +184,7 @@ export default function CalendarView() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <div className="shrink-0 flex items-center justify-between px-5 pt-4 pb-3">
-        <h1 className="text-base font-semibold text-foreground">{t("sidebar.calendar")}</h1>
-        <button
-          onClick={() => { setLoading(true); fetchEvents(); }}
-          className="p-1.5 rounded-md hover:bg-foreground/5 dark:hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
-          title="Refresh"
-        >
-          <RefreshCw size={14} />
-        </button>
-      </div>
+      <div className="shrink-0 h-4" />
 
       {error && (
         <div className="mx-5 mb-3 px-3 py-2 rounded-md bg-destructive/10 text-destructive text-xs">
@@ -210,7 +205,16 @@ export default function CalendarView() {
           {/* Coming up */}
           {upcomingGroups.length > 0 && (
             <section className="mb-6">
-              <h2 className="text-lg font-semibold text-foreground mb-3">Coming up</h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold text-foreground">Coming up</h2>
+                <button
+                  onClick={() => { setLoading(true); fetchEvents(); }}
+                  className="p-1.5 rounded-md hover:bg-foreground/5 dark:hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
+                  title="Refresh"
+                >
+                  <RefreshCw size={14} />
+                </button>
+              </div>
               <div className="rounded-xl border border-border/20 dark:border-white/8 bg-surface-1/40 dark:bg-white/[0.02] overflow-hidden divide-y divide-border/10 dark:divide-white/5">
                 {upcomingGroups.map((group, gi) => (
                   <div key={group.date} className={cn("flex", gi > 0 && "border-t border-dashed border-border/20 dark:border-white/8")}>

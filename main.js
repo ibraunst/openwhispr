@@ -694,7 +694,6 @@ async function startApp() {
   await trayManager.createTray();
 
   updateManager.setWindows(windowManager.mainWindow, windowManager.controlPanelWindow);
-  updateManager.checkForUpdatesOnStartup();
 
   if (process.platform === "darwin") {
     const { isGlobeLikeHotkey } = require("./src/helpers/hotkeyManager");

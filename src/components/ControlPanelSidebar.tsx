@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   Home,
   NotebookPen,
-  CalendarDays,
   BookOpen,
   Upload,
   Blocks,
@@ -12,6 +11,7 @@ import {
   UserCircle,
   X,
   Search,
+  PanelLeftClose,
 } from "lucide-react";
 import logoIcon from "../assets/icon.png";
 import { useTranslation } from "react-i18next";
@@ -21,11 +21,12 @@ import { getCachedPlatform } from "../utils/platform";
 
 const platform = getCachedPlatform();
 
-export type ControlPanelView = "home" | "personal-notes" | "calendar" | "dictionary" | "upload" | "integrations";
+export type ControlPanelView = "home" | "personal-notes" | "dictionary" | "upload" | "integrations";
 
 interface ControlPanelSidebarProps {
   activeView: ControlPanelView;
   onViewChange: (view: ControlPanelView) => void;
+  onCollapse: () => void;
   onOpenSettings: () => void;
   onOpenSearch?: () => void;
   onOpenReferrals?: () => void;
@@ -39,12 +40,12 @@ interface ControlPanelSidebarProps {
   authLoaded?: boolean;
   isProUser?: boolean;
   usageLoaded?: boolean;
-  updateAction?: React.ReactNode;
 }
 
 export default function ControlPanelSidebar({
   activeView,
   onViewChange,
+  onCollapse,
   onOpenSettings,
   onOpenSearch,
   onOpenReferrals,
@@ -58,7 +59,6 @@ export default function ControlPanelSidebar({
   authLoaded,
   isProUser,
   usageLoaded,
-  updateAction,
 }: ControlPanelSidebarProps) {
   const { t } = useTranslation();
   const [upgradeDismissed, setUpgradeDismissed] = useState(
@@ -80,23 +80,29 @@ export default function ControlPanelSidebar({
   }[] = [
     { id: "home", label: t("sidebar.home"), icon: Home },
     { id: "personal-notes", label: t("sidebar.notes"), icon: NotebookPen },
-    { id: "calendar", label: t("sidebar.calendar"), icon: CalendarDays },
-    { id: "upload", label: t("sidebar.upload"), icon: Upload },
     { id: "dictionary", label: t("sidebar.dictionary"), icon: BookOpen },
+    { id: "upload", label: t("sidebar.upload"), icon: Upload },
     { id: "integrations", label: t("sidebar.integrations"), icon: Blocks },
   ];
 
+  const handleNavClick = (id: ControlPanelView) => {
+    onViewChange(id);
+    onCollapse();
+  };
+
   return (
-    <div className="w-48 h-full shrink-0 border-r border-border/15 dark:border-white/6 flex flex-col bg-surface-1/60 dark:bg-surface-1">
-      <div
-        className="w-full h-10 shrink-0"
-        style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-      />
+    <div className="h-full w-48 shrink-0 border-r border-border/15 dark:border-white/6 flex flex-col bg-surface-1/60 dark:bg-surface-1">
+      <div className="w-full shrink-0 relative" style={{ height: 52 }}>
+        <div
+          className="absolute inset-0 z-0"
+          style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+        />
+      </div>
 
       {onOpenSearch && (
         <div className="px-2 pt-2 pb-1">
           <button
-            onClick={onOpenSearch}
+            onClick={() => { onOpenSearch(); onCollapse(); }}
             className="group flex items-center w-full h-7 px-2.5 rounded-md border border-border/25 dark:border-white/8 bg-foreground/3 dark:bg-white/3 hover:bg-foreground/5 dark:hover:bg-white/5 transition-colors gap-2 outline-none focus-visible:ring-1 focus-visible:ring-primary/30"
           >
             <Search size={11} className="text-muted-foreground/50 shrink-0" />
@@ -115,7 +121,7 @@ export default function ControlPanelSidebar({
         </div>
       )}
 
-      <nav className="flex flex-col gap-0.5 px-2 pt-2 pb-2">
+      <nav className="flex flex-col gap-0.5 pt-2 pb-2 px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeView === item.id;
@@ -123,9 +129,9 @@ export default function ControlPanelSidebar({
           return (
             <button
               key={item.id}
-              onClick={() => onViewChange(item.id)}
+              onClick={() => handleNavClick(item.id)}
               className={cn(
-                "group relative flex items-center gap-2.5 w-full h-8 px-2.5 rounded-md outline-none transition-colors duration-150 text-left",
+                "group relative flex items-center w-full h-8 gap-2.5 px-2.5 rounded-md outline-none transition-colors duration-150 text-left",
                 "focus-visible:ring-1 focus-visible:ring-primary/30",
                 isActive
                   ? "bg-primary/8 dark:bg-primary/10"
@@ -173,7 +179,7 @@ export default function ControlPanelSidebar({
                 {t("sidebar.limitReachedDescription")}
               </p>
               <button
-                onClick={onUpgradeCheckout}
+                onClick={() => { onUpgradeCheckout?.(); onCollapse(); }}
                 className="w-full h-7 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
               >
                 {t("sidebar.upgradeToPro")}
@@ -205,7 +211,7 @@ export default function ControlPanelSidebar({
                 {t("sidebar.upgradeDescription")}
               </p>
               <button
-                onClick={onUpgrade}
+                onClick={() => { onUpgrade?.(); onCollapse(); }}
                 className="w-full h-7 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
               >
                 {t("sidebar.learnMore")}
@@ -215,16 +221,10 @@ export default function ControlPanelSidebar({
         </div>
       )}
 
-      <div className="px-2 pb-2 space-y-0.5">
-        {updateAction && (
-          <div className="px-1 pb-1" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
-            {updateAction}
-          </div>
-        )}
-
+      <div className="pb-2 space-y-0.5 px-2">
         {isSignedIn && onOpenReferrals && (
           <button
-            onClick={onOpenReferrals}
+            onClick={() => { onOpenReferrals(); onCollapse(); }}
             aria-label={t("sidebar.referral")}
             className="group flex items-center gap-2.5 w-full h-8 px-2.5 rounded-md text-left outline-none hover:bg-foreground/4 dark:hover:bg-white/4 focus-visible:ring-1 focus-visible:ring-primary/30 transition-colors duration-150"
           >
@@ -239,9 +239,9 @@ export default function ControlPanelSidebar({
         )}
 
         <button
-          onClick={onOpenSettings}
+          onClick={() => { onOpenSettings(); onCollapse(); }}
           aria-label={t("sidebar.settings")}
-          className="group flex items-center gap-2.5 w-full h-8 px-2.5 rounded-md text-left outline-none hover:bg-foreground/4 dark:hover:bg-white/4 focus-visible:ring-1 focus-visible:ring-primary/30 transition-colors duration-150"
+          className="group flex items-center w-full h-8 gap-2.5 px-2.5 rounded-md text-left outline-none hover:bg-foreground/4 dark:hover:bg-white/4 focus-visible:ring-1 focus-visible:ring-primary/30 transition-colors duration-150"
         >
           <Settings
             size={15}
