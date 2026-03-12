@@ -236,7 +236,8 @@ class GoogleCalendarManager {
     const next = upcoming.find((e) => !this.notifiedMeetings.has(e.id));
     if (!next) return;
 
-    const delay = new Date(next.start_time).getTime() - Date.now();
+    const PRE_MEETING_LEAD_MS = 60 * 1000;
+    const delay = new Date(next.start_time).getTime() - Date.now() - PRE_MEETING_LEAD_MS;
     if (delay <= 0) {
       this.onMeetingStart(next);
       return;
@@ -263,7 +264,7 @@ class GoogleCalendarManager {
 
     const notif = new Notification({
       title: event.summary || "Meeting",
-      body: "Meeting starting now",
+      body: "Meeting starting in 1 minute",
     });
     notif.on("click", () => {
       this.broadcastToWindows("gcal-start-recording", { event });
@@ -271,6 +272,7 @@ class GoogleCalendarManager {
     notif.show();
 
     this.broadcastToWindows("gcal-meeting-starting", { event });
+    this.meetingDetectionEngine?.handleCalendarAlert?.(event);
 
     if (this.meetingEndTimer) {
       clearTimeout(this.meetingEndTimer);
@@ -330,9 +332,10 @@ class GoogleCalendarManager {
   }
 
   getActiveMeetingState() {
+    const activeEvts = this.databaseManager.getActiveEvents();
     return {
-      activeMeeting: this.activeMeeting,
-      activeEvents: this.databaseManager.getActiveEvents(),
+      activeMeeting: this.activeMeeting || (activeEvts.length > 0 ? activeEvts[0] : null),
+      activeEvents: activeEvts,
       upcomingEvents: this.databaseManager.getUpcomingEvents(15),
     };
   }

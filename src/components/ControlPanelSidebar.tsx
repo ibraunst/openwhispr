@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
   Home,
   NotebookPen,
+  CalendarDays,
   BookOpen,
   Upload,
   Blocks,
@@ -20,7 +21,7 @@ import { getCachedPlatform } from "../utils/platform";
 
 const platform = getCachedPlatform();
 
-export type ControlPanelView = "home" | "personal-notes" | "dictionary" | "upload" | "integrations";
+export type ControlPanelView = "home" | "personal-notes" | "calendar" | "dictionary" | "upload" | "integrations";
 
 interface ControlPanelSidebarProps {
   activeView: ControlPanelView;
@@ -79,6 +80,7 @@ export default function ControlPanelSidebar({
   }[] = [
     { id: "home", label: t("sidebar.home"), icon: Home },
     { id: "personal-notes", label: t("sidebar.notes"), icon: NotebookPen },
+    { id: "calendar", label: t("sidebar.calendar"), icon: CalendarDays },
     { id: "upload", label: t("sidebar.upload"), icon: Upload },
     { id: "dictionary", label: t("sidebar.dictionary"), icon: BookOpen },
     { id: "integrations", label: t("sidebar.integrations"), icon: Blocks },

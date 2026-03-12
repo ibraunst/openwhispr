@@ -1,5 +1,6 @@
 const { execFile } = require("child_process");
-const { BrowserWindow, Notification } = require("electron");
+const path = require("path");
+const { app, BrowserWindow, Notification } = require("electron");
 const debugLogger = require("./debugLogger");
 
 const SYNC_INTERVAL_MS = 2 * 60 * 1000;
@@ -80,34 +81,20 @@ class AppleCalendarManager {
   async syncEvents() {
     if (!this.isConnected()) return;
 
-    const script = `
-      set output to ""
-      set gmtOffset to time to GMT
-      set epochRef to (date "Thursday, January 1, 1970 at 12:00:00 AM")
-      set nowDate to current date
-      set futureDate to nowDate + (7 * 24 * 3600)
-      tell application "Calendar"
-        repeat with c in (every calendar)
-          try
-            set evts to every event of c whose start date >= nowDate and start date <= futureDate
-            repeat with e in evts
-              try
-                set eTitle to summary of e
-                set eUID to uid of e
-                set eStart to ((start date of e) - epochRef - gmtOffset) as integer
-                set eEnd to ((end date of e) - epochRef - gmtOffset) as integer
-                set isAllDay to allday event of e
-                set output to output & eUID & "|" & eTitle & "|" & eStart & "|" & eEnd & "|" & isAllDay & "||"
-              end try
-            end repeat
-          end try
-        end repeat
-      end tell
-      return output
-    `;
-
     try {
+      const getResourcePath = () => {
+        if (app.isPackaged) {
+          return path.join(process.resourcesPath, "bin");
+        }
+        return path.join(app.getAppPath(), "resources", "bin");
+      };
+
+      const binaryPath = path.join(getResourcePath(), "calendar-sync-mac");
+      
+      const escapedPath = binaryPath.replace(/"/g, '\\"');
+      const script = `do shell script "\\"${escapedPath}\\" 14"`;
       const result = await this._runAppleScript(script);
+
       const events = this._parseEvents(result);
       if (events.length > 0) {
         this.databaseManager.upsertCalendarEvents(events);
@@ -122,32 +109,63 @@ class AppleCalendarManager {
 
   _parseEvents(output) {
     if (!output || !output.trim()) return [];
-    return output
-      .split("||")
-      .filter(Boolean)
-      .map((line) => {
-        const parts = line.split("|");
-        if (parts.length < 5) return null;
-        const [uid, title, startTs, endTs, allDay] = parts;
-        if (!uid || !startTs) return null;
-        const startMs = parseInt(startTs, 10) * 1000;
-        const endMs = parseInt(endTs, 10) * 1000;
-        if (isNaN(startMs) || isNaN(endMs)) return null;
+    try {
+      const parsed = JSON.parse(output);
+      if (parsed.error) {
+         throw new Error(parsed.error);
+      }
+      
+      return parsed.map((e) => {
+        const meetingUrl = this._extractMeetingUrl(e.url, e.location, e.notes);
+        
+        // Pass JSON fields through as strings for SQL storage
+        let attendeesJson = null;
+        if (e.attendees && e.attendees.length > 0) {
+           attendeesJson = JSON.stringify(e.attendees);
+        }
+
         return {
-          id: `acal-${uid}`,
+          id: `acal-${e.uid}`,
           calendar_id: "__apple__",
-          summary: title || "Event",
-          start_time: new Date(startMs).toISOString(),
-          end_time: new Date(endMs).toISOString(),
-          is_all_day: allDay === "true" ? 1 : 0,
+          summary: e.title || "Event",
+          start_time: new Date(e.startTimestamp).toISOString(),
+          end_time: new Date(e.endTimestamp).toISOString(),
+          is_all_day: e.isAllDay ? 1 : 0,
           status: "confirmed",
-          hangout_link: null,
-          conference_data: null,
-          organizer_email: null,
-          attendees_count: 0,
+          hangout_link: meetingUrl,
+          conference_data: JSON.stringify({
+             isPrivate: e.isPrivate,
+             attendees: attendeesJson,
+             attendeesCount: e.attendeesCount
+          }),
+          organizer_email: e.organizerEmail || null,
+          attendees_count: e.attendeesCount || 0,
         };
-      })
-      .filter(Boolean);
+      }).filter(Boolean);
+    } catch (err) {
+      debugLogger.error("Failed to parse EventKit JSON array", { error: err.message, outputPrefix: output.substring(0, 100) }, "acal");
+      return [];
+    }
+  }
+
+  _extractMeetingUrl(url, location, notes) {
+    // Check direct URL field first
+    if (url && /https?:\/\//.test(url)) {
+      if (/zoom\.us|teams\.microsoft|meet\.google|webex/i.test(url)) return url;
+    }
+    // Check location and notes for meeting URLs
+    for (const text of [location, notes]) {
+      if (!text) continue;
+      const match = text.match(/https?:\/\/[^\s"<>]+(?:zoom\.us|teams\.microsoft\.com|meet\.google\.com|webex\.com)[^\s"<>]*/i);
+      if (match) return match[0];
+    }
+    // Broader check: any zoom URL in any field
+    for (const text of [url, location, notes]) {
+      if (!text) continue;
+      const match = text.match(/https?:\/\/[^\s"<>]*zoom\.us[^\s"<>]*/i);
+      if (match) return match[0];
+    }
+    return null;
   }
 
   scheduleNextMeeting() {
@@ -161,7 +179,8 @@ class AppleCalendarManager {
     );
     if (applePending.length === 0) return;
     const next = applePending[0];
-    const delay = new Date(next.start_time).getTime() - Date.now();
+    const PRE_MEETING_LEAD_MS = 60 * 1000;
+    const delay = new Date(next.start_time).getTime() - Date.now() - PRE_MEETING_LEAD_MS;
     if (delay <= 0) {
       this.onMeetingStart(next);
       return;
@@ -174,11 +193,12 @@ class AppleCalendarManager {
     this.notifiedMeetings.add(event.id);
     const notif = new Notification({
       title: event.summary || "Meeting",
-      body: "Meeting starting now",
+      body: "Meeting starting in 1 minute",
     });
     notif.on("click", () => this.broadcastToWindows("acal-start-recording", { event }));
     notif.show();
     this.broadcastToWindows("acal-meeting-starting", { event });
+    this.meetingDetectionEngine?.handleCalendarAlert?.(event);
     if (this.meetingEndTimer) clearTimeout(this.meetingEndTimer);
     const endDelay = new Date(event.end_time).getTime() - Date.now();
     if (endDelay > 0) {
@@ -227,17 +247,18 @@ class AppleCalendarManager {
   }
 
   getActiveMeetingState() {
+    const activeEvts = (() => {
+      try {
+        return this.databaseManager
+          .getActiveEvents()
+          .filter((e) => e.calendar_id === "__apple__");
+      } catch {
+        return [];
+      }
+    })();
     return {
-      activeMeeting: this.activeMeeting,
-      activeEvents: (() => {
-        try {
-          return this.databaseManager
-            .getActiveEvents()
-            .filter((e) => e.calendar_id === "__apple__");
-        } catch {
-          return [];
-        }
-      })(),
+      activeMeeting: this.activeMeeting || (activeEvts.length > 0 ? activeEvts[0] : null),
+      activeEvents: activeEvts,
       upcomingEvents: (() => {
         try {
           return this.databaseManager

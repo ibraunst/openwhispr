@@ -94,6 +94,7 @@ export default function PersonalNotesView({
     stopTranscription: stopMeetingTranscription,
   } = useMeetingTranscription();
   const meetingNoteIdRef = useRef<number | null>(null);
+  const calendarTitleRef = useRef<string | null>(null);
 
   const {
     folders,
@@ -423,8 +424,10 @@ export default function PersonalNotesView({
 
   // When manually starting a recording, auto-title the note from the nearest calendar event
   const handleStartMeetingRecording = useCallback(async () => {
+    calendarTitleRef.current = null;
     const result = await window.electronAPI?.getImminentCalendarEvent?.();
     if (result?.event?.summary) {
+      calendarTitleRef.current = result.event.summary;
       handleTitleChange(result.event.summary);
     }
     startMeetingTranscription();
@@ -440,6 +443,7 @@ export default function PersonalNotesView({
   useEffect(() => {
     if (!meetingRecordingRequest || activeNoteId !== meetingRecordingRequest.noteId) return;
     meetingNoteIdRef.current = meetingRecordingRequest.noteId;
+    calendarTitleRef.current = meetingRecordingRequest.event?.summary || null;
     startMeetingTranscription();
     onMeetingRecordingRequestHandled?.();
   }, [
@@ -503,10 +507,13 @@ export default function PersonalNotesView({
       pendingEnhancedContentRef.current = null;
 
       const subjectMatch = generatedContent?.match(/\*\*Subject:\*\*\s*(.+)/);
-      const meetingTitle = subjectMatch?.[1]?.trim();
+      const aiSubject = subjectMatch?.[1]?.trim();
+      // Use calendar event title if available; fall back to AI-generated subject
+      const meetingTitle = calendarTitleRef.current || aiSubject;
       if (meetingTitle && activeNoteId) {
         handleTitleChange(meetingTitle);
       }
+      calendarTitleRef.current = null;
 
       const { exportDirectory, defaultExportFormat } = getSettings();
       if (exportDirectory) {

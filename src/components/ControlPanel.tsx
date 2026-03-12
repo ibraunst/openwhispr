@@ -33,6 +33,7 @@ const PersonalNotesView = React.lazy(() => import("./notes/PersonalNotesView"));
 const DictionaryView = React.lazy(() => import("./DictionaryView"));
 const UploadAudioView = React.lazy(() => import("./notes/UploadAudioView"));
 const IntegrationsView = React.lazy(() => import("./IntegrationsView"));
+const CalendarView = React.lazy(() => import("./CalendarView"));
 const CommandSearch = React.lazy(() => import("./CommandSearch"));
 
 export default function ControlPanel() {
@@ -767,6 +768,11 @@ export default function ControlPanel() {
                   onMeetingRecordingRequestHandled={handleMeetingRecordingRequestHandled}
                   isMeetingMode={isMeetingMode}
                 />
+              </Suspense>
+            )}
+            {activeView === "calendar" && (
+              <Suspense fallback={null}>
+                <CalendarView />
               </Suspense>
             )}
             {activeView === "dictionary" && (

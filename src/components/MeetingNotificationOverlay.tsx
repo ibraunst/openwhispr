@@ -10,6 +10,19 @@ interface NotificationData {
   event: any;
 }
 
+function hasConferenceUrl(event: any): boolean {
+  if (event?.hangout_link) return true;
+  if (event?.conference_data) {
+    try {
+      const conf = typeof event.conference_data === "string"
+        ? JSON.parse(event.conference_data)
+        : event.conference_data;
+      return conf?.entryPoints?.some((ep: any) => ep.entryPointType === "video");
+    } catch {}
+  }
+  return false;
+}
+
 export default function MeetingNotificationOverlay() {
   const [data, setData] = useState<NotificationData | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -79,7 +92,7 @@ export default function MeetingNotificationOverlay() {
             onClick={() => respond("start")}
             className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 text-[11px] font-medium px-2.5 py-1 rounded-md transition-colors"
           >
-            Start Recording
+            {data?.source === "calendar" && hasConferenceUrl(data?.event) ? "Join & Record" : "Start Recording"}
           </button>
 
           <button
@@ -89,7 +102,26 @@ export default function MeetingNotificationOverlay() {
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
+
+        {/* Auto-dismiss countdown bar */}
+        {isVisible && (
+          <div className="mt-1.5 h-[2px] rounded-full bg-muted-foreground/10 overflow-hidden">
+            <div
+              className="h-full bg-primary/30 rounded-full"
+              style={{
+                animation: "shrinkWidth 60s linear forwards",
+              }}
+            />
+          </div>
+        )}
       </div>
+
+      <style>{`
+        @keyframes shrinkWidth {
+          from { width: 100%; }
+          to { width: 0%; }
+        }
+      `}</style>
     </div>
   );
 }

@@ -104,6 +104,7 @@
         "windows-key-listener*",
         "windows-mic-listener*",
         "windows-text-monitor*",
+        "calendar-sync-*",
         "windows-fast-paste*",
         "*.dylib",
         "*.dll",

@@ -622,6 +622,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // Calendar helpers
   getImminentCalendarEvent: () => ipcRenderer.invoke("get-imminent-calendar-event"),
+  getCalendarEvents: () => ipcRenderer.invoke("get-calendar-events"),
 
   // Apple Calendar
   acalConnect: () => ipcRenderer.invoke("acal-connect"),
@@ -695,4 +696,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
     "navigate-to-meeting-note",
     (callback) => (_event, data) => callback(data)
   ),
+
+  // Meeting auto-stop
+  onMeetingAutoStopSuggested: registerListener(
+    "meeting-auto-stop-suggested",
+    (callback) => (_event, data) => callback(data)
+  ),
+  onMeetingAutoStopExecute: registerListener(
+    "meeting-auto-stop-execute",
+    (callback) => (_event, data) => callback(data)
+  ),
+  meetingAutoStopCancel: () => ipcRenderer.invoke("meeting-auto-stop-cancel"),
 });

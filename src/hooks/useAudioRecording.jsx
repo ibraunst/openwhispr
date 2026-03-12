@@ -128,7 +128,8 @@ export const useAudioRecording = (toast, options = {}) => {
             "streaming"
           );
 
-          audioManagerRef.current.saveTranscription(result.text, result.rawText ?? result.text);
+          // Skip saving personal dictation transcriptions — only meeting transcripts are persisted
+          // audioManagerRef.current.saveTranscription(result.text, result.rawText ?? result.text);
 
           if (result.source === "openai" && getSettings().useLocalWhisper) {
             toast({
@@ -211,12 +212,45 @@ export const useAudioRecording = (toast, options = {}) => {
 
     const disposeNoAudio = window.electronAPI.onNoAudioDetected?.(handleNoAudioDetected);
 
+    const handleAutoStopSuggested = (data) => {
+      toast({
+        title: t("hooks.audioRecording.autoStop.title", "Meeting Ended"),
+        description: t("hooks.audioRecording.autoStop.description", `Recording will stop in ${Math.round(data.autoStopInMs / 1000)}s...`),
+        duration: data.autoStopInMs,
+        action: (
+          <button
+            onClick={() => {
+              window.electronAPI.meetingAutoStopCancel?.();
+              toast({ title: "Auto-stop cancelled", description: "Recording will continue.", duration: 3000 });
+            }}
+            style={{ padding: '4px 10px', fontSize: '12px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', color: 'white' }}
+          >
+            Keep Recording
+          </button>
+        )
+      });
+    };
+
+    const handleAutoStopExecute = (data) => {
+      handleStop();
+      toast({
+        title: t("hooks.audioRecording.autoStop.executedTitle", "Recording Stopped"),
+        description: t("hooks.audioRecording.autoStop.executedDesc", "Meeting has ended."),
+        duration: 4000
+      });
+    };
+
+    const disposeAutoStopSuggested = window.electronAPI.onMeetingAutoStopSuggested?.(handleAutoStopSuggested);
+    const disposeAutoStopExecute = window.electronAPI.onMeetingAutoStopExecute?.(handleAutoStopExecute);
+
     // Cleanup
     return () => {
       disposeToggle?.();
       disposeStart?.();
       disposeStop?.();
       disposeNoAudio?.();
+      disposeAutoStopSuggested?.();
+      disposeAutoStopExecute?.();
       if (audioManagerRef.current) {
         audioManagerRef.current.cleanup();
       }

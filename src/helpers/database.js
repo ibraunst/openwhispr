@@ -1126,11 +1126,25 @@ class DatabaseManager {
       if (!this.db) throw new Error("Database not initialized");
       return this.db
         .prepare(
-          "SELECT * FROM calendar_events WHERE datetime(start_time) <= datetime('now') AND datetime(end_time) > datetime('now') AND is_all_day = 0 AND status = 'confirmed' ORDER BY start_time ASC"
+          "SELECT * FROM calendar_events WHERE datetime(start_time) <= datetime('now') AND datetime(end_time) > datetime('now') AND is_all_day = 0 ORDER BY start_time ASC"
         )
         .all();
     } catch (error) {
       debugLogger.error("Error getting active events", { error: error.message }, "gcal");
+      throw error;
+    }
+  }
+
+  getEventAtTime(timestampISO) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      return this.db
+        .prepare(
+          "SELECT * FROM calendar_events WHERE datetime(start_time) <= datetime(?) AND datetime(end_time) > datetime(?) AND is_all_day = 0 ORDER BY start_time ASC LIMIT 1"
+        )
+        .get(timestampISO, timestampISO);
+    } catch (error) {
+      debugLogger.error("Error getting event at time", { error: error.message }, "gcal");
       throw error;
     }
   }
@@ -1166,11 +1180,25 @@ class DatabaseManager {
       if (!this.db) throw new Error("Database not initialized");
       return this.db
         .prepare(
-          "SELECT * FROM calendar_events WHERE datetime(start_time) > datetime('now') AND datetime(start_time) <= datetime('now', '+' || ? || ' minutes') AND is_all_day = 0 AND status = 'confirmed' ORDER BY start_time ASC"
+          "SELECT * FROM calendar_events WHERE datetime(start_time) > datetime('now') AND datetime(start_time) <= datetime('now', '+' || ? || ' minutes') AND is_all_day = 0 ORDER BY start_time ASC"
         )
         .all(windowMinutes);
     } catch (error) {
       debugLogger.error("Error getting upcoming events", { error: error.message }, "gcal");
+      throw error;
+    }
+  }
+
+  getPastEvents(windowMinutes = 10080) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      return this.db
+        .prepare(
+          "SELECT * FROM calendar_events WHERE datetime(end_time) <= datetime('now') AND datetime(start_time) >= datetime('now', '-' || ? || ' minutes') AND is_all_day = 0 ORDER BY start_time DESC"
+        )
+        .all(windowMinutes);
+    } catch (error) {
+      debugLogger.error("Error getting past events", { error: error.message }, "gcal");
       throw error;
     }
   }

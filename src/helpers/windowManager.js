@@ -963,6 +963,11 @@ class WindowManager {
       if (this.notificationWindow && !this.notificationWindow.isDestroyed()) {
         this.notificationWindow.webContents.send("meeting-notification-data", promptData);
         this.notificationWindow.showInactive();
+
+        if (process.platform === "darwin") {
+          const { exec } = require("child_process");
+          exec("afplay /System/Library/Sounds/Blow.aiff &", { timeout: 3000 }, () => {});
+        }
       }
     }, 300);
 
@@ -975,6 +980,9 @@ class WindowManager {
       if (this._notificationTimeout) {
         clearTimeout(this._notificationTimeout);
         this._notificationTimeout = null;
+      }
+      if (this.meetingDetectionEngine) {
+        setTimeout(() => this.meetingDetectionEngine._flushNotificationQueue(), 1000);
       }
     });
   }

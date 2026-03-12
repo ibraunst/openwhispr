@@ -971,14 +971,7 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
     checkHotkeyMode();
   }, [setActivationMode]);
 
-  useEffect(() => {
-    if (updateError) {
-      showAlertDialog({
-        title: t("settingsPage.general.updates.dialogs.updateError.title"),
-        description: t("settingsPage.general.updates.dialogs.updateError.description"),
-      });
-    }
-  }, [updateError, showAlertDialog, t]);
+  // Update errors are shown inline in the update section — no popup dialog needed
 
   useEffect(() => {
     if (installInitiated) {

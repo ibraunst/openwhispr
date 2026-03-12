@@ -1470,7 +1470,7 @@ class ClipboardManager {
       }
     }
 
-    const allowed = systemPreferences.isTrustedAccessibilityClient(false);
+    const allowed = systemPreferences.isTrustedAccessibilityClient(!silent);
 
     if (!silent) {
       this.accessibilityCache = {

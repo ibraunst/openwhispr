@@ -1,5 +1,19 @@
 export type LocalTranscriptionProvider = "whisper" | "nvidia";
 
+export interface CalendarEvent {
+  id: string;
+  calendar_id: string;
+  summary: string | null;
+  start_time: string;
+  end_time: string;
+  is_all_day: number;
+  status: string;
+  hangout_link: string | null;
+  conference_data: string | null;
+  organizer_email: string | null;
+  attendees_count: number;
+}
+
 export type TranscriptionStatus = "completed" | "failed" | "pending";
 
 export interface TranscriptionItem {
@@ -1066,6 +1080,12 @@ declare global {
       // Calendar helpers
       getImminentCalendarEvent?: () => Promise<{
         event: { summary: string; start_time: string; end_time: string } | null;
+      }>;
+      getCalendarEvents?: () => Promise<{
+        success: boolean;
+        upcoming: CalendarEvent[];
+        active: CalendarEvent[];
+        past: CalendarEvent[];
       }>;
 
       // Apple Calendar

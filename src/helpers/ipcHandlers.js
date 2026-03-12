@@ -515,8 +515,16 @@ class IPCHandlers {
     ipcMain.handle(
       "db-save-note",
       async (event, title, content, noteType, sourceFile, audioDuration, folderId) => {
+        let finalTitle = title;
+        if (!finalTitle || finalTitle.trim().toLowerCase() === "new note") {
+          const activeEvents = this.databaseManager.getActiveEvents();
+          if (activeEvents && activeEvents.length > 0) {
+            finalTitle = activeEvents[0].summary || finalTitle;
+          }
+        }
+
         const result = this.databaseManager.saveNote(
-          title,
+          finalTitle,
           content,
           noteType,
           sourceFile,
@@ -726,10 +734,18 @@ class IPCHandlers {
           ? transcription.timestamp
           : `${transcription.timestamp}Z`;
         const date = new Date(tsStr);
+        let prefix = "transcription";
         const datePart = Number.isNaN(date.getTime())
           ? "transcription"
           : date.toISOString().slice(0, 10);
-        const defaultName = `transcription-${datePart}.${ext}`;
+
+        if (!Number.isNaN(date.getTime())) {
+          const eventAtTime = this.databaseManager.getEventAtTime(date.toISOString());
+          if (eventAtTime && eventAtTime.summary) {
+            prefix = eventAtTime.summary.replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+          }
+        }
+        const defaultName = `${prefix}-${datePart}.${ext}`;
 
         let filePath;
         if (defaultDirectory) {
@@ -3994,6 +4010,18 @@ class IPCHandlers {
       }
     });
 
+    ipcMain.handle("get-calendar-events", async () => {
+      try {
+        const upcoming = this.databaseManager.getUpcomingEvents(10080);
+        const active = this.databaseManager.getActiveEvents();
+        const past = this.databaseManager.getPastEvents(10080);
+        return { success: true, upcoming, active, past };
+      } catch (error) {
+        debugLogger.error("get-calendar-events failed", { error: error.message }, "calendar");
+        return { success: false, upcoming: [], active: [], past: [] };
+      }
+    });
+
     ipcMain.handle("get-imminent-calendar-event", async () => {
       try {
         const gcalState = this.googleCalendarManager?.getActiveMeetingState?.();
@@ -4050,6 +4078,15 @@ class IPCHandlers {
 
     ipcMain.handle("get-meeting-notification-data", async () => {
       return this.windowManager?._pendingNotificationData ?? null;
+    });
+
+    ipcMain.handle("meeting-auto-stop-cancel", async () => {
+      try {
+        this.meetingDetectionEngine.cancelAutoStop();
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
     });
 
     ipcMain.handle("get-desktop-sources", async (_event, types) => {

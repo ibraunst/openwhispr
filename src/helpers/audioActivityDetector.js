@@ -27,6 +27,7 @@ class AudioActivityDetector extends EventEmitter {
     this._activeMicPids = new Set();
     this._activeSources = 0;
     this._sustainedTimer = null;
+    this._silenceTimer = null;
     this._running = false;
     this._eventDriven = false;
   }
@@ -37,6 +38,9 @@ class AudioActivityDetector extends EventEmitter {
       this.consecutiveChecks = 0;
       this.audioActiveStart = null;
       this._clearSustainedTimer();
+      this._clearSilenceTimer();
+    } else {
+      this._clearSilenceTimer();
     }
     debugLogger.debug("User recording state changed", { active }, "meeting");
   }
@@ -69,6 +73,7 @@ class AudioActivityDetector extends EventEmitter {
     this._running = false;
     this._killListenerProcess();
     this._clearSustainedTimer();
+    this._clearSilenceTimer();
     if (this.checkInterval) {
       clearInterval(this.checkInterval);
       this.checkInterval = null;
@@ -101,6 +106,13 @@ class AudioActivityDetector extends EventEmitter {
     if (this._sustainedTimer) {
       clearTimeout(this._sustainedTimer);
       this._sustainedTimer = null;
+    }
+  }
+
+  _clearSilenceTimer() {
+    if (this._silenceTimer) {
+      clearTimeout(this._silenceTimer);
+      this._silenceTimer = null;
     }
   }
 
@@ -326,11 +338,29 @@ class AudioActivityDetector extends EventEmitter {
   // ---------------------------------------------------------------------------
 
   _onMicStateChanged(active) {
-    if (this._userRecording) return;
+    debugLogger.debug("Mic state changed (event-driven)", { active, userRecording: this._userRecording }, "meeting");
+
+    // During recording: track silence for auto-stop
+    if (this._userRecording) {
+      if (active) {
+        this._clearSilenceTimer();
+      } else {
+        if (!this._silenceTimer) {
+          const SILENCE_THRESHOLD_MS = 30 * 1000;
+          this._silenceTimer = setTimeout(() => {
+            this._silenceTimer = null;
+            if (!this._userRecording) return;
+            debugLogger.info("Sustained silence detected during recording", {}, "meeting");
+            this.emit("sustained-silence-detected", { durationMs: SILENCE_THRESHOLD_MS });
+          }, SILENCE_THRESHOLD_MS);
+        }
+      }
+      return;
+    }
+
+    // Not recording: detect if a meeting might be starting
     if (this.lastDismissedAt && Date.now() - this.lastDismissedAt < COOLDOWN_MS) return;
     if (this.hasPrompted) return;
-
-    debugLogger.debug("Mic state changed (event-driven)", { active }, "meeting");
 
     if (active) {
       if (!this.audioActiveStart) this.audioActiveStart = Date.now();
