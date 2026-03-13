@@ -35,6 +35,7 @@ class WindowManager {
     this._agentAnimationState = null;
     this._panelStartPosition = "bottom-right";
     this._isDictatingToggle = false;
+    this._savedControlPanelBounds = null;
 
     app.on("before-quit", () => {
       this.isQuitting = true;
@@ -519,7 +520,23 @@ class WindowManager {
       return;
     }
 
-    this.controlPanelWindow = new BrowserWindow(CONTROL_PANEL_CONFIG);
+    // Default to meeting-mode position (right 1/3, full height) unless user
+    // has previously moved/resized the window.
+    const display = screen.getPrimaryDisplay();
+    const workArea = display.workArea;
+    const meetingWidth = Math.round(workArea.width / 3);
+    const defaultBounds = {
+      x: workArea.x + workArea.width - meetingWidth,
+      y: workArea.y,
+      width: meetingWidth,
+      height: workArea.height,
+    };
+    const bounds = this._savedControlPanelBounds || defaultBounds;
+
+    this.controlPanelWindow = new BrowserWindow({
+      ...CONTROL_PANEL_CONFIG,
+      ...bounds,
+    });
 
     this.controlPanelWindow.webContents.on("will-navigate", (event, url) => {
       const appUrl = DevServerManager.getAppUrl(true);
@@ -571,6 +588,15 @@ class WindowManager {
       this.controlPanelWindow.show();
       this.controlPanelWindow.focus();
     });
+
+    // Persist window bounds when user moves or resizes
+    const saveBounds = () => {
+      if (this.controlPanelWindow && !this.controlPanelWindow.isDestroyed()) {
+        this._savedControlPanelBounds = this.controlPanelWindow.getBounds();
+      }
+    };
+    this.controlPanelWindow.on("moved", saveBounds);
+    this.controlPanelWindow.on("resized", saveBounds);
 
     this.controlPanelWindow.on("close", (event) => {
       if (!this.isQuitting) {
@@ -1033,11 +1059,9 @@ class WindowManager {
     if (this._preMeetingBounds) {
       win.setBounds(this._preMeetingBounds);
       this._preMeetingBounds = null;
-    } else {
-      const { width, height } = CONTROL_PANEL_CONFIG;
-      win.setSize(width, height);
-      win.center();
     }
+    // If no pre-meeting bounds, the window is already in meeting-mode position
+    // which is the default — no need to move it.
   }
 
   refreshLocalizedUi() {

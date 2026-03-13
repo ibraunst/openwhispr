@@ -27,9 +27,33 @@ class ProcessListCache {
 
   async _fetch(now) {
     try {
-      const psList = (await import("ps-list")).default;
-      const procs = await psList();
-      const names = procs.map((p) => (p.name || "").toLowerCase());
+      let names;
+      if (process.platform === "darwin") {
+        // ps-list's `ps awwxo` format doesn't reliably list all processes on
+        // recent macOS versions.  `ps aux` does, so parse it directly.
+        const { execFile } = require("child_process");
+        const { promisify } = require("util");
+        const exec = promisify(execFile);
+        const { stdout } = await exec("ps", ["aux"], { maxBuffer: 64_000_000, encoding: "utf8" });
+        names = stdout
+          .trim()
+          .split("\n")
+          .slice(1) // skip header
+          .map((line) => {
+            // ps aux columns: USER PID %CPU %MEM VSZ RSS TT STAT STARTED TIME COMMAND
+            // COMMAND is everything after the 10th column
+            const parts = line.trim().split(/\s+/);
+            const cmd = parts.slice(10).join(" ");
+            // Extract the executable name from the command path
+            const match = cmd.match(/^(?:\/[^\s]+\/)?([^\s/]+)/);
+            return match ? match[1].toLowerCase() : "";
+          })
+          .filter(Boolean);
+      } else {
+        const psList = (await import("ps-list")).default;
+        const procs = await psList();
+        names = procs.map((p) => (p.name || "").toLowerCase());
+      }
       this._cache = names;
       this._cacheTime = now;
       debugLogger.debug("Process list refreshed", { count: names.length }, "meeting");

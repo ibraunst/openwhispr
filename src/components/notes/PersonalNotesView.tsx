@@ -425,13 +425,14 @@ export default function PersonalNotesView({
   // When manually starting a recording, auto-title the note from the nearest calendar event
   const handleStartMeetingRecording = useCallback(async () => {
     calendarTitleRef.current = null;
+    meetingNoteIdRef.current = activeNoteId;
     const result = await window.electronAPI?.getImminentCalendarEvent?.();
     if (result?.event?.summary) {
       calendarTitleRef.current = result.event.summary;
       handleTitleChange(result.event.summary);
     }
     startMeetingTranscription();
-  }, [startMeetingTranscription, handleTitleChange]);
+  }, [startMeetingTranscription, handleTitleChange, activeNoteId]);
 
   // Pre-warm WebSocket when entering meeting mode (before user hits record)
   useEffect(() => {

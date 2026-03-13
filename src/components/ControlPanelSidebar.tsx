@@ -7,7 +7,7 @@ import {
   Blocks,
   Gift,
   Settings,
-  HelpCircle,
+
   UserCircle,
   X,
   Search,
@@ -16,7 +16,7 @@ import {
 import logoIcon from "../assets/icon.png";
 import { useTranslation } from "react-i18next";
 import { cn } from "./lib/utils";
-import SupportDropdown from "./ui/SupportDropdown";
+
 import { getCachedPlatform } from "../utils/platform";
 
 const platform = getCachedPlatform();
@@ -252,22 +252,7 @@ export default function ControlPanelSidebar({
           </span>
         </button>
 
-        <SupportDropdown
-          trigger={
-            <button
-              aria-label={t("sidebar.support")}
-              className="group flex items-center gap-2.5 w-full h-8 px-2.5 rounded-md text-left outline-none hover:bg-foreground/4 dark:hover:bg-white/4 focus-visible:ring-1 focus-visible:ring-primary/30 transition-colors duration-150"
-            >
-              <HelpCircle
-                size={15}
-                className="shrink-0 text-foreground/60 group-hover:text-foreground/75 dark:text-foreground/50 dark:group-hover:text-foreground/65 transition-colors duration-150"
-              />
-              <span className="text-xs text-foreground/80 group-hover:text-foreground dark:text-foreground/70 dark:group-hover:text-foreground/85 transition-colors duration-150">
-                {t("sidebar.support")}
-              </span>
-            </button>
-          }
-        />
+{/* Support dropdown hidden */}
 
         <div className="mx-1 h-px bg-border/10 dark:bg-white/6 my-1.5!" />
 

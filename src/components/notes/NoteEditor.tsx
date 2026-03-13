@@ -171,7 +171,7 @@ export default function NoteEditor({
   liveTranscript,
 }: NoteEditorProps) {
   const { t } = useTranslation();
-  const [viewMode, setViewMode] = useState<MeetingViewMode>("raw");
+  const [viewMode, setViewMode] = useState<MeetingViewMode>("enhanced");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
   const prevNoteIdRef = useRef<number>(note.id);
@@ -413,7 +413,7 @@ export default function NoteEditor({
   useEffect(() => {
     if (note.id !== prevNoteIdRef.current) {
       prevNoteIdRef.current = note.id;
-      setViewMode("raw");
+      setViewMode(enhancement ? "enhanced" : "raw");
       if (titleRef.current && titleRef.current.textContent !== note.title) {
         titleRef.current.textContent = note.title || "";
       }
@@ -489,11 +489,11 @@ export default function NoteEditor({
     prevRecordingRef.current = isRecording;
   }, [isRecording]);
 
-  // Auto-switch to transcript view after recording stops and transcript is ready
+  // Auto-switch to enhanced view after recording stops and transcript is ready
   useEffect(() => {
     if (!isRecording && !isProcessing && pendingTranscriptSwitchRef.current && liveTranscript) {
       pendingTranscriptSwitchRef.current = false;
-      setViewMode("transcript");
+      setViewMode("enhanced");
     }
   }, [isRecording, isProcessing, liveTranscript]);
 
@@ -715,6 +715,28 @@ export default function NoteEditor({
                   className="absolute top-0.5 left-0 rounded bg-background dark:bg-surface-2 shadow-sm transition-[width,height,transform,opacity] duration-200 ease-out pointer-events-none"
                   style={indicatorStyle}
                 />
+                {enhancement && (
+                  <button
+                    data-segment-button
+                    data-segment-value="enhanced"
+                    onClick={() => setViewMode("enhanced")}
+                    className={cn(
+                      "relative z-1 px-1.5 h-5 rounded text-xs font-medium transition-colors duration-150 flex items-center gap-1",
+                      viewMode === "enhanced"
+                        ? "text-foreground/60"
+                        : "text-foreground/25 hover:text-foreground/40"
+                    )}
+                  >
+                    <Sparkles size={9} />
+                    {t("notes.editor.enhanced")}
+                    {enhancement.isStale && (
+                      <span
+                        className="w-1 h-1 rounded-full bg-amber-400/60"
+                        title={t("notes.editor.staleIndicator")}
+                      />
+                    )}
+                  </button>
+                )}
                 {hasMeetingTranscript && (
                   <button
                     data-segment-button
@@ -745,28 +767,6 @@ export default function NoteEditor({
                   <AlignLeft size={10} />
                   {hasMeetingTranscript ? t("notes.editor.notes") : t("notes.editor.raw")}
                 </button>
-                {enhancement && (
-                  <button
-                    data-segment-button
-                    data-segment-value="enhanced"
-                    onClick={() => setViewMode("enhanced")}
-                    className={cn(
-                      "relative z-1 px-1.5 h-5 rounded text-xs font-medium transition-colors duration-150 flex items-center gap-1",
-                      viewMode === "enhanced"
-                        ? "text-foreground/60"
-                        : "text-foreground/25 hover:text-foreground/40"
-                    )}
-                  >
-                    <Sparkles size={9} />
-                    {t("notes.editor.enhanced")}
-                    {enhancement.isStale && (
-                      <span
-                        className="w-1 h-1 rounded-full bg-amber-400/60"
-                        title={t("notes.editor.staleIndicator")}
-                      />
-                    )}
-                  </button>
-                )}
               </div>
             )}
             {canStream && (
