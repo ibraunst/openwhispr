@@ -47,6 +47,7 @@ import { useClipboard } from "../hooks/useClipboard";
 import { useUpdater } from "../hooks/useUpdater";
 
 import PromptStudio from "./ui/PromptStudio";
+import MeetingNotePromptEditor from "./ui/MeetingNotePromptEditor";
 import ReasoningModelSelector from "./ReasoningModelSelector";
 import { HotkeyInput } from "./ui/HotkeyInput";
 import HotkeyGuidanceAccordion from "./ui/HotkeyGuidanceAccordion";
@@ -1968,6 +1969,10 @@ EOF`,
             />
 
             <PromptStudio />
+
+            <div className="border-t border-border/40 pt-5">
+              <MeetingNotePromptEditor />
+            </div>
           </div>
         );
 
@@ -2110,6 +2115,10 @@ EOF`,
                 description={t("settingsPage.prompts.description")}
               />
               <PromptStudio />
+
+              <div className="border-t border-border/40 pt-5 mt-5">
+                <MeetingNotePromptEditor />
+              </div>
             </div>
           </div>
         );

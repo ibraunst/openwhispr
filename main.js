@@ -701,7 +701,7 @@ async function startApp() {
     let globeKeyIsRecording = false;
     let globeLastStopTime = 0;
     const MIN_HOLD_DURATION_MS = 150;
-    const POST_STOP_COOLDOWN_MS = 300;
+    const POST_STOP_COOLDOWN_MS = 750; // Must exceed paste + clipboard restore time (~600ms on macOS)
 
     globeKeyManager.on("globe-down", async () => {
       const currentHotkey = hotkeyManager.getCurrentHotkey && hotkeyManager.getCurrentHotkey();

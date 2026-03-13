@@ -1881,5 +1881,13 @@
       "open": "Abrir",
       "dismiss": "Cerrar"
     }
+  },
+  "meetingNotePrompt": {
+    "title": "Meeting Note Template",
+    "description": "Customize the prompt used when generating meeting notes from transcripts.",
+    "save": "Save",
+    "saved": "Meeting note template saved",
+    "reset": "Meeting note template reset to default",
+    "resetToDefault": "Reset"
   }
 }

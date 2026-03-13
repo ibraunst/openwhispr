@@ -18,6 +18,7 @@ import AddNotesToFolderDialog from "./AddNotesToFolderDialog";
 import { useNoteRecording } from "../../hooks/useNoteRecording";
 import { useActionProcessing } from "../../hooks/useActionProcessing";
 import type { ActionItem } from "../../types/electron";
+import { getMeetingNotePrompt } from "../../config/prompts";
 import { useSettingsStore, selectIsCloudReasoningMode, getSettings } from "../../stores/settingsStore";
 import { useFolderManagement } from "../../hooks/useFolderManagement";
 import { useNoteDragAndDrop } from "../../hooks/useNoteDragAndDrop";
@@ -387,13 +388,7 @@ export default function PersonalNotesView({
       id: -1,
       name: "Generate notes",
       description: "",
-      prompt:
-        "You are given a meeting transcript and optionally the user's own notes taken during the meeting. " +
-        "Begin your response with exactly this line: '**Subject:** <short descriptive title for this meeting>'. " +
-        "Then combine the content into clean, well-structured meeting notes in markdown. " +
-        "Include: key discussion points, decisions made, action items, and any follow-ups. " +
-        "Preserve the user's notes where relevant and enrich them with context from the transcript. " +
-        "Do not include filler, small talk, or redundant information.",
+      prompt: getMeetingNotePrompt(),
       icon: "sparkles",
       is_builtin: 0,
       sort_order: 0,

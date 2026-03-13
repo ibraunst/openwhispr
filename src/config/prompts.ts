@@ -139,6 +139,28 @@ export function getWordBoost(customDictionary?: string[]): string[] {
   return customDictionary.filter((w) => w.trim());
 }
 
+export const DEFAULT_MEETING_NOTE_PROMPT =
+  "You are given a meeting transcript and optionally the user's own notes taken during the meeting. " +
+  "Begin your response with exactly this line: '**Subject:** <short descriptive title for this meeting>'. " +
+  "Then combine the content into clean, well-structured meeting notes in markdown. " +
+  "Include: key discussion points, decisions made, action items, and any follow-ups. " +
+  "Preserve the user's notes where relevant and enrich them with context from the transcript. " +
+  "Do not include filler, small talk, or redundant information.";
+
+export function getMeetingNotePrompt(): string {
+  if (typeof window !== "undefined" && window.localStorage) {
+    const custom = window.localStorage.getItem("customMeetingNotePrompt");
+    if (custom) {
+      try {
+        return JSON.parse(custom);
+      } catch {
+        return DEFAULT_MEETING_NOTE_PROMPT;
+      }
+    }
+  }
+  return DEFAULT_MEETING_NOTE_PROMPT;
+}
+
 const DEFAULT_AGENT_SYSTEM_PROMPT =
   "You are a helpful voice assistant. Respond concisely and conversationally. " +
   "Keep answers brief unless the user asks for detail. " +
