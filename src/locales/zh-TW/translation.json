@@ -111,7 +111,7 @@
   },
   "common": {
     "back": "返回",
-      "localProcessing": "Transcribing recording...",
+    "localProcessing": "Transcribing recording...",
     "next": "下一步",
     "complete": "完成",
     "reset": "重設",
@@ -965,7 +965,11 @@
         "enterprise": {
           "name": "企業版",
           "price": "自訂",
-          "features": ["雲端同步", "團隊功能（即將推出）", "SSO 與合規"],
+          "features": [
+            "雲端同步",
+            "團隊功能（即將推出）",
+            "SSO 與合規"
+          ],
           "cta": "聯絡我們"
         },
         "currentPlan": "目前方案"
@@ -1816,7 +1820,10 @@
       "disconnect": "中斷連接",
       "disconnectConfirm": "中斷 Apple 日曆連接？",
       "disconnectDescription": "將停用來自 Apple 日曆的會議偵測。",
-      "connecting": "正在請求存取權限..."
+      "connecting": "正在請求存取權限...",
+      "calendars": "Calendars",
+      "loadingCalendars": "Loading calendars...",
+      "noCalendarsFound": "No calendars found"
     }
   },
   "upcoming": {

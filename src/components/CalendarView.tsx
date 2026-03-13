@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, RefreshCw, Video, Loader2, Lock } from "lucide-react";
+import { CalendarDays, RefreshCw, Loader2, Lock } from "lucide-react";
 import { cn } from "./lib/utils";
 import type { CalendarEvent } from "../types/electron";
 
@@ -49,20 +49,6 @@ function getRelativeDateLabel(dateKey: string): string {
   return d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
 }
 
-function hasConferenceUrl(event: CalendarEvent): boolean {
-  if (event.hangout_link) return true;
-  if (event.conference_data) {
-    try {
-      const conf = typeof event.conference_data === "string"
-        ? JSON.parse(event.conference_data)
-        : event.conference_data;
-      return conf?.entryPoints?.some((ep: { uri?: string }) => ep.uri) || !!conf?.url;
-    } catch {
-      return false;
-    }
-  }
-  return false;
-}
 
 function parseConferenceData(event: CalendarEvent) {
   let isPrivate = false;
@@ -91,17 +77,6 @@ function parseConferenceData(event: CalendarEvent) {
   return { isPrivate, attendees, attendeesCount };
 }
 
-function getColorForName(name: string) {
-  const colors = [
-    "bg-red-500", "bg-orange-500", "bg-amber-500", 
-    "bg-green-500", "bg-emerald-500", "bg-teal-500", 
-    "bg-cyan-500", "bg-blue-500", "bg-indigo-500", 
-    "bg-violet-500", "bg-purple-500", "bg-fuchsia-500", "bg-pink-500"
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
-}
 
 function groupEventsByDate(events: CalendarEvent[]): GroupedEvents[] {
   const groups = new Map<string, CalendarEvent[]>();
@@ -125,7 +100,11 @@ function groupEventsByDate(events: CalendarEvent[]): GroupedEvents[] {
   });
 }
 
-export default function CalendarView() {
+interface CalendarViewProps {
+  onOpenNote?: (noteId: number) => void;
+}
+
+export default function CalendarView({ onOpenNote }: CalendarViewProps) {
   const { t } = useTranslation();
   const [upcoming, setUpcoming] = useState<CalendarEvent[]>([]);
   const [active, setActive] = useState<CalendarEvent[]>([]);
@@ -257,7 +236,7 @@ export default function CalendarView() {
                     <div className="text-xs font-medium text-muted-foreground mb-1.5 px-1">{group.label}</div>
                     <div className="space-y-1">
                       {group.events.map((event) => (
-                        <PastEventRow key={event.id} event={event} />
+                        <PastEventRow key={event.id} event={event} onOpenNote={onOpenNote} />
                       ))}
                     </div>
                   </div>
@@ -276,13 +255,7 @@ function EventRow({ event }: { event: CalendarEvent }) {
   const start = new Date(event.start_time);
   const end = new Date(event.end_time);
   const isActive = now >= start && now < end;
-  const hasUrl = hasConferenceUrl(event);
-  const { isPrivate, attendees, attendeesCount } = parseConferenceData(event);
-
-  // Take up to 2 named attendees for the labels
-  const namedAttendees = attendees.filter(a => a.name).slice(0, 2);
-  const othersCount = Math.max(0, attendeesCount - namedAttendees.length);
-  const namesText = namedAttendees.map(a => a.name?.split(' ')[0]).join(', ');
+  const { isPrivate } = parseConferenceData(event);
 
   return (
     <div
@@ -311,41 +284,27 @@ function EventRow({ event }: { event: CalendarEvent }) {
           {formatTime(event.start_time)} – {formatTime(event.end_time)}
         </div>
         
-        {attendeesCount > 0 && (
-          <div className="flex items-center gap-2 mt-2">
-             <div className="flex -space-x-1.5">
-               {namedAttendees.map((a, i) => (
-                 <div key={i} className={cn("w-[20px] h-[20px] rounded flex items-center justify-center text-[10px] font-medium text-white ring-1 ring-background", getColorForName(a.name || a.email || "Unknown"))}>
-                   {(a.name || a.email || "?").charAt(0).toUpperCase()}
-                 </div>
-               ))}
-               {othersCount > 0 && (
-                 <div className="w-[20px] h-[20px] rounded bg-muted/50 flex items-center justify-center text-[9px] font-medium text-muted-foreground ring-1 ring-background">
-                   +{othersCount}
-                 </div>
-               )}
-             </div>
-             <div className="text-[10.5px] font-medium text-muted-foreground/80 truncate">
-               {namesText}{othersCount > 0 ? " & " + othersCount + " others" : ""}
-             </div>
-          </div>
-        )}
       </div>
-      {hasUrl && (
-        <div className="shrink-0 mt-1 p-1.5 rounded bg-muted/30 group-hover:bg-muted/50 transition-colors">
-          <Video size={13} className="text-muted-foreground/70" />
-        </div>
-      )}
     </div>
   );
 }
 
-function PastEventRow({ event }: { event: CalendarEvent }) {
-  const hasUrl = hasConferenceUrl(event);
+function PastEventRow({ event, onOpenNote }: { event: CalendarEvent; onOpenNote?: (noteId: number) => void }) {
   const { isPrivate } = parseConferenceData(event);
 
+  const handleClick = useCallback(async () => {
+    if (!onOpenNote) return;
+    const note = await window.electronAPI?.getNoteByCalendarEventId?.(event.id);
+    if (note) {
+      onOpenNote(note.id);
+    }
+  }, [event.id, onOpenNote]);
+
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-foreground/3 dark:hover:bg-white/3 transition-colors cursor-pointer">
+    <div
+      className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-foreground/3 dark:hover:bg-white/3 transition-colors cursor-pointer"
+      onClick={handleClick}
+    >
       <div className="shrink-0 w-8 h-8 rounded-lg bg-muted/30 dark:bg-white/5 flex items-center justify-center">
         <CalendarDays size={14} className="text-muted-foreground/60" />
       </div>
@@ -360,9 +319,6 @@ function PastEventRow({ event }: { event: CalendarEvent }) {
           {formatTime(event.start_time)} – {formatTime(event.end_time)}
         </div>
       </div>
-      {hasUrl && (
-        <Video size={13} className="shrink-0 text-muted-foreground/40" />
-      )}
     </div>
   );
 }

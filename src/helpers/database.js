@@ -305,6 +305,16 @@ class DatabaseManager {
       }
 
       this.db.exec(`
+        CREATE TABLE IF NOT EXISTS apple_calendars (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          color TEXT,
+          is_selected INTEGER NOT NULL DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      this.db.exec(`
         CREATE TABLE IF NOT EXISTS calendar_events (
           id TEXT PRIMARY KEY,
           calendar_id TEXT NOT NULL,
@@ -524,7 +534,8 @@ class DatabaseManager {
     noteType = "personal",
     sourceFile = null,
     audioDuration = null,
-    folderId = null
+    folderId = null,
+    calendarEventId = null
   ) {
     try {
       if (!this.db) {
@@ -538,9 +549,9 @@ class DatabaseManager {
         folderId = defaultFolder?.id || null;
       }
       const stmt = this.db.prepare(
-        "INSERT INTO notes (title, content, note_type, source_file, audio_duration_seconds, folder_id) VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO notes (title, content, note_type, source_file, audio_duration_seconds, folder_id, calendar_event_id) VALUES (?, ?, ?, ?, ?, ?, ?)"
       );
-      const result = stmt.run(title, content, noteType, sourceFile, audioDuration, folderId);
+      const result = stmt.run(title, content, noteType, sourceFile, audioDuration, folderId, calendarEventId);
 
       const fetchStmt = this.db.prepare("SELECT * FROM notes WHERE id = ?");
       const note = fetchStmt.get(result.lastInsertRowid);
@@ -561,6 +572,17 @@ class DatabaseManager {
       return stmt.get(id) || null;
     } catch (error) {
       debugLogger.error("Error getting note", { error: error.message }, "notes");
+      throw error;
+    }
+  }
+
+  getNoteByCalendarEventId(calendarEventId) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      const stmt = this.db.prepare("SELECT * FROM notes WHERE calendar_event_id = ? ORDER BY updated_at DESC LIMIT 1");
+      return stmt.get(calendarEventId) || null;
+    } catch (error) {
+      debugLogger.error("Error getting note by calendar event id", { error: error.message }, "notes");
       throw error;
     }
   }
@@ -1090,6 +1112,58 @@ class DatabaseManager {
     }
   }
 
+  upsertAppleCalendars(calendars) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      const stmt = this.db.prepare(
+        "INSERT INTO apple_calendars (id, title, color) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET title = excluded.title, color = excluded.color"
+      );
+      const transaction = this.db.transaction((cals) => {
+        for (const cal of cals) {
+          stmt.run(cal.id, cal.title, cal.color || null);
+        }
+      });
+      transaction(calendars);
+      return { success: true };
+    } catch (error) {
+      debugLogger.error("Error upserting Apple calendars", { error: error.message }, "acal");
+      throw error;
+    }
+  }
+
+  getAppleCalendars() {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      return this.db.prepare("SELECT * FROM apple_calendars ORDER BY title").all();
+    } catch (error) {
+      debugLogger.error("Error getting Apple calendars", { error: error.message }, "acal");
+      throw error;
+    }
+  }
+
+  updateAppleCalendarSelection(calendarId, isSelected) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      this.db
+        .prepare("UPDATE apple_calendars SET is_selected = ? WHERE id = ?")
+        .run(isSelected ? 1 : 0, calendarId);
+      return { success: true };
+    } catch (error) {
+      debugLogger.error("Error updating Apple calendar selection", { error: error.message }, "acal");
+      throw error;
+    }
+  }
+
+  getSelectedAppleCalendars() {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      return this.db.prepare("SELECT * FROM apple_calendars WHERE is_selected = 1").all();
+    } catch (error) {
+      debugLogger.error("Error getting selected Apple calendars", { error: error.message }, "acal");
+      throw error;
+    }
+  }
+
   upsertCalendarEvents(events) {
     try {
       if (!this.db) throw new Error("Database not initialized");
@@ -1240,6 +1314,19 @@ class DatabaseManager {
       return { success: true };
     } catch (error) {
       debugLogger.error("Error removing calendar events", { error: error.message }, "gcal");
+      throw error;
+    }
+  }
+
+  clearFutureEventsByCalendarId(calendarId) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      this.db
+        .prepare("DELETE FROM calendar_events WHERE calendar_id = ? AND start_time >= datetime('now')")
+        .run(calendarId);
+      return { success: true };
+    } catch (error) {
+      debugLogger.error("Error clearing future calendar events", { error: error.message }, "calendar");
       throw error;
     }
   }

@@ -51,6 +51,40 @@ struct EventData: Codable {
     let isPrivate: Bool
     let organizerName: String?
     let organizerEmail: String?
+    let calendarId: String
+    let calendarTitle: String
+    let calendarColor: String?
+}
+
+struct CalendarInfo: Codable {
+    let id: String
+    let title: String
+    let color: String?
+}
+
+// Check for --list-calendars mode
+if CommandLine.arguments.contains("--list-calendars") {
+    let calendars = store.calendars(for: .event)
+    var calList: [CalendarInfo] = []
+    for cal in calendars {
+        let colorHex: String? = {
+            guard let cgColor = cal.cgColor else { return nil }
+            guard let components = cgColor.components, cgColor.numberOfComponents >= 3 else { return nil }
+            let r = Int(components[0] * 255)
+            let g = Int(components[1] * 255)
+            let b = Int(components[2] * 255)
+            return String(format: "#%02x%02x%02x", r, g, b)
+        }()
+        calList.append(CalendarInfo(id: cal.calendarIdentifier, title: cal.title, color: colorHex))
+    }
+    let encoder = JSONEncoder()
+    if let jsonData = try? encoder.encode(calList),
+       let jsonString = String(data: jsonData, encoding: .utf8) {
+        print(jsonString)
+    } else {
+        print("[]")
+    }
+    exit(0)
 }
 
 // Arguments: days ahead (default 7)
@@ -105,6 +139,15 @@ for event in events {
         isPrivate = false
     }
 
+    let calColorHex: String? = {
+        guard let cgColor = event.calendar.cgColor else { return nil }
+        guard let components = cgColor.components, cgColor.numberOfComponents >= 3 else { return nil }
+        let r = Int(components[0] * 255)
+        let g = Int(components[1] * 255)
+        let b = Int(components[2] * 255)
+        return String(format: "#%02x%02x%02x", r, g, b)
+    }()
+
     let e = EventData(
         uid: event.eventIdentifier ?? UUID().uuidString,
         title: event.title ?? "Untitled Event",
@@ -118,7 +161,10 @@ for event in events {
         attendeesCount: attendeeList.count,
         isPrivate: isPrivate,
         organizerName: event.organizer?.name,
-        organizerEmail: (event.organizer?.url as NSURL?)?.resourceSpecifier
+        organizerEmail: (event.organizer?.url as NSURL?)?.resourceSpecifier,
+        calendarId: event.calendar.calendarIdentifier,
+        calendarTitle: event.calendar.title,
+        calendarColor: calColorHex
     )
     outputEvents.append(e)
 }

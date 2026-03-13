@@ -111,7 +111,7 @@
   },
   "common": {
     "back": "Назад",
-      "localProcessing": "Transcribing recording...",
+    "localProcessing": "Transcribing recording...",
     "next": "Далее",
     "complete": "Готово",
     "reset": "Сбросить",
@@ -1820,7 +1820,10 @@
       "disconnect": "Отключить",
       "disconnectConfirm": "Отключить Календарь Apple?",
       "disconnectDescription": "Обнаружение встреч из Календаря Apple будет отключено.",
-      "connecting": "Запрос доступа..."
+      "connecting": "Запрос доступа...",
+      "calendars": "Calendars",
+      "loadingCalendars": "Loading calendars...",
+      "noCalendarsFound": "No calendars found"
     }
   },
   "upcoming": {

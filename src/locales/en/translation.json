@@ -1895,7 +1895,10 @@
       "disconnect": "Disconnect",
       "disconnectConfirm": "Disconnect Apple Calendar?",
       "disconnectDescription": "Meeting detection from Apple Calendar will be disabled.",
-      "connecting": "Requesting access..."
+      "connecting": "Requesting access...",
+      "calendars": "Calendars",
+      "loadingCalendars": "Loading calendars...",
+      "noCalendarsFound": "No calendars found"
     }
   },
   "upcoming": {

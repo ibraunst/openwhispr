@@ -86,6 +86,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
       folderId
     ),
   getNote: (id) => ipcRenderer.invoke("db-get-note", id),
+  getNoteByCalendarEventId: (calendarEventId) => ipcRenderer.invoke("db-get-note-by-calendar-event", calendarEventId),
   getNotes: (noteType, limit, folderId) =>
     ipcRenderer.invoke("db-get-notes", noteType, limit, folderId),
   updateNote: (id, updates) => ipcRenderer.invoke("db-update-note", id, updates),
@@ -628,6 +629,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   acalConnect: () => ipcRenderer.invoke("acal-connect"),
   acalDisconnect: () => ipcRenderer.invoke("acal-disconnect"),
   acalGetStatus: () => ipcRenderer.invoke("acal-get-status"),
+  acalGetCalendars: () => ipcRenderer.invoke("acal-get-calendars"),
+  acalSetCalendarSelected: (calendarId, isSelected) => ipcRenderer.invoke("acal-set-calendar-selected", calendarId, isSelected),
   onAcalConnectionChanged: registerListener(
     "acal-connection-changed",
     (callback) => (_event, data) => callback(data)

@@ -565,7 +565,12 @@ export default function ControlPanel() {
           <div className="flex-1 overflow-y-auto pt-1">
             {activeView === "home" && (
               <Suspense fallback={null}>
-                <CalendarView />
+                <CalendarView
+                  onOpenNote={(noteId) => {
+                    setActiveNoteId(noteId);
+                    setActiveView("personal-notes");
+                  }}
+                />
               </Suspense>
             )}
             {activeView === "personal-notes" && (

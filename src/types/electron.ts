@@ -369,6 +369,7 @@ declare global {
         folderId?: number | null
       ) => Promise<{ success: boolean; note?: NoteItem }>;
       getNote: (id: number) => Promise<NoteItem | null>;
+      getNoteByCalendarEventId: (calendarEventId: string) => Promise<NoteItem | null>;
       getNotes: (
         noteType?: string | null,
         limit?: number,
@@ -1092,6 +1093,8 @@ declare global {
       acalConnect?: () => Promise<{ success: boolean; error?: string }>;
       acalDisconnect?: () => Promise<{ success: boolean; error?: string }>;
       acalGetStatus?: () => Promise<{ connected: boolean }>;
+      acalGetCalendars?: () => Promise<{ success: boolean; calendars: Array<{ id: string; title: string; color: string | null; is_selected: number }> }>;
+      acalSetCalendarSelected?: (calendarId: string, isSelected: boolean) => Promise<{ success: boolean }>;
       onAcalConnectionChanged?: (callback: (data: { connected: boolean }) => void) => () => void;
       onAcalMeetingStarting?: (callback: (data: { event: any }) => void) => () => void;
       onAcalMeetingEnded?: (callback: (data: { event: any }) => void) => () => void;

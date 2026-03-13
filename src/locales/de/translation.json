@@ -111,7 +111,7 @@
   },
   "common": {
     "back": "Zurück",
-      "localProcessing": "Transcribing recording...",
+    "localProcessing": "Transcribing recording...",
     "next": "Weiter",
     "complete": "Fertig",
     "reset": "Zurücksetzen",
@@ -945,7 +945,11 @@
         "enterprise": {
           "name": "Enterprise",
           "price": "Individuell",
-          "features": ["Cloud-Synchronisation", "Team-Funktionen (demnächst)", "SSO & Compliance"],
+          "features": [
+            "Cloud-Synchronisation",
+            "Team-Funktionen (demnächst)",
+            "SSO & Compliance"
+          ],
           "cta": "Kontakt aufnehmen"
         },
         "currentPlan": "Aktueller Tarif"
@@ -1816,7 +1820,10 @@
       "disconnect": "Trennen",
       "disconnectConfirm": "Apple Kalender trennen?",
       "disconnectDescription": "Die Meeting-Erkennung über Apple Kalender wird deaktiviert.",
-      "connecting": "Zugriff anfordern..."
+      "connecting": "Zugriff anfordern...",
+      "calendars": "Calendars",
+      "loadingCalendars": "Loading calendars...",
+      "noCalendarsFound": "No calendars found"
     }
   },
   "upcoming": {

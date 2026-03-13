@@ -58,9 +58,49 @@ class AppleCalendarManager {
     // Triggers the macOS Calendar privacy permission prompt
     await this._runAppleScript(`tell application "Calendar" to get name of every calendar`);
     this.connected = true;
+    // Fetch and persist available calendars
+    try {
+      await this.fetchAndStoreCalendars();
+    } catch (err) {
+      debugLogger.error("Failed to fetch calendars on connect", { error: err.message }, "acal");
+    }
     this.start();
     this._broadcastStatusChanged();
     return { success: true };
+  }
+
+  async fetchAndStoreCalendars() {
+    const getResourcePath = () => {
+      if (app.isPackaged) {
+        return path.join(process.resourcesPath, "bin");
+      }
+      return path.join(app.getAppPath(), "resources", "bin");
+    };
+    const binaryPath = path.join(getResourcePath(), "calendar-sync-mac");
+    const escapedPath = binaryPath.replace(/"/g, '\\"');
+    const script = `do shell script "\\"${escapedPath}\\" --list-calendars"`;
+    const result = await this._runAppleScript(script);
+    if (!result || !result.trim()) return [];
+    const calendars = JSON.parse(result);
+    if (Array.isArray(calendars) && calendars.length > 0) {
+      this.databaseManager.upsertAppleCalendars(calendars);
+    }
+    return this.databaseManager.getAppleCalendars();
+  }
+
+  getCalendars() {
+    return this.databaseManager.getAppleCalendars();
+  }
+
+  setCalendarSelected(calendarId, isSelected) {
+    const result = this.databaseManager.updateAppleCalendarSelection(calendarId, isSelected);
+    // Re-sync events so the upcoming meetings view reflects the new filter
+    this.syncEvents()
+      .then(() => this.scheduleNextMeeting())
+      .catch((err) =>
+        debugLogger.error("Post-selection Apple Calendar sync failed", { error: err.message }, "acal")
+      );
+    return result;
   }
 
   disconnect() {
@@ -95,7 +135,21 @@ class AppleCalendarManager {
       const script = `do shell script "\\"${escapedPath}\\" 14"`;
       const result = await this._runAppleScript(script);
 
-      const events = this._parseEvents(result);
+      const allEvents = this._parseEvents(result);
+      // Filter by selected calendars
+      const selectedCalIds = new Set(
+        this.databaseManager.getSelectedAppleCalendars().map((c) => c.id)
+      );
+      const events = selectedCalIds.size > 0
+        ? allEvents.filter((e) => {
+            const calId = e._appleCalendarId;
+            return !calId || selectedCalIds.has(calId);
+          })
+        : allEvents;
+      // Strip internal field before storing
+      for (const e of events) delete e._appleCalendarId;
+      // Clear future apple events and replace with filtered set (preserves past events)
+      this.databaseManager.clearFutureEventsByCalendarId("__apple__");
       if (events.length > 0) {
         this.databaseManager.upsertCalendarEvents(events);
       }
@@ -115,9 +169,24 @@ class AppleCalendarManager {
          throw new Error(parsed.error);
       }
       
+      // Auto-upsert discovered calendars from event data
+      const calMap = new Map();
+      for (const e of parsed) {
+        if (e.calendarId && !calMap.has(e.calendarId)) {
+          calMap.set(e.calendarId, { id: e.calendarId, title: e.calendarTitle || "Unknown", color: e.calendarColor || null });
+        }
+      }
+      if (calMap.size > 0) {
+        try {
+          this.databaseManager.upsertAppleCalendars([...calMap.values()]);
+        } catch (err) {
+          debugLogger.error("Failed to upsert calendars from events", { error: err.message }, "acal");
+        }
+      }
+
       return parsed.map((e) => {
         const meetingUrl = this._extractMeetingUrl(e.url, e.location, e.notes);
-        
+
         // Pass JSON fields through as strings for SQL storage
         let attendeesJson = null;
         if (e.attendees && e.attendees.length > 0) {
@@ -127,6 +196,7 @@ class AppleCalendarManager {
         return {
           id: `acal-${e.uid}`,
           calendar_id: "__apple__",
+          _appleCalendarId: e.calendarId || null,
           summary: e.title || "Event",
           start_time: new Date(e.startTimestamp).toISOString(),
           end_time: new Date(e.endTimestamp).toISOString(),

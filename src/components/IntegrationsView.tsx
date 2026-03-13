@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, FlaskConical, Info, Loader2, Mail, Plus, Unlink } from "lucide-react";
+import { CalendarDays, Check, Info, Loader2, Mail, Plus, Unlink } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { SettingsPanel, SettingsPanelRow } from "./ui/SettingsSection";
@@ -21,6 +21,8 @@ export default function IntegrationsView() {
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   const [isConnectingAcal, setIsConnectingAcal] = useState(false);
   const [confirmDisconnectAcal, setConfirmDisconnectAcal] = useState(false);
+  const [appleCalendars, setAppleCalendars] = useState<Array<{ id: string; title: string; color: string | null; is_selected: number }>>([]);
+  const [loadingAcalCalendars, setLoadingAcalCalendars] = useState(false);
   const screenRecording = useScreenRecordingPermission();
   const hasAccounts = gcalAccounts.length > 0;
 
@@ -83,17 +85,44 @@ export default function IntegrationsView() {
     return () => unsub?.();
   }, [setGcalAccounts]);
 
+  const fetchAppleCalendars = useCallback(async () => {
+    setLoadingAcalCalendars(true);
+    try {
+      const result = await window.electronAPI?.acalGetCalendars?.();
+      if (result?.success && result.calendars) {
+        setAppleCalendars(result.calendars);
+      }
+    } finally {
+      setLoadingAcalCalendars(false);
+    }
+  }, []);
+
+  const handleAcalCalendarToggle = useCallback(async (calendarId: string, isSelected: boolean) => {
+    // Optimistic update
+    setAppleCalendars((prev) =>
+      prev.map((c) => (c.id === calendarId ? { ...c, is_selected: isSelected ? 1 : 0 } : c))
+    );
+    const result = await window.electronAPI?.acalSetCalendarSelected?.(calendarId, isSelected);
+    if (!result?.success) {
+      // Revert on failure
+      setAppleCalendars((prev) =>
+        prev.map((c) => (c.id === calendarId ? { ...c, is_selected: isSelected ? 0 : 1 } : c))
+      );
+    }
+  }, []);
+
   const handleAcalConnect = useCallback(async () => {
     setIsConnectingAcal(true);
     try {
       const result = await window.electronAPI?.acalConnect?.();
       if (result?.success) {
         setAppleCalendarConnected(true);
+        fetchAppleCalendars();
       }
     } finally {
       setIsConnectingAcal(false);
     }
-  }, [setAppleCalendarConnected]);
+  }, [setAppleCalendarConnected, fetchAppleCalendars]);
 
   const handleAcalDisconnect = useCallback(async () => {
     try {
@@ -108,10 +137,17 @@ export default function IntegrationsView() {
     const unsub = window.electronAPI?.onAcalConnectionChanged?.(
       (data: { connected: boolean }) => {
         setAppleCalendarConnected(data.connected);
+        if (data.connected) fetchAppleCalendars();
       }
     );
     return () => unsub?.();
-  }, [setAppleCalendarConnected]);
+  }, [setAppleCalendarConnected, fetchAppleCalendars]);
+
+  useEffect(() => {
+    if (appleCalendarConnected) {
+      fetchAppleCalendars();
+    }
+  }, [appleCalendarConnected, fetchAppleCalendars]);
 
   return (
     <div className="max-w-lg mx-auto w-full px-6 py-6 space-y-6">
@@ -235,6 +271,50 @@ export default function IntegrationsView() {
             </div>
           </SettingsPanelRow>
 
+          {appleCalendarConnected && appleCalendars.length > 0 && (
+            <SettingsPanelRow>
+              <div className="pl-12 space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground/70 mb-2">
+                  {t("integrations.appleCalendar.calendars")}
+                </p>
+                {appleCalendars.map((cal) => (
+                  <button
+                    key={cal.id}
+                    onClick={() => handleAcalCalendarToggle(cal.id, !cal.is_selected)}
+                    className="flex items-center gap-2.5 w-full text-left py-0.5 group"
+                  >
+                    <div
+                      className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${
+                        cal.is_selected
+                          ? "border-transparent"
+                          : "border-border/60 bg-transparent"
+                      }`}
+                      style={cal.is_selected && cal.color ? { backgroundColor: cal.color } : cal.is_selected ? { backgroundColor: "var(--color-primary)" } : undefined}
+                    >
+                      {cal.is_selected ? <Check className="h-3 w-3 text-white" /> : null}
+                    </div>
+                    <span className="text-xs text-foreground/80 truncate">{cal.title}</span>
+                    {cal.color && (
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0 ml-auto"
+                        style={{ backgroundColor: cal.color }}
+                      />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </SettingsPanelRow>
+          )}
+
+          {appleCalendarConnected && loadingAcalCalendars && appleCalendars.length === 0 && (
+            <SettingsPanelRow>
+              <div className="flex items-center gap-2 pl-12 text-xs text-muted-foreground/60">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {t("integrations.appleCalendar.loadingCalendars")}
+              </div>
+            </SettingsPanelRow>
+          )}
+
           {appleCalendarConnected && (
             <SettingsPanelRow>
               <button
@@ -263,22 +343,6 @@ export default function IntegrationsView() {
         </div>
       )}
 
-      <div className="rounded-lg border border-border/40 dark:border-border-subtle/40 bg-muted/20 dark:bg-surface-2/30 p-4 flex items-start gap-3">
-        <FlaskConical size={15} className="text-primary/60 shrink-0 mt-0.5" />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-foreground/80">{t("integrations.beta.title")}</p>
-          <p className="text-xs text-muted-foreground/60 mt-0.5 leading-relaxed">
-            {t("integrations.beta.description")}
-          </p>
-          <div className="mt-2 space-y-1">
-            <p className="text-xs text-muted-foreground/60">{t("integrations.beta.freeTier")}</p>
-            <p className="text-xs text-muted-foreground/60">{t("integrations.beta.proTier")}</p>
-          </div>
-          <p className="text-xs text-muted-foreground/50 mt-2 leading-relaxed">
-            {t("integrations.beta.feedback")}
-          </p>
-        </div>
-      </div>
 
       <ConfirmDialog
         open={!!confirmDisconnectEmail}

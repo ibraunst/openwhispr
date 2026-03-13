@@ -111,7 +111,7 @@
   },
   "common": {
     "back": "返回",
-      "localProcessing": "Transcribing recording...",
+    "localProcessing": "Transcribing recording...",
     "next": "下一步",
     "complete": "完成",
     "reset": "重置",
@@ -965,7 +965,11 @@
         "enterprise": {
           "name": "企业版",
           "price": "自定义",
-          "features": ["云端同步", "团队功能（即将推出）", "SSO 与合规"],
+          "features": [
+            "云端同步",
+            "团队功能（即将推出）",
+            "SSO 与合规"
+          ],
           "cta": "联系我们"
         },
         "currentPlan": "当前套餐"
@@ -1816,7 +1820,10 @@
       "disconnect": "断开连接",
       "disconnectConfirm": "断开苹果日历连接？",
       "disconnectDescription": "将禁用来自苹果日历的会议检测。",
-      "connecting": "正在请求访问权限..."
+      "connecting": "正在请求访问权限...",
+      "calendars": "Calendars",
+      "loadingCalendars": "Loading calendars...",
+      "noCalendarsFound": "No calendars found"
     }
   },
   "upcoming": {

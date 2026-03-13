@@ -516,10 +516,14 @@ class IPCHandlers {
       "db-save-note",
       async (event, title, content, noteType, sourceFile, audioDuration, folderId) => {
         let finalTitle = title;
+        let calendarEventId = null;
         if (!finalTitle || finalTitle.trim().toLowerCase() === "new note") {
           const activeEvents = this.databaseManager.getActiveEvents();
           if (activeEvents && activeEvents.length > 0) {
             finalTitle = activeEvents[0].summary || finalTitle;
+            if (noteType === "meeting") {
+              calendarEventId = activeEvents[0].id;
+            }
           }
         }
 
@@ -529,7 +533,8 @@ class IPCHandlers {
           noteType,
           sourceFile,
           audioDuration,
-          folderId
+          folderId,
+          calendarEventId
         );
         if (result?.success && result?.note) {
           setImmediate(() => {
@@ -542,6 +547,10 @@ class IPCHandlers {
 
     ipcMain.handle("db-get-note", async (event, id) => {
       return this.databaseManager.getNote(id);
+    });
+
+    ipcMain.handle("db-get-note-by-calendar-event", async (event, calendarEventId) => {
+      return this.databaseManager.getNoteByCalendarEventId(calendarEventId);
     });
 
     ipcMain.handle("db-get-notes", async (event, noteType, limit, folderId) => {
@@ -4007,6 +4016,36 @@ class IPCHandlers {
         return this.appleCalendarManager.getConnectionStatus();
       } catch (error) {
         return { connected: false };
+      }
+    });
+
+    ipcMain.handle("acal-get-calendars", async () => {
+      try {
+        if (!this.appleCalendarManager) {
+          return { success: false, calendars: [] };
+        }
+        let calendars = this.appleCalendarManager.getCalendars();
+        if (calendars.length === 0 && this.appleCalendarManager.isConnected()) {
+          // DB empty (e.g. first run after upgrade) — fetch from binary
+          calendars = await this.appleCalendarManager.fetchAndStoreCalendars();
+        }
+        return { success: true, calendars };
+      } catch (error) {
+        debugLogger.error("acal-get-calendars failed", { error: error.message }, "acal");
+        return { success: false, calendars: [] };
+      }
+    });
+
+    ipcMain.handle("acal-set-calendar-selected", async (_event, calendarId, isSelected) => {
+      try {
+        if (!this.appleCalendarManager) {
+          return { success: false };
+        }
+        this.appleCalendarManager.setCalendarSelected(calendarId, isSelected);
+        return { success: true };
+      } catch (error) {
+        debugLogger.error("acal-set-calendar-selected failed", { error: error.message }, "acal");
+        return { success: false };
       }
     });
 

@@ -111,7 +111,7 @@
   },
   "common": {
     "back": "Atrás",
-      "localProcessing": "Transcribing recording...",
+    "localProcessing": "Transcribing recording...",
     "next": "Siguiente",
     "complete": "Completar",
     "reset": "Restablecer",
@@ -1820,7 +1820,10 @@
       "disconnect": "Desconectar",
       "disconnectConfirm": "¿Desconectar Apple Calendario?",
       "disconnectDescription": "La detección de reuniones desde Apple Calendario quedará desactivada.",
-      "connecting": "Solicitando acceso..."
+      "connecting": "Solicitando acceso...",
+      "calendars": "Calendars",
+      "loadingCalendars": "Loading calendars...",
+      "noCalendarsFound": "No calendars found"
     }
   },
   "upcoming": {

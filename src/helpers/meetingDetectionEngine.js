@@ -223,7 +223,7 @@ class MeetingDetectionEngine {
           });
         }
 
-        const noteResult = this.databaseManager.saveNote(eventSummary, "", "meeting");
+        const noteResult = this.databaseManager.saveNote(eventSummary, "", "meeting", null, null, null, detection.event?.id || null);
         const meetingsFolder = this.databaseManager.getMeetingsFolder();
 
         if (noteResult?.note?.id && meetingsFolder?.id) {

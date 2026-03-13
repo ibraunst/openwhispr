@@ -111,7 +111,7 @@
   },
   "common": {
     "back": "戻る",
-      "localProcessing": "Transcribing recording...",
+    "localProcessing": "Transcribing recording...",
     "next": "次へ",
     "complete": "完了",
     "reset": "リセット",
@@ -945,7 +945,11 @@
         "enterprise": {
           "name": "Enterprise",
           "price": "カスタム",
-          "features": ["クラウド同期", "チーム機能（近日公開）", "SSO & コンプライアンス"],
+          "features": [
+            "クラウド同期",
+            "チーム機能（近日公開）",
+            "SSO & コンプライアンス"
+          ],
           "cta": "お問い合わせ"
         },
         "currentPlan": "現在のプラン"
@@ -1816,7 +1820,10 @@
       "disconnect": "切断",
       "disconnectConfirm": "Appleカレンダーを切断しますか？",
       "disconnectDescription": "Appleカレンダーからのミーティング検出が無効になります。",
-      "connecting": "アクセスをリクエスト中..."
+      "connecting": "アクセスをリクエスト中...",
+      "calendars": "Calendars",
+      "loadingCalendars": "Loading calendars...",
+      "noCalendarsFound": "No calendars found"
     }
   },
   "upcoming": {

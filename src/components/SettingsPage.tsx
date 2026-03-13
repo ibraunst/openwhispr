@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from "react"
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Badge } from "./ui/badge";
 import {
   RefreshCw,
   Download,
@@ -10,19 +9,13 @@ import {
   Mic,
   Shield,
   FolderOpen,
-  LogOut,
-  UserCircle,
   Sun,
   Moon,
   Monitor,
   Cloud,
   Key,
   ChevronDown,
-  Sparkles,
-  AlertTriangle,
   Loader2,
-  Check,
-  Mail,
   CircleCheck,
   CircleX,
   RotateCw,
@@ -30,10 +23,9 @@ import {
   Copy,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
-import { NEON_AUTH_URL, signOut } from "../lib/neonAuth";
 import MicPermissionWarning from "./ui/MicPermissionWarning";
-import MicrophoneSettings from "./ui/MicrophoneSettings";
 import PermissionCard from "./ui/PermissionCard";
+import MicrophoneSettings from "./ui/MicrophoneSettings";
 import PasteToolsInfo from "./ui/PasteToolsInfo";
 import TranscriptionModelPicker from "./TranscriptionModelPicker";
 import {
@@ -45,7 +37,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "./ui/dialog";
-import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
 import { useSettings } from "../hooks/useSettings";
 import { useDialogs } from "../hooks/useDialogs";
 import { useAgentName } from "../utils/agentName";
@@ -68,8 +59,6 @@ import { Toggle } from "./ui/toggle";
 import DeveloperSection from "./DeveloperSection";
 import AgentModeSettings from "./settings/AgentModeSettings";
 import LanguageSelector from "./ui/LanguageSelector";
-import { Skeleton } from "./ui/skeleton";
-import { Progress } from "./ui/progress";
 import { useToast } from "./ui/Toast";
 import { useTheme } from "../hooks/useTheme";
 import type { LocalTranscriptionProvider } from "../types/electron";
@@ -81,8 +70,6 @@ import { startMigration, useMigration } from "../stores/noteStore.js";
 import { formatBytes } from "../utils/formatBytes";
 
 export type SettingsSectionType =
-  | "account"
-  | "plansBilling"
   | "general"
   | "hotkeys"
   | "transcription"
@@ -1068,635 +1055,8 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
   }, [isRemovingModels, cachePathHint, showConfirmDialog, showAlertDialog, t]);
 
   const { isSignedIn, isLoaded, user } = useAuth();
-  const [isSigningOut, setIsSigningOut] = useState(false);
-  const [isOpeningBilling, setIsOpeningBilling] = useState(false);
-  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly");
-
-  useEffect(() => {
-    if (usage?.billingInterval) {
-      setBillingPeriod(usage.billingInterval);
-    }
-  }, [usage?.billingInterval]);
-
-  const startOnboarding = useCallback(() => {
-    localStorage.setItem("pendingCloudMigration", "true");
-    localStorage.setItem("onboardingCurrentStep", "0");
-    localStorage.removeItem("onboardingCompleted");
-    window.location.reload();
-  }, []);
-
-  const handleSignOut = useCallback(async () => {
-    setIsSigningOut(true);
-    try {
-      await signOut();
-      window.location.reload();
-    } catch (error) {
-      logger.error("Sign out failed", error, "auth");
-      showAlertDialog({
-        title: t("settingsPage.account.signOut.failedTitle"),
-        description: t("settingsPage.account.signOut.failedDescription"),
-      });
-    } finally {
-      setIsSigningOut(false);
-    }
-  }, [showAlertDialog, t]);
-
   const renderSectionContent = () => {
     switch (activeSection) {
-      case "account":
-        return (
-          <div className="space-y-5">
-            {!NEON_AUTH_URL ? (
-              <>
-                <SectionHeader
-                  title={t("settingsPage.account.title")}
-                  description={t("settingsPage.account.notConfigured")}
-                />
-                <SettingsPanel>
-                  <SettingsPanelRow>
-                    <SettingsRow
-                      label={t("settingsPage.account.featuresDisabled")}
-                      description={t("settingsPage.account.featuresDisabledDescription")}
-                    >
-                      <Badge variant="warning">{t("settingsPage.account.disabled")}</Badge>
-                    </SettingsRow>
-                  </SettingsPanelRow>
-                </SettingsPanel>
-              </>
-            ) : isLoaded && isSignedIn && user ? (
-              <>
-                <SectionHeader title={t("settingsPage.account.title")} />
-                <SettingsPanel>
-                  <SettingsPanelRow>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 overflow-hidden bg-primary/10 dark:bg-primary/15">
-                        {user.image ? (
-                          <img
-                            src={user.image}
-                            alt={user.name || t("settingsPage.account.user")}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <UserCircle className="w-5 h-5 text-primary" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-foreground truncate">
-                          {user.name || t("settingsPage.account.user")}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                      </div>
-                      <Badge variant="success">{t("settingsPage.account.signedIn")}</Badge>
-                    </div>
-                  </SettingsPanelRow>
-                </SettingsPanel>
-
-                <SettingsPanel>
-                  <SettingsPanelRow>
-                    <Button
-                      onClick={handleSignOut}
-                      variant="outline"
-                      disabled={isSigningOut}
-                      size="sm"
-                      className="w-full text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/50"
-                    >
-                      <LogOut className="mr-1.5 h-3.5 w-3.5" />
-                      {isSigningOut
-                        ? t("settingsPage.account.signOut.signingOut")
-                        : t("settingsPage.account.signOut.signOut")}
-                    </Button>
-                  </SettingsPanelRow>
-                </SettingsPanel>
-              </>
-            ) : isLoaded ? (
-              <>
-                <SectionHeader title={t("settingsPage.account.title")} />
-                <SettingsPanel>
-                  <SettingsPanelRow>
-                    <SettingsRow
-                      label={t("settingsPage.account.notSignedIn")}
-                      description={t("settingsPage.account.notSignedInDescription")}
-                    >
-                      <Badge variant="outline">{t("settingsPage.account.offline")}</Badge>
-                    </SettingsRow>
-                  </SettingsPanelRow>
-                </SettingsPanel>
-
-                <div className="rounded-lg border border-primary/20 dark:border-primary/15 bg-primary/3 dark:bg-primary/6 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-md bg-primary/10 dark:bg-primary/15 flex items-center justify-center shrink-0 mt-0.5">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-2.5">
-                      <div>
-                        <p className="text-xs font-medium text-foreground">
-                          {t("settingsPage.account.trialCta.title")}
-                        </p>
-                        <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
-                          {t("settingsPage.account.trialCta.description")}
-                        </p>
-                      </div>
-                      <Button onClick={startOnboarding} size="sm" className="w-full">
-                        <UserCircle className="mr-1.5 h-3.5 w-3.5" />
-                        {t("settingsPage.account.trialCta.button")}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <SectionHeader title={t("settingsPage.account.title")} />
-                <SettingsPanel>
-                  <SettingsPanelRow>
-                    <div className="flex items-center justify-between">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-5 w-16 rounded-full" />
-                    </div>
-                  </SettingsPanelRow>
-                </SettingsPanel>
-              </>
-            )}
-          </div>
-        );
-
-      case "plansBilling":
-        return (
-          <div className="space-y-5">
-            {!NEON_AUTH_URL ? (
-              <>
-                <SectionHeader
-                  title={t("settingsPage.account.pricing.title")}
-                  description={t("settingsPage.account.notConfigured")}
-                />
-                <SettingsPanel>
-                  <SettingsPanelRow>
-                    <SettingsRow
-                      label={t("settingsPage.account.featuresDisabled")}
-                      description={t("settingsPage.account.featuresDisabledDescription")}
-                    >
-                      <Badge variant="warning">{t("settingsPage.account.disabled")}</Badge>
-                    </SettingsRow>
-                  </SettingsPanelRow>
-                </SettingsPanel>
-              </>
-            ) : isLoaded ? (
-              <>
-                <SectionHeader title={t("settingsPage.account.pricing.title")} />
-                <div className="space-y-2.5">
-                  <div className="flex justify-center">
-                    <div className="inline-flex rounded-md bg-muted/40 dark:bg-surface-2/40 p-0.5 border border-border/30 dark:border-border-subtle/40">
-                      <button
-                        onClick={() => setBillingPeriod("monthly")}
-                        className={cn(
-                          "px-3 py-1 text-[11px] font-medium rounded-[3px] transition-all duration-150",
-                          billingPeriod === "monthly"
-                            ? "bg-background dark:bg-surface-raised text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        {t("settingsPage.account.pricing.monthly")}
-                      </button>
-                      <button
-                        onClick={() => setBillingPeriod("annual")}
-                        className={cn(
-                          "px-3 py-1 text-[11px] font-medium rounded-[3px] transition-all duration-150 flex items-center gap-1",
-                          billingPeriod === "annual"
-                            ? "bg-background dark:bg-surface-raised text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        {t("settingsPage.account.pricing.annual")}
-                        <span className="text-[9px] font-semibold text-primary">
-                          {t("settingsPage.account.pricing.annualBadge")}
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    {/* Free */}
-                    <div
-                      className={cn(
-                        "rounded-md border p-2.5 flex flex-col",
-                        !usage?.isSubscribed && !usage?.isTrial
-                          ? "border-primary/30 bg-primary/3 dark:border-primary/20 dark:bg-primary/5"
-                          : "border-border/50 dark:border-border-subtle/60 bg-card/30 dark:bg-surface-2/30"
-                      )}
-                    >
-                      <p className="text-[11px] font-semibold text-foreground">
-                        {t("settingsPage.account.pricing.free.name")}
-                      </p>
-                      <div className="flex items-baseline gap-0.5 mt-0.5">
-                        <span className="text-sm font-bold text-foreground">
-                          {t("settingsPage.account.pricing.free.price")}
-                        </span>
-                        <span className="text-[9px] text-muted-foreground">
-                          {t("settingsPage.account.pricing.free.period")}
-                        </span>
-                      </div>
-                      <ul className="space-y-0.5 mt-2 flex-1">
-                        {(
-                          t("settingsPage.account.pricing.free.features", {
-                            returnObjects: true,
-                          }) as string[]
-                        ).map((feature, i) => (
-                          <li
-                            key={i}
-                            className="flex items-start gap-1 text-[10px] text-muted-foreground leading-tight"
-                          >
-                            <Check size={9} className="mt-[2px] text-primary/70 shrink-0" />
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                      {isSignedIn && !usage?.isSubscribed && !usage?.isTrial ? (
-                        <div className="mt-2 text-center">
-                          <span className="text-[9px] font-medium text-primary/70">
-                            {t("settingsPage.account.pricing.currentPlan")}
-                          </span>
-                        </div>
-                      ) : !isSignedIn ? (
-                        <Button
-                          onClick={startOnboarding}
-                          variant="outline"
-                          size="sm"
-                          className="mt-2 w-full h-6 text-[10px]"
-                        >
-                          {t("settingsPage.account.signedOutPlans.button")}
-                        </Button>
-                      ) : null}
-                    </div>
-
-                    {/* Pro */}
-                    <div
-                      className={cn(
-                        "rounded-md border-2 p-2.5 flex flex-col",
-                        usage?.isSubscribed || usage?.isTrial
-                          ? "border-primary/40 bg-primary/5 dark:border-primary/30 dark:bg-primary/8"
-                          : "border-primary/20 bg-primary/2 dark:border-primary/15 dark:bg-primary/3"
-                      )}
-                    >
-                      <p className="text-[11px] font-semibold text-foreground">
-                        {t("settingsPage.account.pricing.pro.name")}
-                      </p>
-                      <div className="flex items-baseline gap-0.5 mt-0.5">
-                        <span className="text-sm font-bold text-foreground">
-                          {billingPeriod === "monthly"
-                            ? t("settingsPage.account.pricing.pro.monthlyPrice")
-                            : t("settingsPage.account.pricing.pro.annualPrice")}
-                        </span>
-                        <span className="text-[9px] text-muted-foreground">
-                          {billingPeriod === "monthly"
-                            ? t("settingsPage.account.pricing.pro.monthlyPeriod")
-                            : t("settingsPage.account.pricing.pro.annualPeriod")}
-                        </span>
-                        {billingPeriod === "annual" && (
-                          <span className="text-[9px] font-semibold text-primary ml-1">
-                            {t("settingsPage.account.pricing.annualBadge")}
-                          </span>
-                        )}
-                      </div>
-                      <ul className="space-y-0.5 mt-2 flex-1">
-                        {(
-                          t("settingsPage.account.pricing.pro.features", {
-                            returnObjects: true,
-                          }) as string[]
-                        ).map((feature, i) => (
-                          <li
-                            key={i}
-                            className="flex items-start gap-1 text-[10px] text-muted-foreground leading-tight"
-                          >
-                            <Check size={9} className="mt-[2px] text-primary shrink-0" />
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                      {usage?.isSubscribed && !usage?.isTrial ? (
-                        billingPeriod === "annual" ? (
-                          <Button
-                            onClick={async () => {
-                              const result = await usage.openBillingPortal();
-                              if (!result.success) {
-                                toast({
-                                  title: t("settingsPage.account.billing.couldNotOpenTitle"),
-                                  description: t(
-                                    "settingsPage.account.billing.couldNotOpenDescription"
-                                  ),
-                                  variant: "destructive",
-                                });
-                              }
-                            }}
-                            variant="outline"
-                            size="sm"
-                            className="mt-2 w-full h-6 text-[10px]"
-                            disabled={usage?.checkoutLoading}
-                          >
-                            {t("settingsPage.account.pricing.pro.switchToAnnual")}
-                          </Button>
-                        ) : (
-                          <div className="mt-2 text-center">
-                            <span className="text-[9px] font-medium text-primary">
-                              {t("settingsPage.account.pricing.currentPlan")}
-                            </span>
-                          </div>
-                        )
-                      ) : usage?.isTrial ? (
-                        <div className="mt-2 text-center">
-                          <span className="text-[9px] font-medium text-primary">
-                            {t("settingsPage.account.pricing.currentPlan")}
-                          </span>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() =>
-                            window.electronAPI?.openExternal?.(
-                              `https://customwhispr.com/get-started?plan=${billingPeriod}`
-                            )
-                          }
-                          size="sm"
-                          className="mt-2 w-full h-6 text-[10px]"
-                        >
-                          {t("settingsPage.account.pricing.pro.cta")}
-                        </Button>
-                      )}
-                    </div>
-
-                    {/* Enterprise */}
-                    <div className="rounded-md border border-border/50 dark:border-border-subtle/60 bg-card/30 dark:bg-surface-2/30 p-2.5 flex flex-col">
-                      <p className="text-[11px] font-semibold text-foreground">
-                        {t("settingsPage.account.pricing.enterprise.name")}
-                      </p>
-                      <div className="flex items-baseline gap-0.5 mt-0.5">
-                        <span className="text-sm font-bold text-foreground">
-                          {t("settingsPage.account.pricing.enterprise.price")}
-                        </span>
-                      </div>
-                      <ul className="space-y-0.5 mt-2 flex-1">
-                        {(
-                          t("settingsPage.account.pricing.enterprise.features", {
-                            returnObjects: true,
-                          }) as string[]
-                        ).map((feature, i) => (
-                          <li
-                            key={i}
-                            className="flex items-start gap-1 text-[10px] text-muted-foreground leading-tight"
-                          >
-                            <Check
-                              size={9}
-                              className="mt-[2px] text-purple-500 dark:text-purple-400 shrink-0"
-                            />
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-2 w-full h-6 text-[10px]"
-                        onClick={() =>
-                          window.electronAPI?.openExternal?.("mailto:gabe@customwhispr.com")
-                        }
-                      >
-                        <Mail size={10} />
-                        {t("settingsPage.account.pricing.enterprise.cta")}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {isSignedIn ? (
-                  <>
-                    <SectionHeader title={t("settingsPage.account.planTitle")} />
-                    {!usage || !usage.hasLoaded ? (
-                      <SettingsPanel>
-                        <SettingsPanelRow>
-                          <div className="flex items-center justify-between">
-                            <Skeleton className="h-4 w-24" />
-                            <Skeleton className="h-5 w-16 rounded-full" />
-                          </div>
-                        </SettingsPanelRow>
-                        <SettingsPanelRow>
-                          <div className="space-y-2">
-                            <Skeleton className="h-3 w-48" />
-                            <Skeleton className="h-8 w-full rounded" />
-                          </div>
-                        </SettingsPanelRow>
-                      </SettingsPanel>
-                    ) : (
-                      <SettingsPanel>
-                        {usage.isPastDue && (
-                          <SettingsPanelRow>
-                            <Alert
-                              variant="warning"
-                              className="dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-200 dark:[&>svg]:text-amber-400"
-                            >
-                              <AlertTriangle className="h-4 w-4" />
-                              <AlertTitle>{t("settingsPage.account.pastDue.title")}</AlertTitle>
-                              <AlertDescription>
-                                {t("settingsPage.account.pastDue.description")}
-                              </AlertDescription>
-                            </Alert>
-                          </SettingsPanelRow>
-                        )}
-
-                        <SettingsPanelRow>
-                          <SettingsRow
-                            label={
-                              usage.isTrial
-                                ? t("settingsPage.account.planLabels.trial")
-                                : usage.isPastDue
-                                  ? t("settingsPage.account.planLabels.free")
-                                  : usage.isSubscribed
-                                    ? t("settingsPage.account.planLabels.pro")
-                                    : t("settingsPage.account.planLabels.free")
-                            }
-                            description={
-                              usage.isTrial
-                                ? t("settingsPage.account.planDescriptions.trial", {
-                                    days: usage.trialDaysLeft,
-                                  })
-                                : usage.isPastDue
-                                  ? t("settingsPage.account.planDescriptions.pastDue", {
-                                      used: usage.wordsUsed.toLocaleString(i18n.language),
-                                      limit: usage.limit.toLocaleString(i18n.language),
-                                    })
-                                  : usage.isSubscribed
-                                    ? usage.currentPeriodEnd
-                                      ? t("settingsPage.account.planDescriptions.nextBilling", {
-                                          date: new Date(usage.currentPeriodEnd).toLocaleDateString(
-                                            i18n.language,
-                                            { month: "short", day: "numeric", year: "numeric" }
-                                          ),
-                                        })
-                                      : t("settingsPage.account.planDescriptions.unlimited")
-                                    : t("settingsPage.account.planDescriptions.freeUsage", {
-                                        used: usage.wordsUsed.toLocaleString(i18n.language),
-                                        limit: usage.limit.toLocaleString(i18n.language),
-                                      })
-                            }
-                          >
-                            {usage.isTrial ? (
-                              <Badge variant="info">{t("settingsPage.account.badges.trial")}</Badge>
-                            ) : usage.isPastDue ? (
-                              <Badge variant="destructive">
-                                {t("settingsPage.account.badges.pastDue")}
-                              </Badge>
-                            ) : usage.isSubscribed ? (
-                              <Badge variant="success">
-                                {t("settingsPage.account.badges.pro")}
-                              </Badge>
-                            ) : usage.isOverLimit ? (
-                              <Badge variant="warning">
-                                {t("settingsPage.account.badges.limitReached")}
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline">
-                                {t("settingsPage.account.badges.free")}
-                              </Badge>
-                            )}
-                          </SettingsRow>
-                        </SettingsPanelRow>
-
-                        {!usage.isSubscribed && !usage.isTrial && (
-                          <SettingsPanelRow>
-                            <div className="space-y-1.5">
-                              <Progress
-                                value={
-                                  usage.limit > 0
-                                    ? Math.min(100, (usage.wordsUsed / usage.limit) * 100)
-                                    : 0
-                                }
-                                className={cn(
-                                  "h-1.5",
-                                  usage.isOverLimit
-                                    ? "[&>div]:bg-destructive"
-                                    : usage.isApproachingLimit
-                                      ? "[&>div]:bg-warning"
-                                      : "[&>div]:bg-primary"
-                                )}
-                              />
-                              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <span className="tabular-nums">
-                                  {usage.wordsUsed.toLocaleString(i18n.language)} /{" "}
-                                  {usage.limit.toLocaleString(i18n.language)}
-                                </span>
-                                {usage.isApproachingLimit && (
-                                  <span className="text-warning">
-                                    {t("settingsPage.account.wordsRemaining", {
-                                      remaining: usage.wordsRemaining.toLocaleString(i18n.language),
-                                    })}
-                                  </span>
-                                )}
-                                {!usage.isApproachingLimit && !usage.isOverLimit && (
-                                  <span>{t("settingsPage.account.rollingWeeklyLimit")}</span>
-                                )}
-                              </div>
-                            </div>
-                          </SettingsPanelRow>
-                        )}
-
-                        <SettingsPanelRow>
-                          {usage.isPastDue ? (
-                            <Button
-                              onClick={async () => {
-                                setIsOpeningBilling(true);
-                                try {
-                                  const result = await usage.openBillingPortal();
-                                  if (!result.success) {
-                                    toast({
-                                      title: t("settingsPage.account.billing.couldNotOpenTitle"),
-                                      description: t(
-                                        "settingsPage.account.billing.couldNotOpenDescription"
-                                      ),
-                                      variant: "destructive",
-                                    });
-                                  }
-                                } finally {
-                                  setIsOpeningBilling(false);
-                                }
-                              }}
-                              disabled={isOpeningBilling}
-                              size="sm"
-                              className="w-full"
-                            >
-                              {isOpeningBilling ? (
-                                <>
-                                  <Loader2 size={14} className="animate-spin" />
-                                  {t("settingsPage.account.billing.opening")}
-                                </>
-                              ) : (
-                                t("settingsPage.account.billing.updatePaymentMethod")
-                              )}
-                            </Button>
-                          ) : usage.isSubscribed && !usage.isTrial ? (
-                            <Button
-                              onClick={async () => {
-                                const result = await usage.openBillingPortal();
-                                if (!result.success) {
-                                  toast({
-                                    title: t("settingsPage.account.billing.couldNotOpenTitle"),
-                                    description: t(
-                                      "settingsPage.account.billing.couldNotOpenDescription"
-                                    ),
-                                    variant: "destructive",
-                                  });
-                                }
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="w-full"
-                              disabled={usage.checkoutLoading}
-                            >
-                              {usage.checkoutLoading
-                                ? t("settingsPage.account.billing.opening")
-                                : t("settingsPage.account.billing.manageBilling")}
-                            </Button>
-                          ) : (
-                            <Button
-                              onClick={async () => {
-                                const result = await usage.openCheckout(billingPeriod);
-                                if (!result.success) {
-                                  toast({
-                                    title: t("settingsPage.account.checkout.couldNotOpenTitle"),
-                                    description: t(
-                                      "settingsPage.account.checkout.couldNotOpenDescription"
-                                    ),
-                                    variant: "destructive",
-                                  });
-                                }
-                              }}
-                              size="sm"
-                              className="w-full"
-                              disabled={usage.checkoutLoading}
-                            >
-                              {usage.checkoutLoading
-                                ? t("settingsPage.account.checkout.opening")
-                                : t("settingsPage.account.checkout.upgradeToPro")}
-                            </Button>
-                          )}
-                        </SettingsPanelRow>
-                      </SettingsPanel>
-                    )}
-                  </>
-                ) : null}
-              </>
-            ) : (
-              <>
-                <SectionHeader title={t("settingsPage.account.pricing.title")} />
-                <SettingsPanel>
-                  <SettingsPanelRow>
-                    <div className="flex items-center justify-between">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-5 w-16 rounded-full" />
-                    </div>
-                  </SettingsPanelRow>
-                </SettingsPanel>
-              </>
-            )}
-          </div>
-        );
-
       case "general":
         return (
           <div className="space-y-6">
@@ -2757,70 +2117,56 @@ EOF`,
       case "privacyData":
         return (
           <div className="space-y-6">
-            {/* Privacy */}
-            <div>
-              <SectionHeader
-                title={t("settingsPage.privacy.title")}
-                description={t("settingsPage.privacy.description")}
-              />
-
-              {isSignedIn && (
-                <div className="mb-4">
-                  <SettingsPanel className="mb-2">
-                    <SettingsPanelRow>
-                      <SettingsRow
-                        label={t("settingsPage.privacy.cloudBackup")}
-                        description={t("settingsPage.privacy.cloudBackupDescription")}
-                      >
-                        <Toggle
-                          checked={cloudBackupEnabled}
-                          onChange={(v) => {
-                            setCloudBackupEnabled(v);
-                            if (v) startMigration().catch(console.error);
-                          }}
-                        />
-                      </SettingsRow>
-                    </SettingsPanelRow>
-                  </SettingsPanel>
-                  {migration && (
-                    <div className="mt-2 space-y-1">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1.5">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          {t("settingsPage.privacy.cloudNotesMigration", {
-                            done: migration.done,
-                            total: migration.total,
-                          })}
-                        </span>
-                        <span>{Math.round((migration.done / migration.total) * 100)}%</span>
-                      </div>
-                      <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full bg-primary transition-all duration-300 ease-out"
-                          style={{ width: `${(migration.done / migration.total) * 100}%` }}
-                        />
-                      </div>
+            {/* Cloud Backup */}
+            {isSignedIn && (
+              <div>
+                <SectionHeader
+                  title={t("settingsPage.privacy.cloudBackup")}
+                  description={t("settingsPage.privacy.cloudBackupDescription")}
+                />
+                <SettingsPanel className="mb-2">
+                  <SettingsPanelRow>
+                    <SettingsRow
+                      label={t("settingsPage.privacy.cloudBackup")}
+                      description={t("settingsPage.privacy.cloudBackupDescription")}
+                    >
+                      <Toggle
+                        checked={cloudBackupEnabled}
+                        onChange={(v) => {
+                          setCloudBackupEnabled(v);
+                          if (v) startMigration().catch(console.error);
+                        }}
+                      />
+                    </SettingsRow>
+                  </SettingsPanelRow>
+                </SettingsPanel>
+                {migration && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        {t("settingsPage.privacy.cloudNotesMigration", {
+                          done: migration.done,
+                          total: migration.total,
+                        })}
+                      </span>
+                      <span>{Math.round((migration.done / migration.total) * 100)}%</span>
                     </div>
-                  )}
-                  {!migration && cloudBackupEnabled && isSignedIn && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {t("settingsPage.privacy.cloudNotesMigrationDone")}
+                    <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all duration-300 ease-out"
+                        style={{ width: `${(migration.done / migration.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {!migration && cloudBackupEnabled && isSignedIn && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("settingsPage.privacy.cloudNotesMigrationDone")}
                     </p>
                   )}
-                </div>
-              )}
-
-              <SettingsPanel>
-                <SettingsPanelRow>
-                  <SettingsRow
-                    label={t("settingsPage.privacy.usageAnalytics")}
-                    description={t("settingsPage.privacy.usageAnalyticsDescription")}
-                  >
-                    <Toggle checked={telemetryEnabled} onChange={setTelemetryEnabled} />
-                  </SettingsRow>
-                </SettingsPanelRow>
-              </SettingsPanel>
-            </div>
+              </div>
+            )}
 
             {/* Audio Retention */}
             <div className="border-t border-border/40 pt-6">
@@ -3065,202 +2411,8 @@ EOF`,
       case "system":
         return (
           <div className="space-y-6">
-            {/* Software Updates */}
-            <div>
-              <SectionHeader title={t("settingsPage.general.updates.title")} />
-              <SettingsPanel>
-                <SettingsPanelRow>
-                  <SettingsRow
-                    label={t("settingsPage.general.updates.currentVersion")}
-                    description={
-                      updateStatus.isDevelopment
-                        ? t("settingsPage.general.updates.devMode")
-                        : isUpdateAvailable
-                          ? t("settingsPage.general.updates.newVersionAvailable")
-                          : t("settingsPage.general.updates.latestVersion")
-                    }
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-xs tabular-nums text-muted-foreground font-mono">
-                        {currentVersion || t("settingsPage.general.updates.versionPlaceholder")}
-                      </span>
-                      {updateStatus.isDevelopment ? (
-                        <Badge variant="warning">
-                          {t("settingsPage.general.updates.badges.dev")}
-                        </Badge>
-                      ) : isUpdateAvailable ? (
-                        <Badge variant="success">
-                          {t("settingsPage.general.updates.badges.update")}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">
-                          {t("settingsPage.general.updates.badges.latest")}
-                        </Badge>
-                      )}
-                    </div>
-                  </SettingsRow>
-                </SettingsPanelRow>
-
-                <SettingsPanelRow>
-                  <div className="space-y-2.5">
-                    <Button
-                      onClick={async () => {
-                        try {
-                          const result = await checkForUpdates();
-                          if (result?.updateAvailable) {
-                            showAlertDialog({
-                              title: t(
-                                "settingsPage.general.updates.dialogs.updateAvailable.title"
-                              ),
-                              description: t(
-                                "settingsPage.general.updates.dialogs.updateAvailable.description",
-                                {
-                                  version:
-                                    result.version || t("settingsPage.general.updates.newVersion"),
-                                }
-                              ),
-                            });
-                          } else {
-                            showAlertDialog({
-                              title: t("settingsPage.general.updates.dialogs.noUpdates.title"),
-                              description:
-                                result?.message ||
-                                t("settingsPage.general.updates.dialogs.noUpdates.description"),
-                            });
-                          }
-                        } catch {
-                          showAlertDialog({
-                            title: t("settingsPage.general.updates.dialogs.checkFailed.title"),
-                            description: t(
-                              "settingsPage.general.updates.dialogs.checkFailed.description"
-                            ),
-                          });
-                        }
-                      }}
-                      disabled={checkingForUpdates || updateStatus.isDevelopment}
-                      variant="outline"
-                      className="w-full"
-                      size="sm"
-                    >
-                      <RefreshCw
-                        size={13}
-                        className={`mr-1.5 ${checkingForUpdates ? "animate-spin" : ""}`}
-                      />
-                      {checkingForUpdates
-                        ? t("settingsPage.general.updates.checking")
-                        : t("settingsPage.general.updates.checkForUpdates")}
-                    </Button>
-
-                    {isUpdateAvailable && !updateStatus.updateDownloaded && (
-                      <div className="space-y-2">
-                        <Button
-                          onClick={async () => {
-                            try {
-                              await downloadUpdate();
-                            } catch {
-                              showAlertDialog({
-                                title: t(
-                                  "settingsPage.general.updates.dialogs.downloadFailed.title"
-                                ),
-                                description: t(
-                                  "settingsPage.general.updates.dialogs.downloadFailed.description"
-                                ),
-                              });
-                            }
-                          }}
-                          disabled={downloadingUpdate}
-                          variant="success"
-                          className="w-full"
-                          size="sm"
-                        >
-                          <Download
-                            size={13}
-                            className={`mr-1.5 ${downloadingUpdate ? "animate-pulse" : ""}`}
-                          />
-                          {downloadingUpdate
-                            ? t("settingsPage.general.updates.downloading", {
-                                progress: Math.round(updateDownloadProgress),
-                              })
-                            : t("settingsPage.general.updates.downloadUpdate", {
-                                version: updateInfo?.version || "",
-                              })}
-                        </Button>
-
-                        {downloadingUpdate && (
-                          <div className="h-1 w-full overflow-hidden rounded-full bg-muted/50">
-                            <div
-                              className="h-full bg-success transition-[width] duration-200 rounded-full"
-                              style={{
-                                width: `${Math.min(100, Math.max(0, updateDownloadProgress))}%`,
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {updateStatus.updateDownloaded && (
-                      <Button
-                        onClick={() => {
-                          showConfirmDialog({
-                            title: t("settingsPage.general.updates.dialogs.installUpdate.title"),
-                            description: t(
-                              "settingsPage.general.updates.dialogs.installUpdate.description",
-                              { version: updateInfo?.version || "" }
-                            ),
-                            confirmText: t(
-                              "settingsPage.general.updates.dialogs.installUpdate.confirmText"
-                            ),
-                            onConfirm: async () => {
-                              try {
-                                await installUpdateAction();
-                              } catch {
-                                showAlertDialog({
-                                  title: t(
-                                    "settingsPage.general.updates.dialogs.installFailed.title"
-                                  ),
-                                  description: t(
-                                    "settingsPage.general.updates.dialogs.installFailed.description"
-                                  ),
-                                });
-                              }
-                            },
-                          });
-                        }}
-                        disabled={installInitiated}
-                        className="w-full"
-                        size="sm"
-                      >
-                        <RefreshCw
-                          size={14}
-                          className={`mr-2 ${installInitiated ? "animate-spin" : ""}`}
-                        />
-                        {installInitiated
-                          ? t("settingsPage.general.updates.restarting")
-                          : t("settingsPage.general.updates.installAndRestart")}
-                      </Button>
-                    )}
-                  </div>
-
-                  {updateInfo?.releaseNotes && (
-                    <div className="mt-4 pt-4 border-t border-border/30">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                        {t("settingsPage.general.updates.whatsNew", {
-                          version: updateInfo.version,
-                        })}
-                      </p>
-                      <div
-                        className="text-xs text-muted-foreground [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:space-y-1 [&_li]:pl-1 [&_p]:mb-2 [&_p:last-child]:mb-0 [&_a]:text-link [&_a]:underline"
-                        dangerouslySetInnerHTML={{ __html: updateInfo.releaseNotes }}
-                      />
-                    </div>
-                  )}
-                </SettingsPanelRow>
-              </SettingsPanel>
-            </div>
-
             {/* Developer Tools */}
-            <div className="border-t border-border/40 pt-6">
+            <div>
               <DeveloperSection />
             </div>
 
