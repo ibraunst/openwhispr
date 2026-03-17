@@ -1046,6 +1046,20 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       return normalizedText;
     }
 
+    // Skip AI processing for very short transcriptions (likely noise/artifacts).
+    // Single words or punctuation-only strings don't benefit from cleanup and can
+    // cause the model to respond with meta-commentary instead of cleaned text.
+    const wordCount = normalizedText.split(/\s+/).filter(Boolean).length;
+    if (wordCount < 2 && normalizedText.length < 15) {
+      logger.logReasoning("TRANSCRIPTION_TOO_SHORT_SKIPPING_REASONING", {
+        source,
+        wordCount,
+        length: normalizedText.length,
+        reason: "Too short to benefit from AI cleanup",
+      });
+      return normalizedText;
+    }
+
     logger.logReasoning("TRANSCRIPTION_RECEIVED", {
       source,
       textLength: normalizedText.length,
@@ -1095,6 +1109,20 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
           resultPreview: result.substring(0, 100) + (result.length > 100 ? "..." : ""),
           processingTime: new Date().toISOString(),
         });
+
+        // Guard against the AI returning a meta-response instead of cleaned text.
+        // This can happen when the transcription is very short/noisy and the model
+        // responds conversationally rather than outputting nothing.
+        // Heuristic: if the result is significantly longer than the input AND the
+        // input was very short, the model likely didn't clean — fall back to raw text.
+        if (normalizedText.length <= 20 && result.length > normalizedText.length * 3) {
+          logger.logReasoning("REASONING_RESULT_SUSPICIOUS_LENGTH", {
+            inputLength: normalizedText.length,
+            outputLength: result.length,
+            reason: "AI output much longer than short input — likely meta-response, using raw text",
+          });
+          return normalizedText;
+        }
 
         return result;
       } catch (error) {

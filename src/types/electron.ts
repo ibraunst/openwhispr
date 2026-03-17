@@ -1080,7 +1080,7 @@ declare global {
 
       // Calendar helpers
       getImminentCalendarEvent?: () => Promise<{
-        event: { summary: string; start_time: string; end_time: string } | null;
+        event: { summary: string; start_time: string; end_time: string; attendees?: string | null } | null;
       }>;
       getCalendarEvents?: () => Promise<{
         success: boolean;

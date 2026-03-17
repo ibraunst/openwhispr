@@ -425,22 +425,8 @@ class MeetingDetectionEngine {
     if (!this._userRecording) return;
     if (this._autoStopTimer) return;
 
-    const AUTO_STOP_DELAY_MS = 3000;
-
-    debugLogger.info("Meeting end signal received", { reason }, "meeting");
-
-    this.broadcastToWindows("meeting-auto-stop-suggested", {
-      reason,
-      autoStopInMs: AUTO_STOP_DELAY_MS,
-    });
-
-    this._autoStopTimer = setTimeout(() => {
-      this._autoStopTimer = null;
-      if (!this._userRecording) return;
-
-      debugLogger.info("Auto-stopping meeting recording", { reason }, "meeting");
-      this.broadcastToWindows("meeting-auto-stop-execute", { reason });
-    }, AUTO_STOP_DELAY_MS);
+    debugLogger.info("Auto-stopping meeting recording immediately", { reason }, "meeting");
+    this.broadcastToWindows("meeting-auto-stop-execute", { reason });
   }
 
   cancelAutoStop() {

@@ -217,6 +217,9 @@ class GoogleCalendarManager {
         conference_data: item.conferenceData ? JSON.stringify(item.conferenceData) : null,
         organizer_email: item.organizer?.email || null,
         attendees_count: item.attendees?.length || 0,
+        attendees: item.attendees?.length
+          ? JSON.stringify(item.attendees.map((a) => ({ name: a.displayName || null, email: a.email })))
+          : null,
       });
     }
 

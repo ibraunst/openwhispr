@@ -15,7 +15,8 @@ const DARWIN_MEETING_PROCESSES = [
   // Other apps
   { processName: "ms-teams_modulehost", processKey: "teams", appName: "Microsoft Teams" },
   { processName: "meetingmanager", processKey: "webex", appName: "Webex" },
-  { processName: "facetime", processKey: "facetime", appName: "FaceTime" },
+  // FaceTime: no reliable in-call-only subprocess exists (facetimemessagestored runs constantly
+  // as a system daemon and matches "facetime"). FaceTime calls are detected via mic activity instead.
 ];
 
 // Windows/Linux: Main process names (same approach as before)
@@ -35,7 +36,6 @@ const APP_NAMES = {
   zoom: "Zoom",
   teams: "Microsoft Teams",
   webex: "Webex",
-  facetime: "FaceTime",
 };
 
 class MeetingProcessDetector extends EventEmitter {

@@ -210,6 +210,7 @@ class AppleCalendarManager {
           }),
           organizer_email: e.organizerEmail || null,
           attendees_count: e.attendeesCount || 0,
+          attendees: attendeesJson,
         };
       }).filter(Boolean);
     } catch (err) {
