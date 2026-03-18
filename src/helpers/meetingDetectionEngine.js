@@ -265,6 +265,11 @@ class MeetingDetectionEngine {
   handleCalendarAlert(event) {
     if (!event) return;
 
+    if (!this.preferences.processDetection && !this.preferences.audioDetection) {
+      debugLogger.debug("Meeting detection disabled, ignoring calendar alert", { eventId: event.id }, "meeting");
+      return;
+    }
+
     const detectionId = `calendar:${event.id || Date.now()}`;
 
     if (this.activeDetections.has(detectionId)) {

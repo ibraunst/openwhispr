@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, RefreshCw, Loader2, Lock } from "lucide-react";
+import { Toggle } from "./ui/toggle";
 import { cn } from "./lib/utils";
 import type { CalendarEvent } from "../types/electron";
 
@@ -111,6 +112,25 @@ export default function CalendarView({ onOpenNote }: CalendarViewProps) {
   const [past, setPast] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [recordMeetings, setRecordMeetings] = useState(true);
+
+  useEffect(() => {
+    window.electronAPI?.meetingDetectionGetPreferences?.().then((res) => {
+      if (res?.success && res.preferences) {
+        setRecordMeetings(
+          res.preferences.processDetection !== false || res.preferences.audioDetection !== false
+        );
+      }
+    });
+  }, []);
+
+  const handleRecordMeetingsToggle = useCallback((enabled: boolean) => {
+    setRecordMeetings(enabled);
+    window.electronAPI?.meetingDetectionSetPreferences?.({
+      processDetection: enabled,
+      audioDetection: enabled,
+    });
+  }, []);
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -186,13 +206,17 @@ export default function CalendarView({ onOpenNote }: CalendarViewProps) {
             <section className="mb-6">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-semibold text-foreground">Coming up</h2>
-                <button
-                  onClick={() => { setLoading(true); fetchEvents(); }}
-                  className="p-1.5 rounded-md hover:bg-foreground/5 dark:hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
-                  title="Refresh"
-                >
-                  <RefreshCw size={14} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground">{t("calendar.recordMeetings")}</span>
+                  <Toggle checked={recordMeetings} onChange={handleRecordMeetingsToggle} />
+                  <button
+                    onClick={() => { setLoading(true); fetchEvents(); }}
+                    className="p-1.5 rounded-md hover:bg-foreground/5 dark:hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
+                    title="Refresh"
+                  >
+                    <RefreshCw size={14} />
+                  </button>
+                </div>
               </div>
               <div className="rounded-xl border border-border/20 dark:border-white/8 bg-surface-1/40 dark:bg-white/[0.02] overflow-hidden divide-y divide-border/10 dark:divide-white/5">
                 {upcomingGroups.map((group, gi) => (
