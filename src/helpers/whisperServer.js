@@ -378,14 +378,35 @@ class WhisperServerManager extends EventEmitter {
 
   startHealthCheck() {
     this.stopHealthCheck();
+    this._consecutiveHealthFailures = 0;
     this.healthCheckInterval = setInterval(async () => {
       if (!this.process) {
         this.stopHealthCheck();
         return;
       }
       if (!(await this.checkHealth())) {
-        debugLogger.warn("whisper-server health check failed");
-        this.ready = false;
+        this._consecutiveHealthFailures++;
+        debugLogger.warn("whisper-server health check failed", {
+          consecutive: this._consecutiveHealthFailures,
+        });
+        if (this._consecutiveHealthFailures >= 3) {
+          debugLogger.warn("whisper-server unresponsive after 3 checks, auto-restarting");
+          this.ready = false;
+          this.stopHealthCheck();
+          const modelPath = this.modelPath;
+          const useCuda = this.useCuda;
+          if (modelPath) {
+            this.stop()
+              .then(() => this.start(modelPath, { useCuda }))
+              .catch((err) => {
+                debugLogger.error("whisper-server auto-restart failed", { error: err.message });
+              });
+          }
+        } else {
+          this.ready = false;
+        }
+      } else {
+        this._consecutiveHealthFailures = 0;
       }
     }, HEALTH_CHECK_INTERVAL_MS);
   }

@@ -303,7 +303,18 @@ class WhisperManager {
     });
 
     const startTime = Date.now();
-    const result = await this.serverManager.transcribe(audioBuffer, { language, initialPrompt });
+    let result;
+    try {
+      result = await this.serverManager.transcribe(audioBuffer, { language, initialPrompt });
+    } catch (err) {
+      // Server may be in a stuck state — restart and retry once
+      debugLogger.warn("Transcription failed, restarting server and retrying", {
+        error: err.message,
+      });
+      await this.serverManager.stop();
+      await this.serverManager.start(modelPath, { useCuda: this.serverManager.useCuda });
+      result = await this.serverManager.transcribe(audioBuffer, { language, initialPrompt });
+    }
     const elapsed = Date.now() - startTime;
 
     debugLogger.logWhisperPipeline("transcribeViaServer - completed", {
@@ -363,11 +374,47 @@ class WhisperManager {
     return { success: false, message: "No audio detected" };
   }
 
-  // Check if text is a whisper.cpp blank audio marker
+  // Check if text is a whisper.cpp blank audio marker or hallucination
   isBlankAudioMarker(text) {
     // whisper.cpp outputs "[BLANK_AUDIO]" when there's silence or insufficient audio
     const normalized = text.trim().toLowerCase();
-    return normalized === "[blank_audio]" || normalized === "[ blank_audio ]";
+    if (normalized === "[blank_audio]" || normalized === "[ blank_audio ]") return true;
+
+    // whisper.cpp hallucinates short repetitive phrases on near-silent or noisy audio.
+    // These are well-documented phantom outputs that never represent real speech.
+    const hallucinations = [
+      "okay, let's begin.",
+      "okay, let's begin",
+      "okay let's begin",
+      "thank you for watching.",
+      "thank you for watching",
+      "thanks for watching.",
+      "thanks for watching",
+      "thank you.",
+      "thank you",
+      "thanks for watching!",
+      "you",
+      "...",
+      "the end.",
+      "the end",
+      "bye.",
+      "bye",
+      "so",
+      "i'm going to go ahead and start.",
+      "subtitles by the amara.org community",
+    ];
+    if (hallucinations.includes(normalized)) {
+      debugLogger.info("Filtered whisper hallucination", { text: normalized });
+      return true;
+    }
+
+    // Catch repetitive single-character or bracket-only outputs like "[MUSIC]", "(silence)"
+    if (/^\[.*\]$/.test(normalized) || /^\(.*\)$/.test(normalized)) {
+      debugLogger.info("Filtered whisper annotation marker", { text: normalized });
+      return true;
+    }
+
+    return false;
   }
 
   async downloadWhisperModel(modelName, progressCallback = null) {
