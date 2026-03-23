@@ -856,6 +856,10 @@
       "agentMode": {
         "label": "Modo Agente",
         "description": "Asistente de chat por voz"
+      },
+      "appProfiles": {
+        "label": "Perfiles de aplicación",
+        "description": "Ajustes de dictado por aplicación"
       }
     },
     "title": "Ajustes"
@@ -1022,6 +1026,16 @@
           "title": "Cambiado a configuración personalizada"
         }
       }
+    },
+    "appProfiles": {
+      "title": "Perfiles por aplicación",
+      "description": "Personaliza el comportamiento de corrección y las indicaciones para aplicaciones específicas. Las aplicaciones aparecen aquí automáticamente cuando dictas en ellas.",
+      "correctionDefault": "Predeterminado",
+      "correctionOn": "Sí",
+      "correctionOff": "No",
+      "customPrompt": "Indicación personalizada para esta aplicación",
+      "customPromptPlaceholder": "Anular la indicación de corrección al dictar en esta aplicación...",
+      "remove": "Eliminar perfil de aplicación"
     },
     "developer": {
       "clearCache": "Borrar caché",

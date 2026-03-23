@@ -914,6 +914,10 @@
       "agentMode": {
         "label": "Agent Mode",
         "description": "Voice chat assistant"
+      },
+      "appProfiles": {
+        "label": "App Profiles",
+        "description": "Per-app dictation settings"
       }
     },
     "title": "Settings"
@@ -1076,6 +1080,16 @@
           "title": "Switched to Custom Setup"
         }
       }
+    },
+    "appProfiles": {
+      "title": "Per-App Profiles",
+      "description": "Customize correction behavior and prompts for specific apps. Apps appear here automatically as you dictate into them.",
+      "correctionDefault": "Default",
+      "correctionOn": "On",
+      "correctionOff": "Off",
+      "customPrompt": "Custom prompt for this app",
+      "customPromptPlaceholder": "Override the correction prompt when dictating into this app...",
+      "remove": "Remove app profile"
     },
     "developer": {
       "clearCache": "Clear Cache",

@@ -1,12 +1,12 @@
 import logger from "./logger";
 import { getSettings } from "../stores/settingsStore";
 
-const START_NOTES = [523.25, 659.25];
-const STOP_NOTES = [587.33, 440];
-const NOTE_DURATION_SECONDS = 0.09;
-const NOTE_GAP_SECONDS = 0.025;
-const NOTE_ATTACK_SECONDS = 0.015;
-const MAX_GAIN = 0.2;
+const START_NOTES = [659.25];
+const STOP_NOTES = [440];
+const NOTE_DURATION_SECONDS = 0.05;
+const NOTE_GAP_SECONDS = 0.015;
+const NOTE_ATTACK_SECONDS = 0.008;
+const MAX_GAIN = 0.25;
 const MIN_GAIN = 0.0001;
 
 let audioContext = null;
@@ -97,3 +97,9 @@ const playCue = async (notes) => {
 export const playStartCue = () => playCue(START_NOTES);
 
 export const playStopCue = () => playCue(STOP_NOTES);
+
+// Pre-warm the AudioContext so the first cue plays instantly
+// (avoids ~50-100ms suspended→running transition on first play)
+if (typeof window !== "undefined") {
+  resumeContextIfNeeded().catch(() => {});
+}

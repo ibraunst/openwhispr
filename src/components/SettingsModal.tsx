@@ -8,6 +8,7 @@ import {
   Keyboard,
   Shield,
   MessageSquare,
+  AppWindow,
 } from "lucide-react";
 import SidebarModal, { SidebarItem } from "./ui/SidebarModal";
 import SettingsPage, { SettingsSectionType } from "./SettingsPage";
@@ -68,6 +69,13 @@ export default function SettingsModal({ open, onOpenChange, initialSection }: Se
         label: t("settingsModal.sections.agentMode.label"),
         icon: MessageSquare,
         description: t("settingsModal.sections.agentMode.description"),
+        group: t("settingsModal.groups.speechAi"),
+      },
+      {
+        id: "appProfiles",
+        label: t("settingsModal.sections.appProfiles.label"),
+        icon: AppWindow,
+        description: t("settingsModal.sections.appProfiles.description"),
         group: t("settingsModal.groups.speechAi"),
       },
       {

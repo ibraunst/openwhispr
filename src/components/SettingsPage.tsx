@@ -21,6 +21,7 @@ import {
   RotateCw,
   BookOpen,
   Copy,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import MicPermissionWarning from "./ui/MicPermissionWarning";
@@ -38,6 +39,7 @@ import {
   DialogDescription,
 } from "./ui/dialog";
 import { useSettings } from "../hooks/useSettings";
+import { useSettingsStore } from "../stores/settingsStore";
 import { useDialogs } from "../hooks/useDialogs";
 import { useAgentName } from "../utils/agentName";
 import { useWhisper } from "../hooks/useWhisper";
@@ -80,7 +82,8 @@ export type SettingsSectionType =
   | "aiModels"
   | "agentConfig"
   | "prompts"
-  | "agentMode";
+  | "agentMode"
+  | "appProfiles";
 
 interface SettingsPageProps {
   activeSection?: SettingsSectionType;
@@ -410,6 +413,134 @@ interface AiModelsSectionProps {
     variant?: "default" | "destructive" | "success";
     duration?: number;
   }) => void;
+}
+
+function AppProfilesSection() {
+  const { t } = useTranslation();
+  type ProfileMap = Record<string, { name: string; correctionEnabled: boolean | null; customPrompt: string | null }>;
+  const [profiles, setProfiles] = useState<ProfileMap>({});
+  const [loaded, setLoaded] = useState(false);
+  const [expandedApp, setExpandedApp] = useState<string | null>(null);
+
+  // Load profiles from main process on mount
+  useEffect(() => {
+    (window.electronAPI as any)?.getAppProfiles?.().then((p: ProfileMap) => {
+      if (p) setProfiles(p);
+      setLoaded(true);
+    }).catch(() => setLoaded(true));
+  }, []);
+
+  const profileEntries = Object.entries(profiles);
+
+  const updateProfile = (bundleId: string, updates: Partial<ProfileMap[string]>) => {
+    setProfiles((prev) => {
+      const next = { ...prev, [bundleId]: { ...prev[bundleId], ...updates } };
+      (window.electronAPI as any)?.updateAppProfile?.(bundleId, updates);
+      useSettingsStore.getState().updateAppProfile(bundleId, updates);
+      return next;
+    });
+  };
+
+  const removeProfile = (bundleId: string) => {
+    setProfiles((prev) => {
+      const next = { ...prev };
+      delete next[bundleId];
+      (window.electronAPI as any)?.removeAppProfile?.(bundleId);
+      useSettingsStore.getState().removeAppProfile(bundleId);
+      return next;
+    });
+  };
+
+  if (profileEntries.length === 0) return null;
+
+  return (
+    <SettingsPanel>
+      {profileEntries.map(([bundleId, profile]) => (
+        <SettingsPanelRow key={bundleId}>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setExpandedApp(expandedApp === bundleId ? null : bundleId)}
+                className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+              >
+                <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
+                  {profile.name.charAt(0)}
+                </div>
+                <span className="text-sm font-medium text-foreground">
+                  {profile.name}
+                </span>
+                <ChevronDown
+                  size={14}
+                  className={`text-muted-foreground transition-transform ${expandedApp === bundleId ? "rotate-180" : ""}`}
+                />
+              </button>
+              <div className="flex items-center gap-3">
+                <CorrectionToggle
+                  value={profile.correctionEnabled}
+                  onChange={(val) => updateProfile(bundleId, { correctionEnabled: val })}
+                />
+                <button
+                  onClick={() => removeProfile(bundleId)}
+                  className="text-muted-foreground hover:text-destructive transition-colors"
+                  title={t("settingsPage.appProfiles.remove")}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+
+            {expandedApp === bundleId && (
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">
+                  {t("settingsPage.appProfiles.customPrompt")}
+                </label>
+                <textarea
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm min-h-[80px] resize-y focus:outline-none focus:ring-1 focus:ring-ring"
+                  placeholder={t("settingsPage.appProfiles.customPromptPlaceholder")}
+                  value={profile.customPrompt || ""}
+                  onChange={(e) => updateProfile(bundleId, { customPrompt: e.target.value || null })}
+                />
+              </div>
+            )}
+          </div>
+        </SettingsPanelRow>
+      ))}
+    </SettingsPanel>
+  );
+}
+
+/** Three-state correction toggle: null (default), true, false */
+function CorrectionToggle({
+  value,
+  onChange,
+}: {
+  value: boolean | null;
+  onChange: (val: boolean | null) => void;
+}) {
+  const { t } = useTranslation();
+  const options = [
+    { label: t("settingsPage.appProfiles.correctionDefault"), val: null },
+    { label: t("settingsPage.appProfiles.correctionOn"), val: true },
+    { label: t("settingsPage.appProfiles.correctionOff"), val: false },
+  ] as const;
+
+  return (
+    <div className="flex items-center rounded-md border border-border text-xs">
+      {options.map((opt, i) => (
+        <button
+          key={i}
+          onClick={() => onChange(opt.val)}
+          className={`px-2 py-0.5 transition-colors ${
+            value === opt.val
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          } ${i === 0 ? "rounded-l-md" : i === 2 ? "rounded-r-md" : ""}`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function AiModelsSection({
@@ -1832,36 +1963,6 @@ EOF`,
         );
 
       case "aiModels":
-        return (
-          <AiModelsSection
-            isSignedIn={isSignedIn ?? false}
-            cloudReasoningMode={cloudReasoningMode}
-            setCloudReasoningMode={setCloudReasoningMode}
-            useReasoningModel={useReasoningModel}
-            setUseReasoningModel={(value) => {
-              setUseReasoningModel(value);
-              updateReasoningSettings({ useReasoningModel: value });
-            }}
-            reasoningModel={reasoningModel}
-            setReasoningModel={setReasoningModel}
-            reasoningProvider={reasoningProvider}
-            setReasoningProvider={setReasoningProvider}
-            cloudReasoningBaseUrl={cloudReasoningBaseUrl}
-            setCloudReasoningBaseUrl={setCloudReasoningBaseUrl}
-            openaiApiKey={openaiApiKey}
-            setOpenaiApiKey={setOpenaiApiKey}
-            anthropicApiKey={anthropicApiKey}
-            setAnthropicApiKey={setAnthropicApiKey}
-            geminiApiKey={geminiApiKey}
-            setGeminiApiKey={setGeminiApiKey}
-            groqApiKey={groqApiKey}
-            setGroqApiKey={setGroqApiKey}
-            customReasoningApiKey={customReasoningApiKey}
-            setCustomReasoningApiKey={setCustomReasoningApiKey}
-            showAlertDialog={showAlertDialog}
-            toast={toast}
-          />
-        );
 
       case "agentConfig":
         return (
@@ -2120,6 +2221,17 @@ EOF`,
                 <MeetingNotePromptEditor />
               </div>
             </div>
+          </div>
+        );
+
+      case "appProfiles":
+        return (
+          <div className="space-y-6">
+            <SectionHeader
+              title={t("settingsPage.appProfiles.title")}
+              description={t("settingsPage.appProfiles.description")}
+            />
+            <AppProfilesSection />
           </div>
         );
 

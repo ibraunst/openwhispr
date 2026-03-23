@@ -7,6 +7,7 @@ const isGnomeWayland =
 
 const WINDOW_SIZES = {
   BASE: { width: 96, height: 96 },
+  RECORDING: { width: 230, height: 96 },
   WITH_MENU: { width: 240, height: 280 },
   WITH_TOAST: { width: 400, height: 500 },
   EXPANDED: { width: 400, height: 500 },
@@ -46,8 +47,8 @@ const MAIN_WINDOW_CONFIG = {
 
 // Control panel window configuration
 const CONTROL_PANEL_CONFIG = {
-  width: 1200,
-  height: 800,
+  width: 900,
+  height: 700,
   backgroundColor: "#1c1c2e",
   webPreferences: {
     preload: path.join(__dirname, "..", "..", "preload.js"),

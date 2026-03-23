@@ -255,6 +255,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
   setMainWindowInteractivity: (interactive) =>
     ipcRenderer.invoke("set-main-window-interactivity", interactive),
   resizeMainWindow: (sizeKey) => ipcRenderer.invoke("resize-main-window", sizeKey),
+  getFrontmostApp: () => ipcRenderer.invoke("get-frontmost-app"),
+  getAppIcon: (bundleId) => ipcRenderer.invoke("get-app-icon", bundleId),
+  saveAppProfile: (bundleId, name) => ipcRenderer.invoke("save-app-profile", bundleId, name),
+  getAppProfiles: () => ipcRenderer.invoke("get-app-profiles"),
+  updateAppProfile: (bundleId, updates) => ipcRenderer.invoke("update-app-profile", bundleId, updates),
+  removeAppProfile: (bundleId) => ipcRenderer.invoke("remove-app-profile", bundleId),
+  onFrontmostAppDetected: (callback) => {
+    const listener = (_event, data) => callback?.(data);
+    ipcRenderer.on("frontmost-app-detected", listener);
+    return () => ipcRenderer.removeListener("frontmost-app-detected", listener);
+  },
 
   // Update functions
   checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),

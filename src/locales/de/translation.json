@@ -856,6 +856,10 @@
       "agentMode": {
         "label": "Agent-Modus",
         "description": "Sprach-Chat-Assistent"
+      },
+      "appProfiles": {
+        "label": "App-Profile",
+        "description": "Diktiereinstellungen pro App"
       }
     },
     "title": "Einstellungen"
@@ -1022,6 +1026,16 @@
           "title": "Zu benutzerdefinierter Einrichtung gewechselt"
         }
       }
+    },
+    "appProfiles": {
+      "title": "App-spezifische Profile",
+      "description": "Passen Sie das Korrekturverhalten und die Eingabeaufforderungen für bestimmte Apps an. Apps erscheinen hier automatisch, wenn Sie in sie diktieren.",
+      "correctionDefault": "Standard",
+      "correctionOn": "An",
+      "correctionOff": "Aus",
+      "customPrompt": "Benutzerdefinierte Eingabeaufforderung für diese App",
+      "customPromptPlaceholder": "Korrektur-Eingabeaufforderung beim Diktieren in diese App überschreiben...",
+      "remove": "App-Profil entfernen"
     },
     "developer": {
       "clearCache": "Cache leeren",

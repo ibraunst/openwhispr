@@ -856,6 +856,10 @@
       "agentMode": {
         "label": "智能助手模式",
         "description": "语音聊天助手"
+      },
+      "appProfiles": {
+        "label": "应用配置",
+        "description": "按应用设置听写选项"
       }
     },
     "title": "设置"
@@ -1022,6 +1026,16 @@
           "title": "已切换到自定义设置"
         }
       }
+    },
+    "appProfiles": {
+      "title": "应用专属配置",
+      "description": "为特定应用自定义纠正行为和提示词。应用会在你向其听写时自动出现在此处。",
+      "correctionDefault": "默认",
+      "correctionOn": "开启",
+      "correctionOff": "关闭",
+      "customPrompt": "此应用的自定义提示词",
+      "customPromptPlaceholder": "在向此应用听写时覆盖纠正提示词...",
+      "remove": "移除应用配置"
     },
     "developer": {
       "clearCache": "清除缓存",

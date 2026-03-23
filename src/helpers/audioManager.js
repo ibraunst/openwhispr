@@ -10,6 +10,8 @@ import {
   getSettings,
   getEffectiveReasoningModel,
   isCloudReasoningMode,
+  getEffectiveCorrectionEnabled,
+  getActiveAppCustomPrompt,
 } from "../stores/settingsStore";
 
 const SHORT_CLIP_DURATION_SECONDS = 2.5;
@@ -119,6 +121,76 @@ class AudioManager {
     this._mixingContext = null;
     this._mixingDestination = null;
     this._systemAudioSource = null;
+
+    // Pre-warm the mic driver so the first hotkey press is fast.
+    // getUserMedia cold-starts the OS audio subsystem (~500-1000ms on macOS).
+    // A brief acquire+release forces initialization upfront.
+    this._prewarmMicDriver();
+  }
+
+  async _prewarmMicDriver() {
+    if (this.micDriverWarmedUp) return;
+    try {
+      const constraints = await this.getAudioConstraints();
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      this.micDriverWarmedUp = true;
+      // Cache the constraints result so startRecording doesn't re-enumerate
+      this._cachedConstraints = constraints;
+      // Keep the stream alive so the first hotkey press can reuse it
+      // instead of waiting ~100-200ms for a new getUserMedia call.
+      this._warmMicStream = stream;
+      logger.debug("Microphone driver pre-warmed (stream kept alive)", {}, "audio");
+    } catch (e) {
+      logger.debug("Mic driver warmup failed (non-critical)", { error: e.message }, "audio");
+    }
+  }
+
+  /**
+   * Consume the warm mic stream if available, otherwise acquire a new one.
+   * Returns a mic MediaStream ready for recording.
+   */
+  async _acquireMicStream() {
+    // Try to reuse the pre-warmed stream
+    if (this._warmMicStream) {
+      const stream = this._warmMicStream;
+      this._warmMicStream = null;
+      // Verify the track is still alive (could have been ended by OS)
+      const track = stream.getAudioTracks()[0];
+      if (track && track.readyState === "live") {
+        logger.debug("Reusing pre-warmed mic stream", {}, "audio");
+        return stream;
+      }
+      // Track is dead, fall through to acquire a new one
+      stream.getTracks().forEach((t) => t.stop());
+    }
+    const constraints = this._cachedConstraints || (await this.getAudioConstraints());
+    this._cachedConstraints = null;
+    return navigator.mediaDevices.getUserMedia(constraints);
+  }
+
+  /**
+   * Re-warm the mic stream in the background after a recording ends,
+   * so the next hotkey press is instant.
+   */
+  _rewarmMicStream() {
+    // Delay briefly to let the OS release the previous stream cleanly
+    setTimeout(async () => {
+      if (this._warmMicStream) return; // already warm
+      try {
+        const constraints = await this.getAudioConstraints();
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        // Only keep it if nothing else grabbed it in the meantime
+        if (!this._warmMicStream) {
+          this._warmMicStream = stream;
+          this._cachedConstraints = constraints;
+          logger.debug("Mic stream re-warmed for next recording", {}, "audio");
+        } else {
+          stream.getTracks().forEach((t) => t.stop());
+        }
+      } catch {
+        // Non-critical — next recording will just call getUserMedia normally
+      }
+    }, 100);
   }
 
   getWorkletBlobUrl() {
@@ -306,8 +378,13 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         return false;
       }
 
-      const constraints = await this.getAudioConstraints();
-      const micStream = await navigator.mediaDevices.getUserMedia(constraints);
+      // Show recording UI immediately so the user sees instant feedback
+      // while getUserMedia acquires the mic (~100-200ms even after prewarm).
+      this.isRecording = true;
+      this.onStateChange?.({ isRecording: true, isProcessing: false });
+
+      // Use cached constraints from prewarm when available to skip enumerateDevices()
+      const micStream = await this._acquireMicStream();
 
       const audioTrack = micStream.getAudioTracks()[0];
       if (audioTrack) {
@@ -343,30 +420,10 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         }
       }
 
-      // Silence detection: observe audio energy via AnalyserNode
-      try {
-        this._silenceCtx = new AudioContext();
-        this._silenceAnalyser = this._silenceCtx.createAnalyser();
-        this._silenceAnalyser.fftSize = 2048;
-        const sourceNode = this._silenceCtx.createMediaStreamSource(recordingStream);
-        sourceNode.connect(this._silenceAnalyser);
-        this._peakRms = 0;
-        const dataArray = new Uint8Array(this._silenceAnalyser.fftSize);
-        this._silenceInterval = setInterval(() => {
-          this._silenceAnalyser.getByteTimeDomainData(dataArray);
-          let sum = 0;
-          for (let i = 0; i < dataArray.length; i++) {
-            const v = (dataArray[i] - 128) / 128;
-            sum += v * v;
-          }
-          const rms = Math.sqrt(sum / dataArray.length);
-          if (rms > this._peakRms) this._peakRms = rms;
-        }, 100);
-      } catch (e) {
-        logger.warn("Silence detection setup failed, skipping", { error: e.message }, "audio");
-        this._peakRms = 1; // assume speech if detection fails
-      }
-
+      // Start recording immediately, then set up silence detection in parallel.
+      // This minimizes perceived latency — audio capture begins before the
+      // AnalyserNode is wired up. The first ~few ms of audio won't be measured
+      // for silence, which is fine since speech hasn't started yet anyway.
       this.mediaRecorder = new MediaRecorder(recordingStream);
       this.audioChunks = [];
       this.recordingStartTime = Date.now();
@@ -414,8 +471,30 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       };
 
       this.mediaRecorder.start();
-      this.isRecording = true;
-      this.onStateChange?.({ isRecording: true, isProcessing: false });
+
+      // Set up silence detection after recording has started (non-blocking)
+      try {
+        this._silenceCtx = new AudioContext();
+        this._silenceAnalyser = this._silenceCtx.createAnalyser();
+        this._silenceAnalyser.fftSize = 2048;
+        const sourceNode = this._silenceCtx.createMediaStreamSource(recordingStream);
+        sourceNode.connect(this._silenceAnalyser);
+        this._peakRms = 0;
+        const dataArray = new Uint8Array(this._silenceAnalyser.fftSize);
+        this._silenceInterval = setInterval(() => {
+          this._silenceAnalyser.getByteTimeDomainData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            const v = (dataArray[i] - 128) / 128;
+            sum += v * v;
+          }
+          const rms = Math.sqrt(sum / dataArray.length);
+          if (rms > this._peakRms) this._peakRms = rms;
+        }, 100);
+      } catch (e) {
+        logger.warn("Silence detection setup failed, skipping", { error: e.message }, "audio");
+        this._peakRms = 1; // assume speech if detection fails
+      }
 
       return true;
     } catch (error) {
@@ -439,6 +518,9 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         title: errorTitle,
         description: errorDescription,
       });
+      // Roll back the optimistic recording state
+      this.isRecording = false;
+      this.onStateChange?.({ isRecording: false, isProcessing: false });
       return false;
     }
   }
@@ -971,7 +1053,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       return false;
     }
 
-    const useReasoning = getSettings().useReasoningModel;
+    const useReasoning = getEffectiveCorrectionEnabled();
     const now = Date.now();
     const cacheValid =
       this.reasoningAvailabilityCache &&
@@ -1314,7 +1396,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     const opts = {};
     if (language) opts.language = language;
     const reasoningMode = settings.cloudReasoningMode || "customwhispr";
-    if (settings.useReasoningModel && !this.skipReasoning && reasoningMode === "customwhispr") {
+    if (getEffectiveCorrectionEnabled() && !this.skipReasoning && reasoningMode === "customwhispr") {
       opts.sendLogs = "false";
     }
 
@@ -1337,7 +1419,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     // Process with reasoning if enabled
     const rawText = result.text;
     let processedText = result.text;
-    if (settings.useReasoningModel && processedText && !this.skipReasoning) {
+    if (getEffectiveCorrectionEnabled() && processedText && !this.skipReasoning) {
       const reasoningStart = performance.now();
       const agentName = localStorage.getItem("agentName") || null;
       const cloudReasoningMode = settings.cloudReasoningMode || "customwhispr";
@@ -1403,6 +1485,10 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
   }
 
   getCustomPrompt() {
+    // Check per-app profile prompt first
+    const appPrompt = getActiveAppCustomPrompt();
+    if (appPrompt) return appPrompt;
+
     try {
       const raw = localStorage.getItem("customUnifiedPrompt");
       if (!raw) return undefined;
@@ -2178,12 +2264,17 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
 
       this.stopRequestedDuringStreamingStart = false;
 
+      // Show recording state immediately for instant visual feedback
+      this.isRecording = true;
+      this.recordingStartTime = Date.now();
+      this.onStateChange?.({ isRecording: true, isProcessing: false, isStreaming: true });
+
       const t0 = performance.now();
-      const constraints = await this.getAudioConstraints();
+      // Use cached constraints from prewarm when available to skip enumerateDevices()
       const tConstraints = performance.now();
 
-      // 1. Get mic stream (can take 10-15s on cold macOS mic driver)
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      // 1. Get mic stream — reuses the pre-warmed stream when available
+      const stream = await this._acquireMicStream();
       const tMedia = performance.now();
 
       const audioTrack = stream.getAudioTracks()[0];
@@ -2303,9 +2394,6 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       });
 
       this.streamingCleanupFns = [partialCleanup, finalCleanup, errorCleanup, sessionEndCleanup];
-      this.isRecording = true;
-      this.recordingStartTime = Date.now();
-      this.onStateChange?.({ isRecording: true, isProcessing: false, isStreaming: true });
 
       // 4. Connect WebSocket — audio is already flowing from the pipeline above,
       //    so Deepgram receives data immediately (no idle timeout).
@@ -2524,7 +2612,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     const streamingSttWordCount = finalText ? finalText.split(/\s+/).filter(Boolean).length : 0;
 
     let usedCloudReasoning = false;
-    if (stSettings.useReasoningModel && finalText && !this.skipReasoning) {
+    if (getEffectiveCorrectionEnabled() && finalText && !this.skipReasoning) {
       const reasoningStart = performance.now();
       const agentName = localStorage.getItem("agentName") || null;
       const cloudReasoningMode = stSettings.cloudReasoningMode || "customwhispr";

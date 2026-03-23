@@ -856,6 +856,10 @@
       "agentMode": {
         "label": "Mode Agent",
         "description": "Assistant vocal de chat"
+      },
+      "appProfiles": {
+        "label": "Profils d'application",
+        "description": "Paramètres de dictée par application"
       }
     },
     "title": "Paramètres"
@@ -1022,6 +1026,16 @@
           "title": "Basculé vers la configuration personnalisée"
         }
       }
+    },
+    "appProfiles": {
+      "title": "Profils par application",
+      "description": "Personnalisez le comportement de correction et les instructions pour des applications spécifiques. Les applications apparaissent ici automatiquement lorsque vous dictez dedans.",
+      "correctionDefault": "Par défaut",
+      "correctionOn": "Oui",
+      "correctionOff": "Non",
+      "customPrompt": "Instruction personnalisée pour cette application",
+      "customPromptPlaceholder": "Remplacer l'instruction de correction lors de la dictée dans cette application...",
+      "remove": "Supprimer le profil d'application"
     },
     "developer": {
       "clearCache": "Vider le cache",

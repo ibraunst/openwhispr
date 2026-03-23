@@ -856,6 +856,10 @@
       "agentMode": {
         "label": "エージェントモード",
         "description": "音声チャットアシスタント"
+      },
+      "appProfiles": {
+        "label": "アプリプロファイル",
+        "description": "アプリごとのディクテーション設定"
       }
     },
     "title": "設定"
@@ -1022,6 +1026,16 @@
           "title": "カスタム設定に切り替えました"
         }
       }
+    },
+    "appProfiles": {
+      "title": "アプリごとのプロファイル",
+      "description": "特定のアプリに対する修正動作やプロンプトをカスタマイズできます。アプリはディクテーション時に自動的にここに表示されます。",
+      "correctionDefault": "デフォルト",
+      "correctionOn": "オン",
+      "correctionOff": "オフ",
+      "customPrompt": "このアプリ用のカスタムプロンプト",
+      "customPromptPlaceholder": "このアプリにディクテーションする際の修正プロンプトを上書き...",
+      "remove": "アプリプロファイルを削除"
     },
     "developer": {
       "clearCache": "キャッシュをクリア",

@@ -53,6 +53,13 @@ export default function ControlPanel() {
   const [showCloudMigrationBanner, setShowCloudMigrationBanner] = useState(false);
   const [activeView, setActiveView] = useState<ControlPanelView>("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isWideEnough, setIsWideEnough] = useState(() => window.innerWidth >= 768);
+
+  useEffect(() => {
+    const onResize = () => setIsWideEnough(window.innerWidth >= 768);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const [isMeetingMode, setIsMeetingMode] = useState(false);
   const [meetingRecordingRequest, setMeetingRecordingRequest] = useState<{
     noteId: number;
@@ -490,8 +497,34 @@ export default function ControlPanel() {
       )}
 
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Sidebar overlay */}
-        {!isMeetingMode && (
+        {/* Sidebar — inline when wide, overlay when narrow */}
+        {!isMeetingMode && isWideEnough && (
+          <ControlPanelSidebar
+            activeView={activeView}
+            onViewChange={setActiveView}
+            onCollapse={() => {}}
+            onOpenSearch={() => setShowSearch(true)}
+            onOpenSettings={() => {
+              setSettingsSection(undefined);
+              setShowSettings(true);
+            }}
+            onOpenReferrals={() => setShowReferrals(true)}
+            onUpgrade={() => {
+              setSettingsSection("plansBilling");
+              setShowSettings(true);
+            }}
+            onUpgradeCheckout={() => usage?.openCheckout()}
+            isOverLimit={usage?.isOverLimit ?? false}
+            userName={user?.name}
+            userEmail={user?.email}
+            userImage={user?.image}
+            isSignedIn={isSignedIn}
+            authLoaded={authLoaded}
+            isProUser={!!(usage?.isSubscribed || usage?.isTrial)}
+            usageLoaded={usage?.hasLoaded ?? false}
+          />
+        )}
+        {!isMeetingMode && !isWideEnough && (
           <>
             {/* Backdrop */}
             <div
@@ -613,8 +646,8 @@ export default function ControlPanel() {
             )}
           </div>
         </main>
-        {/* Sidebar toggle — rendered after main so it paints above the drag region */}
-        {!isMeetingMode && (
+        {/* Sidebar toggle — only shown when sidebar is collapsed (narrow window) */}
+        {!isMeetingMode && !isWideEnough && (
           <div
             className={cn(
               "absolute flex items-center z-30",

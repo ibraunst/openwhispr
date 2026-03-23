@@ -6,6 +6,15 @@ import { ensureAgentNameInDictionary } from "../utils/agentName";
 import logger from "../utils/logger";
 import type { LocalTranscriptionProvider } from "../types/electron";
 import type { GoogleCalendarAccount } from "../types/calendar";
+
+// In-memory icon cache — kept out of Zustand/localStorage to avoid serialization bloat
+const appIconCache = new Map<string, string>();
+export function getAppIcon(bundleId: string): string | undefined {
+  return appIconCache.get(bundleId);
+}
+export function setAppIcon(bundleId: string, icon: string) {
+  appIconCache.set(bundleId, icon);
+}
 import type {
   TranscriptionSettings,
   ReasoningSettings,
@@ -16,6 +25,12 @@ import type {
   ThemeSettings,
   AgentModeSettings,
 } from "../hooks/useSettings";
+
+export interface AppProfile {
+  name: string;
+  correctionEnabled: boolean | null; // null = use global default
+  customPrompt: string | null; // null = use global default
+}
 
 let _ReasoningService: typeof import("../services/ReasoningService").default | null = null;
 
@@ -105,6 +120,12 @@ export interface SettingsState
   meetingAudioDetection: boolean;
   panelStartPosition: "bottom-right" | "center" | "bottom-left";
   keepTranscriptionInClipboard: boolean;
+
+  appProfiles: Record<string, AppProfile>;
+  activeAppBundleId: string | null;
+  setActiveApp: (bundleId: string | null, name?: string, icon?: string) => void;
+  updateAppProfile: (bundleId: string, updates: Partial<AppProfile>) => void;
+  removeAppProfile: (bundleId: string) => void;
 
   setUseLocalWhisper: (value: boolean) => void;
   setWhisperModel: (value: string) => void;
@@ -311,6 +332,62 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     return "bottom-right" as const;
   })(),
   keepTranscriptionInClipboard: readBoolean("keepTranscriptionInClipboard", true),
+
+  appProfiles: (() => {
+    if (!isBrowser) return {};
+    try {
+      const stored = localStorage.getItem("appProfiles");
+      if (!stored) return {};
+      const parsed = JSON.parse(stored);
+      // Migrate: strip icon data from localStorage (now in memory-only cache)
+      let migrated = false;
+      for (const key of Object.keys(parsed)) {
+        if (parsed[key].icon) {
+          delete parsed[key].icon;
+          migrated = true;
+        }
+      }
+      if (migrated) localStorage.setItem("appProfiles", JSON.stringify(parsed));
+      return parsed;
+    } catch {
+      return {};
+    }
+  })(),
+  activeAppBundleId: null,
+  setActiveApp: (bundleId: string | null, name?: string, icon?: string) => {
+    set({ activeAppBundleId: bundleId });
+    if (bundleId && name) {
+      if (icon) appIconCache.set(bundleId, icon);
+      const profiles = { ...get().appProfiles };
+      if (!profiles[bundleId]) {
+        profiles[bundleId] = { name, correctionEnabled: null, customPrompt: null };
+      } else if (profiles[bundleId].name !== name) {
+        profiles[bundleId] = { ...profiles[bundleId], name };
+      } else {
+        return; // no change needed
+      }
+      set({ appProfiles: profiles });
+      if (isBrowser) {
+        localStorage.setItem("appProfiles", JSON.stringify(profiles));
+        console.log("[AppProfiles] Saved profile", bundleId, name, Object.keys(profiles));
+      }
+    }
+  },
+  updateAppProfile: (bundleId: string, updates: Partial<AppProfile>) => {
+    const profiles = { ...get().appProfiles };
+    if (profiles[bundleId]) {
+      profiles[bundleId] = { ...profiles[bundleId], ...updates };
+      set({ appProfiles: profiles });
+      if (isBrowser) localStorage.setItem("appProfiles", JSON.stringify(profiles));
+    }
+  },
+  removeAppProfile: (bundleId: string) => {
+    const profiles = { ...get().appProfiles };
+    delete profiles[bundleId];
+    set({ appProfiles: profiles });
+    if (isBrowser) localStorage.setItem("appProfiles", JSON.stringify(profiles));
+  },
+
   isSignedIn: readBoolean("isSignedIn", false),
 
   agentModel: readString("agentModel", "openai/gpt-oss-120b"),
@@ -600,6 +677,28 @@ export function isCloudAgentMode() {
 
 export function getSettings() {
   return useSettingsStore.getState();
+}
+
+export function getEffectiveCorrectionEnabled(): boolean {
+  const state = useSettingsStore.getState();
+  const { activeAppBundleId, appProfiles, useReasoningModel } = state;
+  if (activeAppBundleId && appProfiles[activeAppBundleId]) {
+    const profile = appProfiles[activeAppBundleId];
+    if (profile.correctionEnabled !== null) {
+      return profile.correctionEnabled;
+    }
+  }
+  return useReasoningModel;
+}
+
+export function getActiveAppCustomPrompt(): string | undefined {
+  const state = useSettingsStore.getState();
+  const { activeAppBundleId, appProfiles } = state;
+  if (activeAppBundleId && appProfiles[activeAppBundleId]) {
+    const prompt = appProfiles[activeAppBundleId].customPrompt;
+    if (prompt) return prompt;
+  }
+  return undefined;
 }
 
 export function getEffectiveReasoningModel() {

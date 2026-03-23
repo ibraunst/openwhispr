@@ -1,4 +1,7 @@
 const { app, screen, BrowserWindow, shell, dialog } = require("electron");
+const path = require("path");
+const fs = require("fs");
+const { execFile } = require("child_process");
 const debugLogger = require("./debugLogger");
 const HotkeyManager = require("./hotkeyManager");
 const { isGlobeLikeHotkey } = HotkeyManager;
@@ -126,20 +129,35 @@ class WindowManager {
       y: currentBounds.y + currentBounds.height,
     });
     const workArea = display.workArea || display.bounds;
+    const MARGIN = 4;
 
     let newX, newY;
 
-    if (position === "bottom-left") {
-      // Anchor bottom-left corner: keep x, expand rightward and upward
+    if (sizeKey === "RECORDING") {
+      // Save pre-recording position so we can restore it
+      this._preRecordingBounds = { ...currentBounds };
+      // Recording pill always centers horizontally at screen bottom
+      newX = Math.round(workArea.x + (workArea.width - newSize.width) / 2);
+      newY = workArea.y + workArea.height - newSize.height - MARGIN;
+    } else if (sizeKey === "BASE" && this._preRecordingBounds) {
+      // Restore to pre-recording position
+      const restored = this._preRecordingBounds;
+      this._preRecordingBounds = null;
+      this.mainWindow.setBounds({
+        x: restored.x,
+        y: restored.y,
+        width: newSize.width,
+        height: newSize.height,
+      });
+      return { success: true, bounds: { x: restored.x, y: restored.y, ...newSize } };
+    } else if (position === "bottom-left") {
       newX = currentBounds.x;
       newY = currentBounds.y + currentBounds.height - newSize.height;
     } else if (position === "center") {
-      // Anchor bottom-center: expand symmetrically and upward
       const centerX = currentBounds.x + currentBounds.width / 2;
       newX = centerX - newSize.width / 2;
       newY = currentBounds.y + currentBounds.height - newSize.height;
     } else {
-      // bottom-right (default): anchor bottom-right corner, expand leftward and upward
       const bottomRightX = currentBounds.x + currentBounds.width;
       newX = bottomRightX - newSize.width;
       newY = currentBounds.y + currentBounds.height - newSize.height;
@@ -414,8 +432,16 @@ class WindowManager {
       return;
     }
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.showDictationPanel();
+      // Detect frontmost app BEFORE showing the panel (ensures correct app is captured)
+      const willStartRecording = !this._isDictatingToggle;
+      if (willStartRecording) {
+        this._detectAndSaveFrontmostApp();
+      }
+      // Send the IPC event BEFORE showing the panel so the renderer
+      // sets isRecording=true before the window becomes visible.
+      // This prevents the idle icon from flashing on screen.
       this.mainWindow.webContents.send("toggle-dictation");
+      this.showDictationPanel();
       this._isDictatingToggle = !this._isDictatingToggle;
       this.meetingDetectionEngine?.setUserRecording(this._isDictatingToggle);
     }
@@ -426,8 +452,10 @@ class WindowManager {
       return;
     }
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.showDictationPanel();
+      // Detect frontmost app BEFORE showing the panel
+      this._detectAndSaveFrontmostApp();
       this.mainWindow.webContents.send("start-dictation");
+      this.showDictationPanel();
       this.meetingDetectionEngine?.setUserRecording(true);
     }
   }
@@ -441,6 +469,71 @@ class WindowManager {
       this._isDictatingToggle = false;
       this.meetingDetectionEngine?.setUserRecording(false);
     }
+  }
+
+  /**
+   * Detect the macOS frontmost app and save it as a profile.
+   * Called from the main process when dictation starts, before
+   * showing the panel, to reliably capture the target app.
+   */
+  _detectAndSaveFrontmostApp() {
+    if (process.platform !== "darwin") return;
+
+    const script = `
+      ObjC.import("AppKit");
+      const app = $.NSWorkspace.sharedWorkspace.frontmostApplication;
+      const name = app.localizedName.js;
+      const bundleId = app.bundleIdentifier.js;
+      JSON.stringify({ name, bundleId });
+    `;
+
+    execFile(
+      "osascript",
+      ["-l", "JavaScript", "-e", script],
+      { timeout: 2000 },
+      (err, stdout) => {
+        if (err) {
+          debugLogger.debug("[AppProfiles] frontmost-app detection error", {
+            error: err.message,
+          });
+          return;
+        }
+
+        try {
+          const result = JSON.parse(stdout.trim());
+          if (!result || !result.bundleId || !result.name) return;
+
+          debugLogger.info("[AppProfiles] Detected frontmost app", result, "ipc");
+
+          // Save profile to disk
+          const profilesPath = path.join(app.getPath("userData"), "appProfiles.json");
+          let profiles = {};
+          try {
+            profiles = JSON.parse(fs.readFileSync(profilesPath, "utf-8"));
+          } catch {
+            // File doesn't exist yet or is invalid — start fresh
+          }
+          if (!profiles[result.bundleId]) {
+            profiles[result.bundleId] = {
+              name: result.name,
+              correctionEnabled: null,
+              customPrompt: null,
+            };
+            fs.writeFileSync(profilesPath, JSON.stringify(profiles, null, 2));
+            debugLogger.info("[AppProfiles] Saved new profile", { bundleId: result.bundleId, name: result.name }, "ipc");
+          }
+
+          // Send to all windows so the dictation pill can show the app info
+          for (const win of BrowserWindow.getAllWindows()) {
+            if (!win.isDestroyed()) {
+              win.webContents.send("frontmost-app-detected", result);
+            }
+          }
+        } catch {
+          debugLogger.debug("[AppProfiles] Failed to parse frontmost app result");
+        }
+      }
+    );
   }
 
   getActivationMode() {
@@ -520,16 +613,16 @@ class WindowManager {
       return;
     }
 
-    // Default to meeting-mode position (right 1/3, full height) unless user
-    // has previously moved/resized the window.
+    // Default to a centered window unless user has previously moved/resized.
     const display = screen.getPrimaryDisplay();
     const workArea = display.workArea;
-    const meetingWidth = Math.round(workArea.width / 3);
+    const defaultWidth = 1000;
+    const defaultHeight = 760;
     const defaultBounds = {
-      x: workArea.x + workArea.width - meetingWidth,
-      y: workArea.y,
-      width: meetingWidth,
-      height: workArea.height,
+      x: Math.round(workArea.x + (workArea.width - defaultWidth) / 2),
+      y: Math.round(workArea.y + (workArea.height - defaultHeight) / 2),
+      width: defaultWidth,
+      height: defaultHeight,
     };
     const bounds = this._savedControlPanelBounds || defaultBounds;
 

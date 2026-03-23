@@ -338,6 +338,125 @@ class IPCHandlers {
       return this.windowManager.resizeMainWindow(sizeKey);
     });
 
+    ipcMain.handle("get-frontmost-app", async () => {
+      debugLogger.info("[AppProfiles] get-frontmost-app called", {}, "ipc");
+      if (process.platform !== "darwin") {
+        return null;
+      }
+      const { execFile } = require("child_process");
+      return new Promise((resolve) => {
+        const script = `
+          ObjC.import("AppKit");
+          const app = $.NSWorkspace.sharedWorkspace.frontmostApplication;
+          const name = app.localizedName.js;
+          const bundleId = app.bundleIdentifier.js;
+          JSON.stringify({ name, bundleId });
+        `;
+        execFile(
+          "osascript",
+          ["-l", "JavaScript", "-e", script],
+          { timeout: 2000 },
+          (err, stdout) => {
+            if (err) {
+              debugLogger.debug("[IPC] get-frontmost-app error", {
+                error: err.message,
+              });
+              resolve(null);
+            } else {
+              try {
+                const result = JSON.parse(stdout.trim());
+                debugLogger.info("[AppProfiles] Detected app", result, "ipc");
+                resolve(result);
+              } catch {
+                resolve(null);
+              }
+            }
+          }
+        );
+      });
+    });
+
+    // Save/load app profiles via main process JSON file
+    const fs = require("fs");
+    const profilesPath = path.join(app.getPath("userData"), "appProfiles.json");
+
+    function readAppProfiles() {
+      try {
+        return JSON.parse(fs.readFileSync(profilesPath, "utf-8"));
+      } catch {
+        return {};
+      }
+    }
+
+    function writeAppProfiles(profiles) {
+      fs.writeFileSync(profilesPath, JSON.stringify(profiles, null, 2));
+    }
+
+    ipcMain.handle("save-app-profile", async (_event, bundleId, name) => {
+      debugLogger.info("[AppProfiles] save-app-profile", { bundleId, name }, "ipc");
+      const profiles = readAppProfiles();
+      if (!profiles[bundleId]) {
+        profiles[bundleId] = { name, correctionEnabled: null, customPrompt: null };
+        writeAppProfiles(profiles);
+      }
+      return true;
+    });
+
+    ipcMain.handle("get-app-profiles", async () => {
+      return readAppProfiles();
+    });
+
+    ipcMain.handle("update-app-profile", async (_event, bundleId, updates) => {
+      const profiles = readAppProfiles();
+      if (profiles[bundleId]) {
+        profiles[bundleId] = { ...profiles[bundleId], ...updates };
+        writeAppProfiles(profiles);
+      }
+      return true;
+    });
+
+    ipcMain.handle("remove-app-profile", async (_event, bundleId) => {
+      const profiles = readAppProfiles();
+      delete profiles[bundleId];
+      writeAppProfiles(profiles);
+      return true;
+    });
+
+    ipcMain.handle("get-app-icon", async (_event, bundleId) => {
+      if (process.platform !== "darwin" || !bundleId) {
+        return null;
+      }
+      const { execFile } = require("child_process");
+      return new Promise((resolve) => {
+        const script = `
+          ObjC.import("AppKit");
+          ObjC.import("Foundation");
+          const ws = $.NSWorkspace.sharedWorkspace;
+          const path = ws.absolutePathForAppBundleWithIdentifier(${JSON.stringify(bundleId)});
+          if (path.isNil()) { ""; } else {
+            const icon = ws.iconForFile(path);
+            icon.setSize({ width: 64, height: 64 });
+            const tiff = icon.TIFFRepresentation;
+            const bitmap = $.NSBitmapImageRep.imageRepWithData(tiff);
+            const png = bitmap.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $());
+            png.base64EncodedStringWithOptions(0).js;
+          }
+        `;
+        execFile(
+          "osascript",
+          ["-l", "JavaScript", "-e", script],
+          { timeout: 3000, maxBuffer: 4 * 1024 * 1024 },
+          (err, stdout) => {
+            if (err || !stdout.trim()) {
+              resolve(null);
+            } else {
+              resolve(`data:image/png;base64,${stdout.trim()}`);
+            }
+          }
+        );
+      });
+    });
+
     ipcMain.handle("get-openai-key", async (event) => {
       return this.environmentManager.getOpenAIKey();
     });

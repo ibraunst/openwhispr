@@ -856,6 +856,10 @@
       "agentMode": {
         "label": "Modalità Agente",
         "description": "Assistente vocale chat"
+      },
+      "appProfiles": {
+        "label": "Profili app",
+        "description": "Impostazioni di dettatura per app"
       }
     },
     "title": "Impostazioni"
@@ -1022,6 +1026,16 @@
           "title": "Passato a configurazione personalizzata"
         }
       }
+    },
+    "appProfiles": {
+      "title": "Profili per app",
+      "description": "Personalizza il comportamento della correzione e i prompt per app specifiche. Le app appaiono qui automaticamente quando detti al loro interno.",
+      "correctionDefault": "Predefinito",
+      "correctionOn": "Sì",
+      "correctionOff": "No",
+      "customPrompt": "Prompt personalizzato per questa app",
+      "customPromptPlaceholder": "Sovrascrivi il prompt di correzione quando detti in questa app...",
+      "remove": "Rimuovi profilo app"
     },
     "developer": {
       "clearCache": "Svuota cache",
