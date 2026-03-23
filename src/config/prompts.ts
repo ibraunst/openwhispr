@@ -2,6 +2,7 @@ import promptData from "./promptData.json";
 import i18n, { normalizeUiLanguage } from "../i18n";
 import { en as enPrompts, type PromptBundle } from "../locales/prompts";
 import { getLanguageInstruction } from "../utils/languageSupport";
+import { getActiveAppCustomPrompt } from "../stores/settingsStore";
 
 export const CLEANUP_PROMPT = promptData.CLEANUP_PROMPT;
 export const FULL_PROMPT = promptData.FULL_PROMPT;
@@ -102,7 +103,11 @@ export function getSystemPrompt(
   const prompts = getPromptBundle(uiLanguage);
 
   let promptTemplate: string | null = null;
-  if (typeof window !== "undefined" && window.localStorage) {
+  // Per-app custom prompt takes priority over global prompt
+  const appPrompt = getActiveAppCustomPrompt();
+  if (appPrompt) {
+    promptTemplate = appPrompt;
+  } else if (typeof window !== "undefined" && window.localStorage) {
     const customPrompt = window.localStorage.getItem("customUnifiedPrompt");
     if (customPrompt) {
       try {

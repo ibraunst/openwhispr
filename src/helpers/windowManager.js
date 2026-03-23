@@ -427,19 +427,19 @@ class WindowManager {
     this.winPushState = null;
   }
 
-  sendToggleDictation() {
+  async sendToggleDictation() {
     if (this.hotkeyManager.isInListeningMode()) {
       return;
     }
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      // Detect frontmost app BEFORE showing the panel (ensures correct app is captured)
+      // Detect frontmost app and wait for it so per-app profile settings
+      // (correction toggle, custom prompt) are available before recording starts.
       const willStartRecording = !this._isDictatingToggle;
       if (willStartRecording) {
-        this._detectAndSaveFrontmostApp();
+        await this._detectAndSaveFrontmostApp();
       }
       // Send the IPC event BEFORE showing the panel so the renderer
       // sets isRecording=true before the window becomes visible.
-      // This prevents the idle icon from flashing on screen.
       this.mainWindow.webContents.send("toggle-dictation");
       this.showDictationPanel();
       this._isDictatingToggle = !this._isDictatingToggle;
@@ -447,13 +447,13 @@ class WindowManager {
     }
   }
 
-  sendStartDictation() {
+  async sendStartDictation() {
     if (this.hotkeyManager.isInListeningMode()) {
       return;
     }
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      // Detect frontmost app BEFORE showing the panel
-      this._detectAndSaveFrontmostApp();
+      // Wait for app detection so per-app settings are applied
+      await this._detectAndSaveFrontmostApp();
       this.mainWindow.webContents.send("start-dictation");
       this.showDictationPanel();
       this.meetingDetectionEngine?.setUserRecording(true);
@@ -477,7 +477,7 @@ class WindowManager {
    * showing the panel, to reliably capture the target app.
    */
   _detectAndSaveFrontmostApp() {
-    if (process.platform !== "darwin") return;
+    if (process.platform !== "darwin") return Promise.resolve();
 
     const script = `
       ObjC.import("AppKit");
@@ -487,53 +487,61 @@ class WindowManager {
       JSON.stringify({ name, bundleId });
     `;
 
-    execFile(
-      "osascript",
-      ["-l", "JavaScript", "-e", script],
-      { timeout: 2000 },
-      (err, stdout) => {
-        if (err) {
-          debugLogger.debug("[AppProfiles] frontmost-app detection error", {
-            error: err.message,
-          });
-          return;
-        }
+    return new Promise((resolve) => {
+      execFile(
+        "osascript",
+        ["-l", "JavaScript", "-e", script],
+        { timeout: 500 },
+        (err, stdout) => {
+          if (err) {
+            debugLogger.debug("[AppProfiles] frontmost-app detection error", {
+              error: err.message,
+            });
+            resolve();
+            return;
+          }
 
-        try {
-          const result = JSON.parse(stdout.trim());
-          if (!result || !result.bundleId || !result.name) return;
-
-          debugLogger.info("[AppProfiles] Detected frontmost app", result, "ipc");
-
-          // Save profile to disk
-          const profilesPath = path.join(app.getPath("userData"), "appProfiles.json");
-          let profiles = {};
           try {
-            profiles = JSON.parse(fs.readFileSync(profilesPath, "utf-8"));
-          } catch {
-            // File doesn't exist yet or is invalid — start fresh
-          }
-          if (!profiles[result.bundleId]) {
-            profiles[result.bundleId] = {
-              name: result.name,
-              correctionEnabled: null,
-              customPrompt: null,
-            };
-            fs.writeFileSync(profilesPath, JSON.stringify(profiles, null, 2));
-            debugLogger.info("[AppProfiles] Saved new profile", { bundleId: result.bundleId, name: result.name }, "ipc");
-          }
-
-          // Send to all windows so the dictation pill can show the app info
-          for (const win of BrowserWindow.getAllWindows()) {
-            if (!win.isDestroyed()) {
-              win.webContents.send("frontmost-app-detected", result);
+            const result = JSON.parse(stdout.trim());
+            if (!result || !result.bundleId || !result.name) {
+              resolve();
+              return;
             }
+
+            debugLogger.info("[AppProfiles] Detected frontmost app", result, "ipc");
+
+            // Save profile to disk
+            const profilesPath = path.join(app.getPath("userData"), "appProfiles.json");
+            let profiles = {};
+            try {
+              profiles = JSON.parse(fs.readFileSync(profilesPath, "utf-8"));
+            } catch {
+              // File doesn't exist yet or is invalid — start fresh
+            }
+            if (!profiles[result.bundleId]) {
+              profiles[result.bundleId] = {
+                name: result.name,
+                correctionEnabled: null,
+                customPrompt: null,
+              };
+              fs.writeFileSync(profilesPath, JSON.stringify(profiles, null, 2));
+              debugLogger.info("[AppProfiles] Saved new profile", { bundleId: result.bundleId, name: result.name }, "ipc");
+            }
+
+            // Send to all windows so the dictation pill can show the app info
+            // AND so the renderer has the activeAppBundleId set BEFORE recording starts
+            for (const win of BrowserWindow.getAllWindows()) {
+              if (!win.isDestroyed()) {
+                win.webContents.send("frontmost-app-detected", result);
+              }
+            }
+          } catch {
+            debugLogger.debug("[AppProfiles] Failed to parse frontmost app result");
           }
-        } catch {
-          debugLogger.debug("[AppProfiles] Failed to parse frontmost app result");
+          resolve();
         }
-      }
-    );
+      );
+    });
   }
 
   getActivationMode() {

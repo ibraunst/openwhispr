@@ -339,7 +339,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       const stored = localStorage.getItem("appProfiles");
       if (!stored) return {};
       const parsed = JSON.parse(stored);
-      // Migrate: strip icon data from localStorage (now in memory-only cache)
+      // Migrate: strip icon data, convert null correctionEnabled → true
       let migrated = false;
       for (const key of Object.keys(parsed)) {
         if (parsed[key].icon) {
@@ -683,9 +683,9 @@ export function getEffectiveCorrectionEnabled(): boolean {
   const state = useSettingsStore.getState();
   const { activeAppBundleId, appProfiles, useReasoningModel } = state;
   if (activeAppBundleId && appProfiles[activeAppBundleId]) {
-    const profile = appProfiles[activeAppBundleId];
-    if (profile.correctionEnabled !== null) {
-      return profile.correctionEnabled;
+    const appSetting = appProfiles[activeAppBundleId].correctionEnabled;
+    if (appSetting !== null && appSetting !== undefined) {
+      return appSetting;
     }
   }
   return useReasoningModel;
@@ -703,7 +703,7 @@ export function getActiveAppCustomPrompt(): string | undefined {
 
 export function getEffectiveReasoningModel() {
   const state = useSettingsStore.getState();
-  if (selectIsCloudReasoningMode(state)) {
+  if (!getEffectiveCorrectionEnabled() && !selectIsCloudReasoningMode(state)) {
     return "";
   }
   return state.reasoningModel;
@@ -875,6 +875,12 @@ export async function initializeSettings(): Promise<void> {
     } else if (NUMERIC_SETTINGS.has(key)) {
       const parsed = parseInt(newValue, 10);
       value = isNaN(parsed) ? 30 : parsed;
+    } else if (key === "appProfiles") {
+      try {
+        value = JSON.parse(newValue);
+      } catch {
+        return;
+      }
     } else {
       value = newValue;
     }

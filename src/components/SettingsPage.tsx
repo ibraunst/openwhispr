@@ -509,7 +509,6 @@ function AppProfilesSection() {
   );
 }
 
-/** Three-state correction toggle: null (default), true, false */
 function CorrectionToggle({
   value,
   onChange,
@@ -519,7 +518,7 @@ function CorrectionToggle({
 }) {
   const { t } = useTranslation();
   const options = [
-    { label: t("settingsPage.appProfiles.correctionDefault"), val: null },
+    { label: t("settingsPage.appProfiles.correctionGlobal", "Global"), val: null },
     { label: t("settingsPage.appProfiles.correctionOn"), val: true },
     { label: t("settingsPage.appProfiles.correctionOff"), val: false },
   ] as const;
@@ -534,7 +533,7 @@ function CorrectionToggle({
             value === opt.val
               ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:text-foreground"
-          } ${i === 0 ? "rounded-l-md" : i === 2 ? "rounded-r-md" : ""}`}
+          } ${i === 0 ? "rounded-l-md" : i === options.length - 1 ? "rounded-r-md" : "border-x border-border"}`}
         >
           {opt.label}
         </button>

@@ -6,7 +6,7 @@ import { API_ENDPOINTS, TOKEN_LIMITS, buildApiUrl, normalizeBaseUrl } from "../c
 import logger from "../utils/logger";
 import { isSecureEndpoint } from "../utils/urlUtils";
 import { withSessionRefresh } from "../lib/neonAuth";
-import { getSettings, isCloudReasoningMode } from "../stores/settingsStore";
+import { getSettings, isCloudReasoningMode, getActiveAppCustomPrompt } from "../stores/settingsStore";
 
 class ReasoningService extends BaseReasoningService {
   private apiKeyCache: SecureCache<string>;
@@ -1077,6 +1077,10 @@ class ReasoningService extends BaseReasoningService {
   }
 
   private getCustomPrompt(): string | undefined {
+    // Per-app custom prompt takes priority over global prompt
+    const appPrompt = getActiveAppCustomPrompt();
+    if (appPrompt) return appPrompt;
+
     try {
       const raw = localStorage.getItem("customUnifiedPrompt");
       if (!raw) return undefined;
