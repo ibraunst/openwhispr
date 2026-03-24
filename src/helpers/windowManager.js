@@ -10,6 +10,11 @@ const MenuManager = require("./menuManager");
 const DevServerManager = require("./devServerManager");
 const { i18nMain } = require("./i18nMain");
 const { DEV_SERVER_PORT } = DevServerManager;
+
+// Delay (ms) before restoring window opacity after resize+IPC.
+// Gives React time to render the pill at the correct size before
+// the window becomes visible. Tweak this value to tune the flash.
+const PILL_RENDER_DELAY_MS = 10;
 const {
   MAIN_WINDOW_CONFIG,
   CONTROL_PANEL_CONFIG,
@@ -47,10 +52,11 @@ class WindowManager {
 
   async createMainWindow() {
     const display = screen.getPrimaryDisplay();
+    // Always center the pill at bottom of screen
     const position = WindowPositionUtil.getMainWindowPosition(
       display,
       null,
-      this._panelStartPosition
+      "center"
     );
 
     this.mainWindow = new BrowserWindow({
@@ -122,6 +128,13 @@ class WindowManager {
 
     const newSize = WINDOW_SIZES[sizeKey] || WINDOW_SIZES.BASE;
     const currentBounds = this.mainWindow.getBounds();
+
+    // Skip if already at the target size (prevents double-resize flash
+    // when renderer useEffect calls this after main process already did).
+    if (currentBounds.width === newSize.width && currentBounds.height === newSize.height) {
+      return { success: true, bounds: currentBounds };
+    }
+
     const position = this._panelStartPosition;
 
     const display = screen.getDisplayNearestPoint({
@@ -438,8 +451,6 @@ class WindowManager {
       if (willStartRecording) {
         await this._detectAndSaveFrontmostApp();
       }
-      // Send the IPC event BEFORE showing the panel so the renderer
-      // sets isRecording=true before the window becomes visible.
       this.mainWindow.webContents.send("toggle-dictation");
       this.showDictationPanel();
       this._isDictatingToggle = !this._isDictatingToggle;
@@ -1093,7 +1104,7 @@ class WindowManager {
 
         if (process.platform === "darwin") {
           const { exec } = require("child_process");
-          exec("afplay /System/Library/Sounds/Blow.aiff &", { timeout: 3000 }, () => {});
+          exec("afplay /System/Library/Sounds/Blow.aiff &", { timeout: 3000 }, () => { });
         }
       }
     }, 300);

@@ -158,7 +158,7 @@ export default function App() {
     setWindowInteractivity(false);
   }, [setWindowInteractivity]);
 
-  const { isRecording, isProcessing, toggleListening, cancelRecording, cancelProcessing } =
+  const { isRecording, isProcessing, toggleListening, cancelRecording, cancelProcessing, getVolume } =
     useAudioRecording(toast, {
       onToggle: handleDictationToggle,
     });
@@ -280,7 +280,7 @@ export default function App() {
       {/* Recording pill overlay */}
       {showPill && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center"
+          className="fixed inset-0 z-50 flex items-stretch justify-stretch"
           onMouseEnter={() => {
             setIsHovered(true);
             setWindowInteractivity(true);
@@ -291,7 +291,7 @@ export default function App() {
           }}
         >
           <div
-            className="flex flex-col items-center rounded-[18px] backdrop-blur-2xl cursor-pointer"
+            className="flex flex-col items-start rounded-[18px] backdrop-blur-2xl cursor-pointer w-full"
             style={{
               background: "rgba(40, 40, 40, 0.75)",
               boxShadow: "0 8px 32px rgba(0,0,0,0.4), inset 0 0.5px 0 rgba(255,255,255,0.08)",
@@ -342,7 +342,7 @@ export default function App() {
             </div>
 
             {/* Bottom: animated dashed waveform */}
-            <WaveformDots isActive={isRecording} />
+            <WaveformDots isActive={isRecording} getVolume={getVolume} />
           </div>
         </div>
       )}

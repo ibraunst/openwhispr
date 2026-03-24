@@ -203,11 +203,7 @@ export const useAudioRecording = (toast, options = {}) => {
     });
 
     const handleNoAudioDetected = () => {
-      toast({
-        title: t("hooks.audioRecording.noAudio.title"),
-        description: t("hooks.audioRecording.noAudio.description"),
-        variant: "default",
-      });
+      // Silently ignore — no toast for "no audio detected"
     };
 
     const disposeNoAudio = window.electronAPI.onNoAudioDetected?.(handleNoAudioDetected);
@@ -294,6 +290,10 @@ export const useAudioRecording = (toast, options = {}) => {
     }
   };
 
+  const getVolume = useCallback(() => {
+    return audioManagerRef.current?.getVolume() ?? 0;
+  }, []);
+
   return {
     isRecording,
     isProcessing,
@@ -305,5 +305,6 @@ export const useAudioRecording = (toast, options = {}) => {
     cancelRecording,
     cancelProcessing,
     toggleListening,
+    getVolume,
   };
 };

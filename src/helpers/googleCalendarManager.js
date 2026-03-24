@@ -265,14 +265,20 @@ class GoogleCalendarManager {
     this.activeMeeting = event;
     this.notifiedMeetings.add(event.id);
 
-    const notif = new Notification({
-      title: event.summary || "Meeting",
-      body: "Meeting starting in 1 minute",
-    });
-    notif.on("click", () => {
-      this.broadcastToWindows("gcal-start-recording", { event });
-    });
-    notif.show();
+    const detectionPrefs = this.meetingDetectionEngine?.getPreferences?.();
+    const notificationsEnabled =
+      !detectionPrefs || detectionPrefs.processDetection || detectionPrefs.audioDetection;
+
+    if (notificationsEnabled) {
+      const notif = new Notification({
+        title: event.summary || "Meeting",
+        body: "Meeting starting in 1 minute",
+      });
+      notif.on("click", () => {
+        this.broadcastToWindows("gcal-start-recording", { event });
+      });
+      notif.show();
+    }
 
     this.broadcastToWindows("gcal-meeting-starting", { event });
     this.meetingDetectionEngine?.handleCalendarAlert?.(event);

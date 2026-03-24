@@ -145,6 +145,41 @@ class AudioManager {
     }
   }
 
+  async _setupAnalyser(stream) {
+    try {
+      const audioContext = await this.getOrCreateAudioContext();
+      this._analyserNode = audioContext.createAnalyser();
+      this._analyserNode.fftSize = 1024;
+      if (this._analyserSource) {
+        this._analyserSource.disconnect();
+      }
+      this._analyserSource = audioContext.createMediaStreamSource(stream);
+      this._analyserSource.connect(this._analyserNode);
+    } catch (e) {
+      logger.warn("Analyser setup failed", { error: e.message }, "audio");
+    }
+  }
+
+  _cleanupAnalyser() {
+    if (this._analyserSource) {
+      try { this._analyserSource.disconnect(); } catch (e) {}
+      this._analyserSource = null;
+    }
+    this._analyserNode = null;
+  }
+
+  getVolume() {
+    if (!this._analyserNode || (!this.isRecording && !this.isStreaming)) return 0;
+    const dataArray = new Uint8Array(this._analyserNode.fftSize);
+    this._analyserNode.getByteTimeDomainData(dataArray);
+    let sum = 0;
+    for (let i = 0; i < dataArray.length; i++) {
+        const v = (dataArray[i] - 128) / 128;
+        sum += v * v;
+    }
+    return Math.sqrt(sum / dataArray.length);
+  }
+
   /**
    * Consume the warm mic stream if available, otherwise acquire a new one.
    * Returns a mic MediaStream ready for recording.
@@ -439,9 +474,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
           clearInterval(this._silenceInterval);
           this._silenceInterval = null;
         }
-        this._silenceCtx?.close().catch(() => {});
-        this._silenceCtx = null;
-        this._silenceAnalyser = null;
+        this._cleanupAnalyser();
 
         this.isRecording = false;
         this.isProcessing = true;
@@ -474,23 +507,24 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
 
       // Set up silence detection after recording has started (non-blocking)
       try {
-        this._silenceCtx = new AudioContext();
-        this._silenceAnalyser = this._silenceCtx.createAnalyser();
-        this._silenceAnalyser.fftSize = 2048;
-        const sourceNode = this._silenceCtx.createMediaStreamSource(recordingStream);
-        sourceNode.connect(this._silenceAnalyser);
+        this._setupAnalyser(recordingStream);
         this._peakRms = 0;
-        const dataArray = new Uint8Array(this._silenceAnalyser.fftSize);
-        this._silenceInterval = setInterval(() => {
-          this._silenceAnalyser.getByteTimeDomainData(dataArray);
-          let sum = 0;
-          for (let i = 0; i < dataArray.length; i++) {
-            const v = (dataArray[i] - 128) / 128;
-            sum += v * v;
-          }
-          const rms = Math.sqrt(sum / dataArray.length);
-          if (rms > this._peakRms) this._peakRms = rms;
-        }, 100);
+        
+        setTimeout(() => {
+          if (!this._analyserNode) return;
+          const dataArray = new Uint8Array(this._analyserNode.fftSize);
+          this._silenceInterval = setInterval(() => {
+            if (!this._analyserNode) return;
+            this._analyserNode.getByteTimeDomainData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+              const v = (dataArray[i] - 128) / 128;
+              sum += v * v;
+            }
+            const rms = Math.sqrt(sum / dataArray.length);
+            if (rms > this._peakRms) this._peakRms = rms;
+          }, 100);
+        }, 50);
       } catch (e) {
         logger.warn("Silence detection setup failed, skipping", { error: e.message }, "audio");
         this._peakRms = 1; // assume speech if detection fails
@@ -541,6 +575,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         this.audioChunks = [];
         this.recordingStartTime = null;
         this.onStateChange?.({ isRecording: false, isProcessing: false });
+        this._cleanupAnalyser();
       };
 
       this.mediaRecorder.stop();
@@ -2311,6 +2346,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       this.streamingAudioContext = audioContext;
       this.streamingSource = audioContext.createMediaStreamSource(stream);
       this.streamingStream = stream;
+      this._setupAnalyser(stream);
 
       if (!this.workletModuleLoaded) {
         await audioContext.audioWorklet.addModule(this.getWorkletBlobUrl());
@@ -2531,6 +2567,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       this.streamingSource = null;
     }
     this.streamingAudioContext = null;
+    this._cleanupAnalyser();
 
     // Stop fallback recorder before stopping media tracks
     let fallbackBlob = null;
