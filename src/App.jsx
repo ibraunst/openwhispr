@@ -295,7 +295,7 @@ export default function App() {
             style={{
               background: "rgba(40, 40, 40, 0.75)",
               boxShadow: "0 8px 32px rgba(0,0,0,0.4), inset 0 0.5px 0 rgba(255,255,255,0.08)",
-              padding: "10px 16px 8px",
+              padding: "7px 14px 5px",
               border: "1px solid rgba(255,255,255,0.08)",
             }}
             onClick={() => {
@@ -321,25 +321,27 @@ export default function App() {
             }}
           >
             {/* Top: active app icon + name */}
-            <div className="flex items-center gap-2 mb-1.5">
-              {activeApp?.icon ? (
-                <img
-                  src={activeApp.icon}
-                  alt=""
-                  className="rounded-md"
-                  style={{ width: 22, height: 22 }}
-                  draggable={false}
-                />
-              ) : (
-                <div className="rounded-md bg-white/15" style={{ width: 22, height: 22 }} />
-              )}
-              <span
-                className="text-white font-medium"
-                style={{ fontSize: 14, letterSpacing: "-0.01em" }}
-              >
-                {activeApp?.name || ""}
-              </span>
-            </div>
+            {activeApp?.name && (
+              <div className="flex items-center gap-2 mb-1">
+                {activeApp?.icon ? (
+                  <img
+                    src={activeApp.icon}
+                    alt=""
+                    className="rounded-md"
+                    style={{ width: 20, height: 20 }}
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="rounded-md bg-white/15" style={{ width: 20, height: 20 }} />
+                )}
+                <span
+                  className="text-white font-medium"
+                  style={{ fontSize: 13, letterSpacing: "-0.01em" }}
+                >
+                  {activeApp.name}
+                </span>
+              </div>
+            )}
 
             {/* Bottom: animated dashed waveform */}
             <WaveformDots isActive={isRecording} getVolume={getVolume} />

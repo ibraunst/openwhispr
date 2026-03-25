@@ -32,6 +32,13 @@ npm run build:linux      # Linux only (also build:linux:appimage, :deb, :rpm, :t
 npm run pack             # Unsigned local build to dist/ + ad-hoc codesign
 ```
 
+### Installing (local dev)
+When asked to "install", run:
+```bash
+npm run pack && cp -R dist/mac-arm64/customWhispr.app /Applications/
+```
+This builds the app and copies it to `/Applications/`. The bundle ID and codesign identity (`customWhispr Dev`) stay consistent, so macOS permissions (mic, screen recording, accessibility) are retained across rebuilds.
+
 ### Quality Checks
 ```bash
 npm run typecheck        # TypeScript type checking (cd src && tsc --noEmit)

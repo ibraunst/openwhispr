@@ -6,8 +6,8 @@ const isGnomeWayland =
   /gnome|ubuntu|unity/i.test(process.env.XDG_CURRENT_DESKTOP || "");
 
 const WINDOW_SIZES = {
-  BASE: { width: 214, height: 86 },
-  RECORDING: { width: 214, height: 86 },
+  BASE: { width: 214, height: 56 },
+  RECORDING: { width: 214, height: 56 },
   WITH_MENU: { width: 240, height: 280 },
   WITH_TOAST: { width: 400, height: 500 },
   EXPANDED: { width: 400, height: 500 },
