@@ -42,8 +42,8 @@ export const WaveformDots: React.FC<{ isActive: boolean; getVolume?: () => numbe
       }
 
       // The animation state base variables
-      // Shift it up vertically even more (total 6px offset)
-      const centerY = (canvasHeight / 2) - 6; 
+      // Vertical center offset (lower value = lower position)
+      const centerY = (canvasHeight / 2) - 2;
       const amplitudeLimit = canvasHeight / 2 - 2; 
       const idleBase = isActive ? 0.14 : 0;
       const audioReact = Math.max(smoothedVolumeRef.current, idleBase);

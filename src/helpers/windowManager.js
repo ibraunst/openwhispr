@@ -48,6 +48,15 @@ class WindowManager {
     app.on("before-quit", () => {
       this.isQuitting = true;
     });
+
+    // Reposition dictation bubble when displays change (e.g. switching
+    // between external monitor and laptop screen).
+    app.whenReady().then(() => {
+      const reposition = () => this._repositionMainWindowForDisplay();
+      screen.on("display-added", reposition);
+      screen.on("display-removed", reposition);
+      screen.on("display-metrics-changed", reposition);
+    });
   }
 
   async createMainWindow() {
@@ -582,6 +591,59 @@ class WindowManager {
         this._panelStartPosition
       );
       this.mainWindow.setBounds(newPos);
+    }
+  }
+
+  /**
+   * Re-center the dictation bubble on the current primary display.
+   * Called when displays are added, removed, or metrics change.
+   */
+  _repositionMainWindowForDisplay() {
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) {
+      return;
+    }
+    const currentBounds = this.mainWindow.getBounds();
+    const display = screen.getDisplayNearestPoint({
+      x: currentBounds.x + currentBounds.width / 2,
+      y: currentBounds.y + currentBounds.height / 2,
+    });
+    const workArea = display.workArea || display.bounds;
+
+    // Check if the window is still within the visible work area
+    const isVisible =
+      currentBounds.x + currentBounds.width > workArea.x &&
+      currentBounds.x < workArea.x + workArea.width &&
+      currentBounds.y + currentBounds.height > workArea.y &&
+      currentBounds.y < workArea.y + workArea.height;
+
+    if (!isVisible) {
+      // Window is off-screen — reposition to configured start position
+      const newPos = WindowPositionUtil.getMainWindowPosition(
+        screen.getPrimaryDisplay(),
+        { width: currentBounds.width, height: currentBounds.height },
+        this._panelStartPosition
+      );
+      this.mainWindow.setBounds(newPos);
+      debugLogger.log("Repositioned dictation bubble after display change");
+    } else {
+      // Window is on-screen but may need clamping to new work area
+      const clampedX = Math.max(
+        workArea.x,
+        Math.min(currentBounds.x, workArea.x + workArea.width - currentBounds.width)
+      );
+      const clampedY = Math.max(
+        workArea.y,
+        Math.min(currentBounds.y, workArea.y + workArea.height - currentBounds.height)
+      );
+      if (clampedX !== currentBounds.x || clampedY !== currentBounds.y) {
+        this.mainWindow.setBounds({
+          x: clampedX,
+          y: clampedY,
+          width: currentBounds.width,
+          height: currentBounds.height,
+        });
+        debugLogger.log("Clamped dictation bubble to work area after display change");
+      }
     }
   }
 
