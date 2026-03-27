@@ -54,6 +54,7 @@ class TextEditMonitor extends EventEmitter {
     this._stdoutBuffer = "";
     this.lastTargetPid = null;
     this._axEnhancedPid = null;
+    this._targetIsChromium = false;
   }
 
   /**
@@ -61,25 +62,48 @@ class TextEditMonitor extends EventEmitter {
    * Must be called at hotkey press time, BEFORE showDictationPanel()/mainWindow.show().
    * NSWorkspace.frontmostApplication correctly identifies the key window owner,
    * ignoring panel-type windows like the customWhispr overlay.
+   *
+   * Also detects whether the target app is Electron/Chromium-based so we can skip
+   * AX monitoring (which triggers the blue accessibility focus ring in those apps).
    */
   captureTargetPid() {
     if (process.platform !== "darwin") return;
-    // If a previous monitoring session left an app in screen-reader mode, reset it
-    // now — before the overlay appears — so Chromium stops routing focus to new windows.
-    if (this._axEnhancedPid) {
-      this._resetAccessibility(this._axEnhancedPid);
-      this._axEnhancedPid = null;
-    }
-    const script =
-      'ObjC.import("AppKit"); $.NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier';
+    this._targetIsChromium = false;
+    const script = [
+      'ObjC.import("AppKit");',
+      'ObjC.import("Foundation");',
+      "var app = $.NSWorkspace.sharedWorkspace.frontmostApplication;",
+      "var pid = app.processIdentifier;",
+      "var url = app.bundleURL;",
+      'var isChromium = false;',
+      "if (url) {",
+      "  var fm = $.NSFileManager.defaultManager;",
+      '  var fwPath = url.URLByAppendingPathComponent("Contents/Frameworks");',
+      '  isChromium = fm.fileExistsAtPath(fwPath.URLByAppendingPathComponent("Electron Framework.framework").path)',
+      '    || fm.fileExistsAtPath(fwPath.URLByAppendingPathComponent("Chromium Embedded Framework.framework").path)',
+      '    || fm.fileExistsAtPath(fwPath.URLByAppendingPathComponent("Google Chrome Framework.framework").path);',
+      "}",
+      'JSON.stringify({ pid: pid, isChromium: isChromium });',
+    ].join("\n");
     execFile("osascript", ["-l", "JavaScript", "-e", script], { timeout: 2000 }, (err, stdout) => {
       if (err) {
         this.lastTargetPid = null;
+        this._targetIsChromium = false;
       } else {
-        const pid = parseInt(stdout.trim(), 10);
-        this.lastTargetPid = isNaN(pid) ? null : pid;
+        try {
+          const info = JSON.parse(stdout.trim());
+          const pid = parseInt(info.pid, 10);
+          this.lastTargetPid = isNaN(pid) ? null : pid;
+          this._targetIsChromium = !!info.isChromium;
+        } catch {
+          this.lastTargetPid = null;
+          this._targetIsChromium = false;
+        }
       }
-      debugLogger.debug("[TextEditMonitor] Captured target PID", { pid: this.lastTargetPid });
+      debugLogger.debug("[TextEditMonitor] Captured target PID", {
+        pid: this.lastTargetPid,
+        isChromium: this._targetIsChromium,
+      });
     });
   }
 
@@ -94,6 +118,15 @@ class TextEditMonitor extends EventEmitter {
     this.currentOriginalText = originalText;
 
     if (process.platform === "darwin") {
+      // Skip monitoring for Electron/Chromium apps — AXObserver and AX queries
+      // trigger their accessibility mode, causing a persistent blue focus ring.
+      if (this._targetIsChromium) {
+        debugLogger.debug("[TextEditMonitor] Skipping monitoring for Chromium app", {
+          pid: options.targetPid,
+        });
+        this.currentOriginalText = null;
+        return;
+      }
       const resolved = this.resolveBinary();
       if (resolved) {
         this._startMacOSNative(originalText, timeoutMs, options.targetPid, resolved);
@@ -252,20 +285,12 @@ class TextEditMonitor extends EventEmitter {
    * Tracks the PID so we can reset it in stopMonitoring().
    */
   _enableAccessibility(pid) {
-    this._axEnhancedPid = pid;
-    return new Promise((resolve) => {
-      const script = MACOS_AX_ENABLE_SCRIPT(pid);
-      execFile("osascript", ["-e", script], { timeout: 3000 }, (err) => {
-        if (err) {
-          debugLogger.debug("[TextEditMonitor] macOS: AXEnhancedUserInterface failed", {
-            error: err.message,
-          });
-        } else {
-          debugLogger.debug("[TextEditMonitor] macOS: AXEnhancedUserInterface enabled", { pid });
-        }
-        resolve();
-      });
-    });
+    // Disabled: setting AXEnhancedUserInterface causes Chromium/Electron apps
+    // (Claude Desktop, Chrome, VS Code, Slack) to show a blue accessibility
+    // focus ring that persists until the app restarts. Auto-learn won't work
+    // for these apps, but native apps (TextEdit, Pages) don't need this.
+    this._axEnhancedPid = null;
+    return Promise.resolve();
   }
 
   /**

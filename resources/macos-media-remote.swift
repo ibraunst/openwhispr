@@ -1,69 +1,173 @@
+import Cocoa
 import Foundation
 
-// MediaRemote.framework command constants
-let kMRPlay: UInt32 = 0
-let kMRPause: UInt32 = 1
-let kMRTogglePlayPause: UInt32 = 2
+// --- MediaRemote private framework (loaded at runtime) ---
 
-// C function type aliases from MediaRemote.framework
-typealias MRMediaRemoteSendCommandType = @convention(c) (UInt32, Optional<AnyObject>) -> Bool
-typealias MRMediaRemoteGetNowPlayingApplicationIsPlayingType = @convention(c) (DispatchQueue, @escaping (Bool) -> Void) -> Void
+typealias MRMediaRemoteGetNowPlayingInfoFunc = @convention(c) (DispatchQueue, @escaping ([String: Any]) -> Void) -> Void
+typealias MRMediaRemoteGetNowPlayingApplicationIsPlayingFunc = @convention(c) (DispatchQueue, @escaping (Bool) -> Void) -> Void
 
-func loadMediaRemote() -> (send: MRMediaRemoteSendCommandType, isPlaying: MRMediaRemoteGetNowPlayingApplicationIsPlayingType)? {
-    let frameworkPath = "/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote"
-    guard let handle = dlopen(frameworkPath, RTLD_NOW) else { return nil }
-
-    guard let sendPtr = dlsym(handle, "MRMediaRemoteSendCommand"),
-          let isPlayingPtr = dlsym(handle, "MRMediaRemoteGetNowPlayingApplicationIsPlaying") else {
-        return nil
-    }
-
-    let send = unsafeBitCast(sendPtr, to: MRMediaRemoteSendCommandType.self)
-    let isPlaying = unsafeBitCast(isPlayingPtr, to: MRMediaRemoteGetNowPlayingApplicationIsPlayingType.self)
-    return (send: send, isPlaying: isPlaying)
+struct MediaRemoteFuncs {
+    var isPlaying: MRMediaRemoteGetNowPlayingApplicationIsPlayingFunc?
+    var info: MRMediaRemoteGetNowPlayingInfoFunc?
 }
 
-func checkIsPlaying(_ isPlayingFn: MRMediaRemoteGetNowPlayingApplicationIsPlayingType) -> Bool {
+func loadMediaRemote() -> MediaRemoteFuncs {
+    guard let handle = dlopen("/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote", RTLD_LAZY) else {
+        return MediaRemoteFuncs()
+    }
+    let isPlayingSym = dlsym(handle, "MRMediaRemoteGetNowPlayingApplicationIsPlaying")
+    let isPlaying = isPlayingSym.map { unsafeBitCast($0, to: MRMediaRemoteGetNowPlayingApplicationIsPlayingFunc.self) }
+    let infoSym = dlsym(handle, "MRMediaRemoteGetNowPlayingInfo")
+    let info = infoSym.map { unsafeBitCast($0, to: MRMediaRemoteGetNowPlayingInfoFunc.self) }
+    return MediaRemoteFuncs(isPlaying: isPlaying, info: info)
+}
+
+// --- Media key event ---
+
+func sendMediaKey() {
+    let keyCode: Int = 16  // NX_KEYTYPE_PLAY
+
+    if let downEvent = NSEvent.otherEvent(
+        with: .systemDefined,
+        location: .zero,
+        modifierFlags: NSEvent.ModifierFlags(rawValue: 0xa00),
+        timestamp: 0,
+        windowNumber: 0,
+        context: nil,
+        subtype: 8,
+        data1: (keyCode << 16) | (0xa << 8),
+        data2: -1
+    ) {
+        downEvent.cgEvent?.post(tap: .cghidEventTap)
+    }
+
+    usleep(50_000)
+
+    if let upEvent = NSEvent.otherEvent(
+        with: .systemDefined,
+        location: .zero,
+        modifierFlags: NSEvent.ModifierFlags(rawValue: 0xb00),
+        timestamp: 0,
+        windowNumber: 0,
+        context: nil,
+        subtype: 8,
+        data1: (keyCode << 16) | (0xb << 8),
+        data2: -1
+    ) {
+        upEvent.cgEvent?.post(tap: .cghidEventTap)
+    }
+}
+
+// --- Check if media is currently playing ---
+// Initialize NSApplication to get a proper app context — MediaRemote callbacks
+// require this to work correctly from CLI processes.
+
+func checkIsPlaying() -> Bool {
+    // Ensure we have a proper NSApplication context
+    let _ = NSApplication.shared
+
+    let mr = loadMediaRemote()
+    guard let isPlayingFn = mr.isPlaying else {
+        return false
+    }
+
     let semaphore = DispatchSemaphore(value: 0)
     var playing = false
+
     isPlayingFn(DispatchQueue.main) { result in
         playing = result
         semaphore.signal()
     }
-    _ = semaphore.wait(timeout: .now() + 2)
+
+    let deadline = DispatchTime.now() + .milliseconds(500)
+    while semaphore.wait(timeout: .now()) != .success {
+        CFRunLoopRunInMode(CFRunLoopMode.defaultMode, 0.01, true)
+        if DispatchTime.now() > deadline {
+            break
+        }
+    }
+
     return playing
 }
 
-guard let mr = loadMediaRemote() else {
-    print("ERROR")
-    exit(1)
+func getNowPlayingInfo() -> [String: Any] {
+    let _ = NSApplication.shared
+
+    let mr = loadMediaRemote()
+    guard let infoFn = mr.info else {
+        return [:]
+    }
+
+    let semaphore = DispatchSemaphore(value: 0)
+    var nowPlayingInfo: [String: Any] = [:]
+
+    infoFn(DispatchQueue.main) { info in
+        nowPlayingInfo = info
+        semaphore.signal()
+    }
+
+    let deadline = DispatchTime.now() + .milliseconds(500)
+    while semaphore.wait(timeout: .now()) != .success {
+        CFRunLoopRunInMode(CFRunLoopMode.defaultMode, 0.01, true)
+        if DispatchTime.now() > deadline { break }
+    }
+
+    return nowPlayingInfo
 }
+
+// --- CLI ---
 
 let args = CommandLine.arguments
 let command = args.count > 1 ? args[1] : ""
 
 switch command {
-case "--is-playing":
-    let playing = checkIsPlaying(mr.isPlaying)
-    print(playing ? "PLAYING" : "NOT_PLAYING")
-    exit(playing ? 0 : 1)
-
 case "--pause":
-    let playing = checkIsPlaying(mr.isPlaying)
-    if !playing {
-        print("NOT_PLAYING")
-        exit(1)
+    // Check if something is actually playing before toggling
+    let isPlaying = checkIsPlaying()
+    if !isPlaying {
+        // Double-check via playback rate in now-playing info
+        let info = getNowPlayingInfo()
+        if let rate = info["kMRMediaRemoteNowPlayingInfoPlaybackRate"] as? Double, rate > 0 {
+            sendMediaKey()
+            print("PAUSED")
+        } else {
+            print("NOOP")
+        }
+    } else {
+        sendMediaKey()
+        print("PAUSED")
     }
-    let ok = mr.send(kMRPause, nil)
-    print(ok ? "OK" : "FAIL")
-    exit(ok ? 0 : 1)
+    exit(0)
 
 case "--play":
-    let ok = mr.send(kMRPlay, nil)
-    print(ok ? "OK" : "FAIL")
-    exit(ok ? 0 : 1)
+    sendMediaKey()
+    print("OK")
+    exit(0)
+
+case "--toggle":
+    sendMediaKey()
+    print("OK")
+    exit(0)
+
+case "--is-playing":
+    let playing = checkIsPlaying()
+    print(playing ? "PLAYING" : "STOPPED")
+    exit(0)
+
+case "--debug":
+    let playing = checkIsPlaying()
+    print("MRIsPlaying: \(playing)")
+    let info = getNowPlayingInfo()
+    if info.isEmpty {
+        print("NowPlayingInfo: (empty)")
+    } else {
+        for (key, value) in info.sorted(by: { $0.key < $1.key }) {
+            print("  \(key): \(value)")
+        }
+    }
+    exit(0)
 
 default:
-    print("Usage: macos-media-remote --is-playing|--pause|--play")
+    print("Usage: macos-media-remote --pause | --play | --toggle | --is-playing | --debug")
     exit(1)
 }

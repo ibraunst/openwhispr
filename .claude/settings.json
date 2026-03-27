@@ -1,7 +1,30 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run typecheck:*)"
+      "Bash(npm run typecheck:*)",
+      "Bash(osascript -e 'tell application \"\"Music\"\" to play')",
+      "Bash(/Users/ianbraunstein/Documents/Projects/openwhispr/resources/bin/macos-media-remote --toggle)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(osascript -e 'tell application \"\"Music\"\" to get player state')",
+      "Bash(node -e ':*)",
+      "Bash(lsof -i :3000 -sTCP:LISTEN)",
+      "Bash(lsof -i :5183 -sTCP:LISTEN)",
+      "Bash(npm run dev)",
+      "Bash(npm run pack)",
+      "Bash(cp -R dist/mac-arm64/customWhispr.app /Applications/)",
+      "Bash(then echo \"ready\")",
+      "Bash(break)",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(lsof -i :3000)",
+      "Bash(lsof -i :5173)",
+      "Bash(node scripts/build-media-remote.js)",
+      "Bash(resources/bin/macos-media-remote --is-playing)",
+      "Bash(pkill -f \"electron .\")",
+      "Bash(pkill -f \"run-electron\")",
+      "Bash(pkill -f \"electron\")",
+      "Bash(pkill -f \"node.*vite\")",
+      "Bash(lsof -i :3000 -i :5173)"
     ]
   }
 }

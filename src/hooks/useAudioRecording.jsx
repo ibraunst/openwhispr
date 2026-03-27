@@ -55,13 +55,20 @@ export const useAudioRecording = (toast, options = {}) => {
 
       if (currentState.isStreaming || currentState.isStreamingStartInProgress) {
         void playStopCue();
-        return await audioManagerRef.current.stopStreamingRecording();
+        const result = await audioManagerRef.current.stopStreamingRecording();
+        if (getSettings().pauseMediaOnDictation) {
+          window.electronAPI?.resumeMediaPlayback?.();
+        }
+        return result;
       }
 
       const didStop = audioManagerRef.current.stopRecording();
 
       if (didStop) {
         void playStopCue();
+        if (getSettings().pauseMediaOnDictation) {
+          window.electronAPI?.resumeMediaPlayback?.();
+        }
       }
 
       return didStop;
@@ -90,17 +97,11 @@ export const useAudioRecording = (toast, options = {}) => {
           variant: "destructive",
           duration: error.code === "AUTH_EXPIRED" ? 8000 : undefined,
         });
-        if (getSettings().pauseMediaOnDictation) {
-          window.electronAPI?.resumeMediaPlayback?.();
-        }
       },
       onPartialTranscript: (text) => {
         setPartialTranscript(text);
       },
       onTranscriptionComplete: async (result) => {
-        if (getSettings().pauseMediaOnDictation) {
-          window.electronAPI?.resumeMediaPlayback?.();
-        }
 
         if (result.success) {
           const transcribedText = result.text?.trim();

@@ -75,6 +75,7 @@ class MediaPlayer {
 
     if (process.resourcesPath) {
       candidates.push(path.join(process.resourcesPath, "bin", "macos-media-remote"));
+      candidates.push(path.join(process.resourcesPath, "resources", "bin", "macos-media-remote"));
     }
 
     for (const candidate of candidates) {
@@ -333,32 +334,198 @@ class MediaPlayer {
 
   // --- macOS: MediaRemote-aware pause/resume ---
 
-  _pauseMacOS() {
-    this._didPause = false;
+  _runAppleScript(script) {
+    const result = spawnSync("osascript", ["-"], {
+      input: script,
+      stdio: ["pipe", "pipe", "pipe"],
+      timeout: 5000,
+    });
+    const stdout = (result.stdout?.toString() || "").trim();
+    const stderr = (result.stderr?.toString() || "").trim();
+    return { status: result.status, stdout, stderr };
+  }
 
-    // Try MediaRemote binary first (state-aware, no toggle)
-    const binary = this._resolveMacMediaRemote();
-    if (binary) {
-      const result = spawnSync(binary, ["--pause"], {
-        stdio: "pipe",
-        timeout: 3000,
-      });
-      if (result.status === 0) {
-        debugLogger.debug("Media paused via MediaRemote", {}, "media");
-        this._didPause = true;
-        return true;
-      }
-      // exit 1 = nothing was playing, don't fallback to toggle
-      const output = (result.stdout?.toString() || "").trim();
-      if (output === "NOT_PLAYING") return false;
+  _isPodcastsPlaying() {
+    // Check if Podcasts is running and playing by inspecting the Controls menu.
+    // If first menu item is "Pause", a podcast is playing.
+    const script = `
+      tell application "System Events"
+        if not (exists process "Podcasts") then return false
+        try
+          set menuName to name of menu item 1 of menu 1 of menu bar item "Controls" of menu bar 1 of process "Podcasts"
+          return menuName is "Pause"
+        on error
+          return false
+        end try
+      end tell
+    `;
+    const { status, stdout } = this._runAppleScript(script);
+    return status === 0 && stdout.trim().toLowerCase() === "true";
+  }
+
+  _clickPodcastsPlayPause() {
+    // Click the first item in the Controls menu (Play or Pause toggle)
+    const script = `
+      tell application "System Events"
+        if not (exists process "Podcasts") then return
+        try
+          click menu item 1 of menu 1 of menu bar item "Controls" of menu bar 1 of process "Podcasts"
+        end try
+      end tell
+    `;
+    this._runAppleScript(script);
+  }
+
+  _isMusicAppRunning() {
+    const script = `tell application "System Events" to return (exists process "Music")`;
+    const { status, stdout } = this._runAppleScript(script);
+    return status === 0 && stdout.trim().toLowerCase() === "true";
+  }
+
+  _isSpotifyPlaying() {
+    const script = `
+      tell application "System Events"
+        if not (exists process "Spotify") then return false
+      end tell
+      try
+        tell application "Spotify" to return (player state is playing)
+      on error
+        return false
+      end try
+    `;
+    const { status, stdout } = this._runAppleScript(script);
+    return status === 0 && stdout.trim().toLowerCase() === "true";
+  }
+
+  _isMusicAppPlaying() {
+    // Check if Apple Music is currently playing (not paused/stopped).
+    // Only checks if Music.app is already running — won't launch it.
+    const script = `
+      tell application "System Events"
+        if not (exists process "Music") then return false
+      end tell
+      try
+        tell application "Music" to return (player state is playing)
+      on error
+        return false
+      end try
+    `;
+    const { status, stdout } = this._runAppleScript(script);
+    return status === 0 && stdout.trim().toLowerCase() === "true";
+  }
+
+  _isMacMediaPlayingViaAppleScript() {
+    // Check if any media app is actively playing via AppleScript.
+    // Uses "System Events" to check process existence first (avoids launching apps).
+    // Then queries each running player for its state.
+    const script = `
+      set isPlaying to false
+      tell application "System Events"
+        set runningApps to name of every process
+      end tell
+
+      -- Apple Music
+      if runningApps contains "Music" then
+        try
+          tell application "Music"
+            if player state is playing then set isPlaying to true
+          end tell
+        end try
+      end if
+
+      -- Spotify
+      if not isPlaying and runningApps contains "Spotify" then
+        try
+          tell application "Spotify"
+            if player state is playing then set isPlaying to true
+          end tell
+        end try
+      end if
+
+      -- Apple Podcasts (no direct AppleScript, check via Media key response)
+      -- Chrome, Safari, etc. respond to media keys but can't be queried via AppleScript
+
+      return isPlaying
+    `;
+
+    const { status, stdout } = this._runAppleScript(script);
+    if (status === 0) {
+      const result = stdout.trim().toLowerCase();
+      if (result === "true") return true;
     }
 
-    // Fallback to media key toggle
-    debugLogger.debug("MediaRemote unavailable, falling back to osascript", {}, "media");
-    if (this._sendMacMediaKey()) {
+    // Fallback: check MediaRemote binary
+    const mrPlaying = this._isMacMediaPlaying();
+    if (mrPlaying === true) return true;
+
+    return false;
+  }
+
+  _isMacMediaPlaying() {
+    const binary = this._resolveMacMediaRemote();
+    if (!binary) return null;
+
+    const result = spawnSync(binary, ["--is-playing"], {
+      stdio: "pipe",
+      timeout: 2000,
+    });
+
+    if (result.status === 0) {
+      const output = (result.stdout?.toString() || "").trim();
+      return output === "PLAYING";
+    }
+    return null;
+  }
+
+  _isMacAudioDeviceActive() {
+    const binary = this._resolveMacMediaRemote();
+    if (!binary) return null;
+
+    const result = spawnSync(binary, ["--is-device-active"], {
+      stdio: "pipe",
+      timeout: 2000,
+    });
+
+    if (result.status === 0) {
+      const output = (result.stdout?.toString() || "").trim();
+      return output === "ACTIVE";
+    }
+    return null;
+  }
+
+  _pauseMacOS() {
+    this._didPause = false;
+    this._pausedMacApps = [];
+
+    // Pause each known media app directly via AppleScript.
+    // No media key — it always auto-starts Music.app and can't be prevented.
+
+    // Apple Music
+    if (this._isMusicAppPlaying()) {
+      this._runAppleScript('tell application "Music" to pause');
+      this._pausedMacApps.push("Music");
+      debugLogger.debug("Paused Music.app via AppleScript", {}, "media");
+    }
+
+    // Spotify
+    if (this._isSpotifyPlaying()) {
+      this._runAppleScript('tell application "Spotify" to pause');
+      this._pausedMacApps.push("Spotify");
+      debugLogger.debug("Paused Spotify via AppleScript", {}, "media");
+    }
+
+    // Apple Podcasts (uses UI scripting — Controls > Pause menu item)
+    if (this._isPodcastsPlaying()) {
+      this._clickPodcastsPlayPause();
+      this._pausedMacApps.push("Podcasts");
+      debugLogger.debug("Paused Podcasts via UI scripting", {}, "media");
+    }
+
+    if (this._pausedMacApps.length > 0) {
       this._didPause = true;
       return true;
     }
+
     return false;
   }
 
@@ -366,33 +533,64 @@ class MediaPlayer {
     if (!this._didPause) return false;
     this._didPause = false;
 
+    const apps = this._pausedMacApps || [];
+    this._pausedMacApps = [];
+
+    for (const app of apps) {
+      if (app === "Music") {
+        this._runAppleScript('tell application "Music" to play');
+        debugLogger.debug("Resumed Music.app via AppleScript", {}, "media");
+      } else if (app === "Spotify") {
+        this._runAppleScript('tell application "Spotify" to play');
+        debugLogger.debug("Resumed Spotify via AppleScript", {}, "media");
+      } else if (app === "Podcasts") {
+        this._clickPodcastsPlayPause();
+        debugLogger.debug("Resumed Podcasts via UI scripting", {}, "media");
+      }
+    }
+
+    return apps.length > 0;
+  }
+
+  _sendMacMediaCommand(command) {
     const binary = this._resolveMacMediaRemote();
     if (binary) {
-      const result = spawnSync(binary, ["--play"], {
+      const result = spawnSync(binary, [command], {
         stdio: "pipe",
         timeout: 3000,
       });
       if (result.status === 0) {
-        debugLogger.debug("Media resumed via MediaRemote", {}, "media");
+        const output = (result.stdout?.toString() || "").trim();
+        return output === "OK";
+      }
+    }
+    return false;
+  }
+
+  _sendMacMediaKey() {
+    // Use the precompiled binary which sends NX_KEYTYPE_PLAY via CGEvent.
+    // This pauses/resumes ANY now-playing source (Music, Podcasts, Spotify,
+    // Chrome, Safari, etc.) without stealing focus.
+    const binary = this._resolveMacMediaRemote();
+    if (binary) {
+      const result = spawnSync(binary, ["--toggle"], {
+        stdio: "pipe",
+        timeout: 3000,
+      });
+      if (result.status === 0) {
+        debugLogger.debug("Media key sent via CGEvent binary", {}, "media");
         return true;
       }
     }
 
-    // Fallback to media key toggle
-    return this._sendMacMediaKey();
-  }
-
-  _sendMacMediaKey() {
+    // Fallback to osascript (may steal focus)
     const result = spawnSync(
       "osascript",
       ["-e", 'tell application "System Events" to key code 100'],
-      {
-        stdio: "pipe",
-        timeout: 3000,
-      }
+      { stdio: "pipe", timeout: 3000 }
     );
     if (result.status === 0) {
-      debugLogger.debug("Media key sent via osascript", {}, "media");
+      debugLogger.debug("Media key sent via osascript fallback", {}, "media");
       return true;
     }
     return false;
