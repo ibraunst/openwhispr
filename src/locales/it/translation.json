@@ -1728,6 +1728,8 @@
         "description": "OpenWhispr necessita delle autorizzazioni di accessibilità per rilevare il tasto di scelta rapida e incollare il testo. Abilitale nel Pannello di controllo."
       }
     },
+    "holdMode": "Modalità tenere — rilascia per fermare",
+    "tapMode": "Modalità tocco — tocca per avviare/fermare",
     "mic": {
       "hotkeyToSpeak": "Premi {{hotkey}} per parlare",
       "recording": "Registrazione...",

@@ -1728,6 +1728,8 @@
         "description": "OpenWhispr 需要辅助功能权限来检测快捷键和粘贴文本。请在控制面板中启用。"
       }
     },
+    "holdMode": "按住模式 — 松开停止",
+    "tapMode": "点按模式 — 点击开始/停止",
     "mic": {
       "hotkeyToSpeak": "按 {{hotkey}} 开始说话",
       "recording": "录音中...",

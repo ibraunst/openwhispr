@@ -1728,6 +1728,8 @@
         "description": "OpenWhispr benötigt Bedienungshilfen-Berechtigungen, um Ihren Hotkey zu erkennen und Text einzufügen. Bitte aktivieren Sie diese in der Systemsteuerung."
       }
     },
+    "holdMode": "Haltemodus — loslassen zum Stoppen",
+    "tapMode": "Tippmodus — tippen zum Starten/Stoppen",
     "mic": {
       "hotkeyToSpeak": "{{hotkey}} drücken zum Sprechen",
       "recording": "Aufnahme...",

@@ -1728,6 +1728,8 @@
         "description": "O OpenWhispr precisa de permissões de acessibilidade para detectar seu atalho e colar texto. Ative-as no Painel de Controle."
       }
     },
+    "holdMode": "Modo pressionar — solte para parar",
+    "tapMode": "Modo toque — toque para iniciar/parar",
     "mic": {
       "hotkeyToSpeak": "Pressione {{hotkey}} para falar",
       "recording": "Gravando...",

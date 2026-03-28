@@ -44,6 +44,10 @@ export default function App() {
   const [hasDragged, setHasDragged] = useState(false);
   const [activeApp, setActiveApp] = useState(null); // { name, bundleId, icon }
 
+  // Activation mode (tap vs push/hold)
+  const activationMode = useSettingsStore((s) => s.activationMode);
+  const setActivationMode = useSettingsStore((s) => s.setActivationMode);
+
   // Floating icon auto-hide setting (read from store, synced via IPC)
   const floatingIconAutoHide = useSettingsStore((s) => s.floatingIconAutoHide);
   const prevAutoHideRef = useRef(floatingIconAutoHide);
@@ -320,28 +324,55 @@ export default function App() {
               setDragStartPos(null);
             }}
           >
-            {/* Top: active app icon + name */}
-            {activeApp?.name && (
-              <div className="flex items-center gap-2 mb-1">
-                {activeApp?.icon ? (
-                  <img
-                    src={activeApp.icon}
-                    alt=""
-                    className="rounded-md"
-                    style={{ width: 20, height: 20 }}
-                    draggable={false}
-                  />
-                ) : (
-                  <div className="rounded-md bg-white/15" style={{ width: 20, height: 20 }} />
-                )}
-                <span
-                  className="text-white font-medium"
-                  style={{ fontSize: 13, letterSpacing: "-0.01em" }}
-                >
-                  {activeApp.name}
-                </span>
-              </div>
-            )}
+            {/* Top: active app icon + name + activation mode dot */}
+            <div className="flex items-center gap-2 mb-1 w-full">
+              {activeApp?.name && (
+                <>
+                  {activeApp?.icon ? (
+                    <img
+                      src={activeApp.icon}
+                      alt=""
+                      className="rounded-md"
+                      style={{ width: 20, height: 20 }}
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="rounded-md bg-white/15" style={{ width: 20, height: 20 }} />
+                  )}
+                  <span
+                    className="text-white font-medium flex-1 min-w-0 truncate"
+                    style={{ fontSize: 13, letterSpacing: "-0.01em" }}
+                  >
+                    {activeApp.name}
+                  </span>
+                </>
+              )}
+              {!activeApp?.name && <div className="flex-1" />}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const next = activationMode === "push" ? "tap" : "push";
+                  setActivationMode(next);
+                }}
+                title={activationMode === "push" ? t("app.holdMode") : t("app.tapMode")}
+                className="flex-shrink-0 flex items-center justify-center"
+                style={{ width: 20, height: 20 }}
+              >
+                <div
+                  className="rounded-full transition-all duration-200"
+                  style={{
+                    width: 7,
+                    height: 7,
+                    background: activationMode === "push"
+                      ? "rgba(255, 255, 255, 0.85)"
+                      : "rgba(255, 255, 255, 0.15)",
+                    boxShadow: activationMode === "push"
+                      ? "0 0 6px rgba(255, 255, 255, 0.5)"
+                      : "none",
+                  }}
+                />
+              </button>
+            </div>
 
             {/* Bottom: animated dashed waveform */}
             <WaveformDots isActive={isRecording} getVolume={getVolume} />

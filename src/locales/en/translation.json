@@ -1801,6 +1801,8 @@
         "description": "OpenWhispr needs accessibility permissions to detect your hotkey and paste text. Please enable them in the Control Panel."
       }
     },
+    "holdMode": "Hold mode — release to stop",
+    "tapMode": "Tap mode — tap to start/stop",
     "mic": {
       "hotkeyToSpeak": "Press {{hotkey}} to speak",
       "recording": "Recording...",

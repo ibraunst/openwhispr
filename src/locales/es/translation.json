@@ -1728,6 +1728,8 @@
         "description": "OpenWhispr necesita permisos de accesibilidad para detectar tu atajo y pegar texto. Actívalos en el Panel de Control."
       }
     },
+    "holdMode": "Modo mantener — suelta para parar",
+    "tapMode": "Modo toque — toca para iniciar/parar",
     "mic": {
       "hotkeyToSpeak": "Pulsa {{hotkey}} para hablar",
       "recording": "Grabando...",
