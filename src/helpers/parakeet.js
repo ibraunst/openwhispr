@@ -11,6 +11,7 @@ const {
   checkDiskSpace,
 } = require("./downloadUtils");
 const ParakeetServerManager = require("./parakeetServer");
+const { resolveModelFiles } = require("./parakeetWsServer");
 const { getModelsDirForService } = require("./modelDirUtils");
 
 const modelRegistryData = require("../models/modelRegistryData.json");
@@ -129,8 +130,8 @@ class ParakeetManager {
       const modelPath = this.getModelPath(modelName);
       if (this.serverManager.isModelDownloaded(modelName)) {
         try {
-          const encoderPath = path.join(modelPath, "encoder.int8.onnx");
-          const stats = fs.statSync(encoderPath);
+          const files = resolveModelFiles(modelPath);
+          const stats = fs.statSync(files.encoder);
           status.models.push({
             name: modelName,
             size: `${Math.round(stats.size / (1024 * 1024))}MB`,
@@ -412,15 +413,12 @@ class ParakeetManager {
         }
       }
 
-      const requiredFiles = [
-        "encoder.int8.onnx",
-        "decoder.int8.onnx",
-        "joiner.int8.onnx",
-        "tokens.txt",
-      ];
-      const missing = requiredFiles.filter((f) => !fs.existsSync(path.join(targetDir, f)));
-      if (missing.length > 0) {
-        throw new Error(`Extracted model is missing required files: ${missing.join(", ")}`);
+      const resolved = resolveModelFiles(targetDir);
+      const missingKeys = Object.entries(resolved)
+        .filter(([, v]) => !v)
+        .map(([k]) => k);
+      if (missingKeys.length > 0) {
+        throw new Error(`Extracted model is missing required files: ${missingKeys.join(", ")} in ${targetDir}`);
       }
 
       await fsPromises.rm(extractDir, { recursive: true, force: true });
@@ -489,8 +487,8 @@ class ParakeetManager {
 
     if (this.serverManager.isModelDownloaded(modelName)) {
       try {
-        const encoderPath = path.join(modelPath, "encoder.int8.onnx");
-        const stats = fs.statSync(encoderPath);
+        const files = resolveModelFiles(modelPath);
+        const stats = fs.statSync(files.encoder);
         return {
           model: modelName,
           downloaded: true,
@@ -528,11 +526,11 @@ class ParakeetManager {
 
     if (fs.existsSync(modelPath)) {
       try {
-        const encoderPath = path.join(modelPath, "encoder.int8.onnx");
+        const files = resolveModelFiles(modelPath);
         let freedBytes = 0;
 
-        if (fs.existsSync(encoderPath)) {
-          const stats = fs.statSync(encoderPath);
+        if (files.encoder) {
+          const stats = fs.statSync(files.encoder);
           freedBytes = stats.size;
         }
 
@@ -568,9 +566,9 @@ class ParakeetManager {
         if (entry.isDirectory()) {
           const dirPath = path.join(modelsDir, entry.name);
           try {
-            const encoderPath = path.join(dirPath, "encoder.int8.onnx");
-            if (fs.existsSync(encoderPath)) {
-              const stats = fs.statSync(encoderPath);
+            const dirFiles = resolveModelFiles(dirPath);
+            if (dirFiles.encoder) {
+              const stats = fs.statSync(dirFiles.encoder);
               totalFreed += stats.size;
             }
 

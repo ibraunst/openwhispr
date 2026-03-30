@@ -9,7 +9,10 @@ class OpenAIRealtimeStreaming {
     this.ws = null;
     this.isConnected = false;
     this.completedSegments = [];
+    this.timedSegments = [];
     this.currentPartial = "";
+    this.segmentStartTime = null;
+    this.recordingStartTime = null;
     this.onPartialTranscript = null;
     this.onFinalTranscript = null;
     this.onError = null;
@@ -39,7 +42,10 @@ class OpenAIRealtimeStreaming {
     this.model = model || "gpt-4o-mini-transcribe";
     this.preconfigured = !!preconfigured;
     this.completedSegments = [];
+    this.timedSegments = [];
     this.currentPartial = "";
+    this.segmentStartTime = null;
+    this.recordingStartTime = Date.now() / 1000;
     this.audioBytesSent = 0;
 
     const url = "wss://api.openai.com/v1/realtime?intent=transcription";
@@ -169,9 +175,16 @@ class OpenAIRealtimeStreaming {
 
         case "conversation.item.input_audio_transcription.completed": {
           const transcript = (event.transcript || "").trim();
+          const segEnd = Date.now() / 1000 - this.recordingStartTime;
           if (transcript) {
             this.completedSegments.push(transcript);
+            this.timedSegments.push({
+              start: this.segmentStartTime ?? Math.max(0, segEnd - 3),
+              end: segEnd,
+              text: transcript,
+            });
           }
+          this.segmentStartTime = null;
           this.currentPartial = "";
           const fullText = this.getFullTranscript();
           this.onFinalTranscript?.(fullText);
@@ -184,6 +197,8 @@ class OpenAIRealtimeStreaming {
         }
 
         case "input_audio_buffer.speech_started":
+          this.segmentStartTime = Date.now() / 1000 - this.recordingStartTime;
+          break;
         case "input_audio_buffer.speech_stopped":
         case "input_audio_buffer.committed":
           break;
@@ -222,7 +237,7 @@ class OpenAIRealtimeStreaming {
       textLength: this.getFullTranscript().length,
     });
 
-    if (!this.ws) return { text: this.getFullTranscript() };
+    if (!this.ws) return { text: this.getFullTranscript(), segments: this.timedSegments.slice() };
 
     this.isDisconnecting = true;
 
@@ -273,7 +288,10 @@ class OpenAIRealtimeStreaming {
       this.ws.close();
     }
 
-    const result = { text: this.getFullTranscript() };
+    const result = {
+      text: this.getFullTranscript(),
+      segments: this.timedSegments.slice(),
+    };
     this.cleanup();
     this.isDisconnecting = false;
     return result;

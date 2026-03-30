@@ -445,7 +445,11 @@ export default function PersonalNotesView({
   useEffect(() => {
     if (!meetingRecordingRequest || activeNoteId !== meetingRecordingRequest.noteId) return;
     meetingNoteIdRef.current = meetingRecordingRequest.noteId;
-    calendarTitleRef.current = meetingRecordingRequest.event?.summary || null;
+    // Only use event title if it's a real calendar event — synthetic process-detected
+    // events use calendar_id "__detected__" and their title (e.g. "Zoom Meeting")
+    // should be replaced by the AI-generated subject after transcription.
+    const isRealCalendarEvent = meetingRecordingRequest.event?.calendar_id !== "__detected__";
+    calendarTitleRef.current = isRealCalendarEvent ? (meetingRecordingRequest.event?.summary || null) : null;
     calendarStartTimeRef.current = meetingRecordingRequest.event?.start_time || null;
     calendarAttendeesRef.current = meetingRecordingRequest.event?.attendees || null;
     startMeetingTranscription();

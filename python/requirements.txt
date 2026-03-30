@@ -1,0 +1,17 @@
+# Speaker diarization & identification engine for customWhispr
+# Optimized for Apple Silicon (M4 Max) — MPS backend
+
+# Core ML
+torch>=2.2.0
+torchaudio>=2.2.0
+numpy>=1.26.0
+
+# Speaker diarization (Pipeline 3.1) + embedding model
+pyannote.audio>=3.1.0
+
+# Audio I/O
+soundfile>=0.12.0
+omegaconf>=2.3.0
+
+# Future re-transcription on Apple Silicon
+mlx-whisper>=0.4.0

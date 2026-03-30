@@ -231,6 +231,61 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
   const localMixContextRef = useRef<AudioContext | null>(null);
   const localModeRef = useRef(false);
 
+  // Split audio recording refs (for speaker diarization)
+  const systemRecorderRef = useRef<MediaRecorder | null>(null);
+  const systemChunksRef = useRef<Blob[]>([]);
+  const micRecorderRef = useRef<MediaRecorder | null>(null);
+  const micChunksRef = useRef<Blob[]>([]);
+  const meetingIdRef = useRef<string>("");
+
+  const startSplitRecorder = useCallback(
+    (stream: MediaStream, chunksRef: React.MutableRefObject<Blob[]>): MediaRecorder | null => {
+      const audioTracks = stream.getAudioTracks();
+      if (!audioTracks.length) return null;
+
+      chunksRef.current = [];
+      // Create an audio-only stream to avoid MediaRecorder issues with video tracks
+      const audioOnly = new MediaStream(audioTracks);
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+      try {
+        const recorder = new MediaRecorder(audioOnly, { mimeType });
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunksRef.current.push(e.data);
+        };
+        recorder.start();
+        return recorder;
+      } catch (err) {
+        logger.error("Failed to start split recorder", { error: (err as Error).message }, "meeting");
+        return null;
+      }
+    },
+    []
+  );
+
+  const stopSplitRecorder = (
+    recorder: MediaRecorder | null,
+    chunksRef: React.MutableRefObject<Blob[]>
+  ): Promise<Blob> => {
+    return new Promise((resolve) => {
+      if (!recorder || recorder.state === "inactive") {
+        resolve(new Blob(chunksRef.current, { type: "audio/webm;codecs=opus" }));
+        return;
+      }
+      // Capture chunks ref before cleanup can null the recorder
+      const chunks = chunksRef;
+      recorder.onstop = () => {
+        resolve(new Blob(chunks.current, { type: "audio/webm;codecs=opus" }));
+      };
+      try {
+        recorder.stop();
+      } catch {
+        resolve(new Blob(chunks.current, { type: "audio/webm;codecs=opus" }));
+      }
+    });
+  };
+
   const isRecordingRef = useRef(false);
   const isStartingRef = useRef(false);
   const isPreparedRef = useRef(false);
@@ -238,6 +293,14 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
   const ipcCleanupsRef = useRef<Array<() => void>>([]);
 
   const cleanup = useCallback(async () => {
+    // Stop split recorders
+    for (const ref of [systemRecorderRef, micRecorderRef]) {
+      if (ref.current && ref.current.state !== "inactive") {
+        try { ref.current.stop(); } catch {}
+      }
+      ref.current = null;
+    }
+
     // Stop local recorder if active
     if (localMediaRecorderRef.current) {
       try {
@@ -315,9 +378,15 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     isRecordingRef.current = false;
     isStartingRef.current = false;
     setIsRecording(false);
+    window.electronAPI?.meetingSetUserRecording?.(false);
 
     const wasLocalMode = localModeRef.current;
     localModeRef.current = false;
+
+    // Capture split audio blobs before cleanup kills the streams
+    const splitSystemPromise = stopSplitRecorder(systemRecorderRef.current, systemChunksRef);
+    const splitMicPromise = stopSplitRecorder(micRecorderRef.current, micChunksRef);
+    const currentMeetingId = meetingIdRef.current;
 
     if (wasLocalMode) {
       // Local path: stop MediaRecorder, wait for onstop, then transcribe
@@ -343,42 +412,65 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
       const blob = await blobPromise;
       localChunksRef.current = [];
 
-      if (blob.size < 1000) {
+      if (blob.size >= 1000) {
+        logger.info("Local meeting recording complete, transcribing...", { size: blob.size }, "meeting");
+        setIsLocalProcessing(true);
+
+        try {
+          const arrayBuffer = await blob.arrayBuffer();
+          const { localProvider } = getMeetingTranscriptionOptions() as { provider: "local"; localProvider: string };
+          const result = await window.electronAPI?.meetingTranscribeLocal?.(arrayBuffer, { localProvider });
+
+          if (result?.success && result.transcript) {
+            setTranscript(result.transcript);
+
+            // Save a single-segment transcript.json for diarization to enrich
+            if (currentMeetingId) {
+              const durationSec = (blob.size / (16000 * 2)) || 30;
+              window.electronAPI?.meetingSaveTranscript?.({
+                meetingId: currentMeetingId,
+                segments: [{ start: 0, end: durationSec, text: result.transcript }],
+              }).catch((err: Error) =>
+                logger.error("Failed to save local transcript", { error: err.message }, "meeting")
+              );
+            }
+          } else {
+            setError(result?.error || "Transcription failed.");
+            logger.error("Local meeting transcription failed", { error: result?.error }, "meeting");
+          }
+        } catch (err) {
+          setError((err as Error).message);
+          logger.error("Local meeting transcription error", { error: (err as Error).message }, "meeting");
+        } finally {
+          setIsLocalProcessing(false);
+        }
+      } else {
         setError("Recording was too short to transcribe.");
         logger.warn("Local meeting recording too short", { size: blob.size }, "meeting");
-        return;
-      }
-
-      logger.info("Local meeting recording complete, transcribing...", { size: blob.size }, "meeting");
-      setIsLocalProcessing(true);
-
-      try {
-        const arrayBuffer = await blob.arrayBuffer();
-        const { localProvider } = getMeetingTranscriptionOptions() as { provider: "local"; localProvider: string };
-        const result = await window.electronAPI?.meetingTranscribeLocal?.(arrayBuffer, { localProvider });
-
-        if (result?.success && result.transcript) {
-          setTranscript(result.transcript);
-        } else {
-          setError(result?.error || "Transcription failed.");
-          logger.error("Local meeting transcription failed", { error: result?.error }, "meeting");
-        }
-      } catch (err) {
-        setError((err as Error).message);
-        logger.error("Local meeting transcription error", { error: (err as Error).message }, "meeting");
-      } finally {
-        setIsLocalProcessing(false);
       }
     } else {
-      // Cloud path: unchanged
+      // Cloud path
       await cleanup();
 
       try {
         const result = await window.electronAPI?.meetingTranscriptionStop?.();
         if (result?.success && result.transcript) {
           setTranscript(result.transcript);
-        } else if (result?.error) {
+        }
+        if (result?.error) {
           setError(result.error);
+        }
+
+        // Save timestamped segments for diarization (awaited so it's ready before diarization runs)
+        if (result?.segments?.length && currentMeetingId) {
+          try {
+            await window.electronAPI?.meetingSaveTranscript?.({
+              meetingId: currentMeetingId,
+              segments: result.segments,
+            });
+          } catch (err) {
+            logger.error("Failed to save cloud transcript", { error: (err as Error).message }, "meeting");
+          }
         }
       } catch (err) {
         setError((err as Error).message);
@@ -390,8 +482,55 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
       }
     }
 
+    // Save split audio then run speaker diarization automatically
+    if (currentMeetingId) {
+      (async () => {
+        try {
+          const [systemBlob, micBlob] = await Promise.all([splitSystemPromise, splitMicPromise]);
+          if (systemBlob.size < 1000 && micBlob.size < 1000) return;
+
+          const [systemBuf, micBuf] = await Promise.all([
+            systemBlob.arrayBuffer(),
+            micBlob.arrayBuffer(),
+          ]);
+
+          const saveResult = await window.electronAPI?.meetingSaveSplitAudio?.({
+            systemBuffer: systemBuf,
+            micBuffer: micBuf,
+            meetingId: currentMeetingId,
+          });
+
+          if (!saveResult?.success) {
+            logger.error("Failed to save split audio", { error: saveResult?.error }, "meeting");
+            return;
+          }
+
+          logger.info("Split audio saved, running speaker diarization…", { meetingId: currentMeetingId }, "meeting");
+
+          const { hfToken } = getSettings();
+          if (!hfToken) {
+            logger.warn("Skipping diarization: no HuggingFace token configured", {}, "meeting");
+            return;
+          }
+
+          const diarizeResult = await window.electronAPI?.meetingRunDiarization?.({
+            meetingId: currentMeetingId,
+            hfToken,
+          });
+
+          if (diarizeResult?.success) {
+            logger.info("Speaker diarization complete", { meetingId: currentMeetingId }, "meeting");
+          } else {
+            logger.error("Speaker diarization failed", { error: diarizeResult?.error }, "meeting");
+          }
+        } catch (err) {
+          logger.error("Split audio / diarization error", { error: (err as Error).message }, "meeting");
+        }
+      })();
+    }
+
     logger.info("Meeting transcription stopped", { wasLocalMode }, "meeting");
-  }, [cleanup]);
+  }, [cleanup, startSplitRecorder]);
 
   const prepareTranscription = useCallback(async () => {
     if (isPreparedRef.current || isRecordingRef.current || isStartingRef.current) return;
@@ -451,6 +590,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     // Set recording state immediately for instant UI feedback
     isRecordingRef.current = true;
     setIsRecording(true);
+    window.electronAPI?.meetingSetUserRecording?.(true);
 
     if (options.provider === "local") {
       // Local recording path: capture audio with MediaRecorder
@@ -520,6 +660,13 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
 
         recorder.start();
         isStartingRef.current = false;
+
+        // Start split recorders for speaker diarization
+        meetingIdRef.current = `meeting-${Date.now()}`;
+        systemRecorderRef.current = startSplitRecorder(stream, systemChunksRef);
+        if (micResult) {
+          micRecorderRef.current = startSplitRecorder(micResult, micChunksRef);
+        }
 
         logger.info(
           "Local meeting recording started",
@@ -703,6 +850,15 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
       isStartingRef.current = false;
       socketReady = true;
 
+      // Start split recorders for speaker diarization
+      meetingIdRef.current = `meeting-${Date.now()}`;
+      if (streamRef.current) {
+        systemRecorderRef.current = startSplitRecorder(streamRef.current, systemChunksRef);
+      }
+      if (micStreamRef.current) {
+        micRecorderRef.current = startSplitRecorder(micStreamRef.current, micChunksRef);
+      }
+
       for (const chunk of pendingAudioChunks) {
         window.electronAPI?.meetingTranscriptionSend?.(chunk);
       }
@@ -736,6 +892,17 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     const unsubscribe = window.electronAPI?.onMeetingProcessEnded?.(() => {
       if (isRecordingRef.current) {
         logger.info("Meeting app closed — auto-stopping transcription", {}, "meeting");
+        void stopTranscription();
+      }
+    });
+    return () => unsubscribe?.();
+  }, [stopTranscription]);
+
+  // Auto-stop when meeting detection engine signals end (silence, calendar, etc.)
+  useEffect(() => {
+    const unsubscribe = window.electronAPI?.onMeetingAutoStopExecute?.(() => {
+      if (isRecordingRef.current) {
+        logger.info("Meeting auto-stop executed — stopping transcription", {}, "meeting");
         void stopTranscription();
       }
     });

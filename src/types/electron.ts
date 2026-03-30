@@ -1152,6 +1152,25 @@ declare global {
       meetingTranscriptionStop?: () => Promise<{
         success: boolean;
         transcript?: string;
+        segments?: Array<{ start: number; end: number; text: string }>;
+        error?: string;
+      }>;
+      meetingSaveSplitAudio?: (data: {
+        systemBuffer: ArrayBuffer;
+        micBuffer: ArrayBuffer;
+        meetingId: string;
+      }) => Promise<{ success: boolean; systemPath?: string; micPath?: string; meetingDir?: string; error?: string }>;
+      meetingSaveTranscript?: (data: {
+        meetingId: string;
+        segments: Array<{ start: number; end: number; text: string }>;
+      }) => Promise<{ success: boolean; transcriptPath?: string; error?: string }>;
+      meetingRunDiarization?: (data: {
+        meetingId: string;
+        hfToken?: string;
+        numSpeakers?: number;
+      }) => Promise<{
+        success: boolean;
+        transcript?: { segments: Array<{ start: number; end: number; text: string; speaker: string }> };
         error?: string;
       }>;
       onMeetingTranscriptionPartial?: (callback: (text: string) => void) => () => void;
@@ -1162,6 +1181,9 @@ declare global {
         options?: { localProvider?: string; language?: string; whisperModel?: string; parakeetModel?: string }
       ) => Promise<{ success: boolean; transcript?: string; error?: string }>;
       onMeetingProcessEnded?: (callback: (data: { processKey: string; appName: string }) => void) => () => void;
+      meetingSetUserRecording?: (active: boolean) => Promise<{ success: boolean }>;
+      onMeetingAutoStopExecute?: (callback: (data: { reason: string }) => void) => () => void;
+      onMeetingAutoStopSuggested?: (callback: (data: { autoStopInMs: number; reason: string }) => void) => () => void;
 
       // Dictation realtime streaming
       dictationRealtimeWarmup?: (options: {

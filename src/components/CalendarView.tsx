@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, RefreshCw, Loader2, Lock } from "lucide-react";
+import { CalendarDays, RefreshCw, Loader2, Lock, Mic } from "lucide-react";
 import { Toggle } from "./ui/toggle";
 import { cn } from "./lib/utils";
 import type { CalendarEvent } from "../types/electron";
@@ -103,9 +103,10 @@ function groupEventsByDate(events: CalendarEvent[]): GroupedEvents[] {
 
 interface CalendarViewProps {
   onOpenNote?: (noteId: number) => void;
+  onStartMeetingRecording?: () => void;
 }
 
-export default function CalendarView({ onOpenNote }: CalendarViewProps) {
+export default function CalendarView({ onOpenNote, onStartMeetingRecording }: CalendarViewProps) {
   const { t } = useTranslation();
   const [upcoming, setUpcoming] = useState<CalendarEvent[]>([]);
   const [active, setActive] = useState<CalendarEvent[]>([]);
@@ -207,7 +208,18 @@ export default function CalendarView({ onOpenNote }: CalendarViewProps) {
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-semibold text-foreground">Coming up</h2>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground">{t("calendar.recordMeetings")}</span>
+                  {recordMeetings && onStartMeetingRecording ? (
+                    <button
+                      onClick={onStartMeetingRecording}
+                      className="flex items-center gap-1 text-[11px] text-blue-500 hover:text-blue-400 transition-colors font-medium"
+                      title="Start recording a meeting now"
+                    >
+                      <Mic size={11} />
+                      {t("calendar.recordMeetings")}
+                    </button>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">{t("calendar.recordMeetings")}</span>
+                  )}
                   <Toggle checked={recordMeetings} onChange={handleRecordMeetingsToggle} />
                   <button
                     onClick={() => { setLoading(true); fetchEvents(); }}

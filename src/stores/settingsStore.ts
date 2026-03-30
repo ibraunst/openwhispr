@@ -280,6 +280,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   geminiApiKey: readString("geminiApiKey", ""),
   groqApiKey: readString("groqApiKey", ""),
   mistralApiKey: readString("mistralApiKey", ""),
+  hfToken: readString("hfToken", ""),
   customTranscriptionApiKey: readString("customTranscriptionApiKey", ""),
   customReasoningApiKey: readString("customReasoningApiKey", ""),
 
@@ -481,6 +482,10 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     set({ mistralApiKey: key });
     window.electronAPI?.saveMistralKey?.(key);
     invalidateApiKeyCaches("mistral");
+  },
+  setHfToken: (key: string) => {
+    if (isBrowser) localStorage.setItem("hfToken", key);
+    set({ hfToken: key });
   },
   setCustomTranscriptionApiKey: (key: string) => {
     if (isBrowser) localStorage.setItem("customTranscriptionApiKey", key);

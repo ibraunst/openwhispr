@@ -235,12 +235,12 @@ class MeetingDetectionEngine {
             event: detection.event,
           });
 
-          // CRITICAL: Actually start the recording!
-          // This tells the frontend to record AND syncs back to us via
-          // this.meetingDetectionEngine.setUserRecording(true) so we suppress new prompts.
-          setTimeout(() => {
-            this.windowManager.sendStartDictation();
-          }, 500);
+          // Suppress new meeting prompts while recording.
+          // The actual recording is started by the control panel's
+          // useMeetingTranscription hook (triggered via meetingRecordingRequest).
+          // Do NOT call sendStartDictation() here — that would start a
+          // conflicting dictation recording on the pill window.
+          this.setUserRecording(true);
         }
 
         // Reset detection state so the same app can re-trigger on the next meeting

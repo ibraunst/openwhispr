@@ -221,6 +221,30 @@ export default function ControlPanel() {
     window.electronAPI?.restoreFromMeetingMode?.();
   }, []);
 
+  const handleStartMeetingRecording = useCallback(async () => {
+    try {
+      const foldersResult = await window.electronAPI?.getFolders?.();
+      const meetingsFolder =
+        foldersResult?.find?.((f: any) => f.name === "Meetings" && f.is_default) ??
+        foldersResult?.find?.((f: any) => f.name === "Meetings") ??
+        foldersResult?.[0];
+      if (!meetingsFolder?.id) return;
+
+      const noteResult = await window.electronAPI?.saveNote?.(
+        "Meeting", "", "meeting", null, null, meetingsFolder.id
+      );
+      if (!noteResult?.success || !noteResult?.note?.id) return;
+
+      setActiveFolderId(meetingsFolder.id);
+      setActiveNoteId(noteResult.note.id);
+      setActiveView("personal-notes");
+      setIsMeetingMode(true);
+      setMeetingRecordingRequest({ noteId: noteResult.note.id, folderId: meetingsFolder.id, event: null });
+    } catch {
+      // ignore — user can navigate manually
+    }
+  }, []);
+
   const loadTranscriptions = async () => {
     try {
       setIsLoading(true);
@@ -603,6 +627,7 @@ export default function ControlPanel() {
                     setActiveNoteId(noteId);
                     setActiveView("personal-notes");
                   }}
+                  onStartMeetingRecording={handleStartMeetingRecording}
                 />
               </Suspense>
             )}

@@ -11,6 +11,7 @@ const {
 } = require("./ffmpegUtils");
 const { getSafeTempDir } = require("./safeTempDir");
 const ParakeetWsServer = require("./parakeetWsServer");
+const { resolveModelFiles } = require("./parakeetWsServer");
 
 const SAMPLE_RATE = 16000;
 const BYTES_PER_SAMPLE = 4; // float32
@@ -37,22 +38,10 @@ class ParakeetServerManager {
 
   isModelDownloaded(modelName) {
     const modelDir = path.join(this.getModelsDir(), modelName);
-    const requiredFiles = [
-      "encoder.int8.onnx",
-      "decoder.int8.onnx",
-      "joiner.int8.onnx",
-      "tokens.txt",
-    ];
-
     if (!fs.existsSync(modelDir)) return false;
 
-    for (const file of requiredFiles) {
-      if (!fs.existsSync(path.join(modelDir, file))) {
-        return false;
-      }
-    }
-
-    return true;
+    const files = resolveModelFiles(modelDir);
+    return !!(files.tokens && files.encoder && files.decoder && files.joiner);
   }
 
   async _ensureWav(audioBuffer) {

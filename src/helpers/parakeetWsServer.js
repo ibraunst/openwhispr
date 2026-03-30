@@ -17,6 +17,28 @@ const STARTUP_TIMEOUT_MS = 60000;
 const HEALTH_CHECK_INTERVAL_MS = 5000;
 const TRANSCRIPTION_TIMEOUT_MS = 300000;
 
+/**
+ * Resolve actual model file paths from a model directory.
+ * Supports both old-style (encoder.int8.onnx, tokens.txt) and
+ * new-style (encoder-model.int8.onnx, vocab.txt) naming conventions.
+ */
+function resolveModelFiles(modelDir) {
+  const resolve = (...candidates) => {
+    for (const name of candidates) {
+      const full = path.join(modelDir, name);
+      if (fs.existsSync(full)) return full;
+    }
+    return null;
+  };
+
+  return {
+    tokens: resolve("tokens.txt", "vocab.txt"),
+    encoder: resolve("encoder.int8.onnx", "encoder-model.int8.onnx", "encoder.onnx"),
+    decoder: resolve("decoder.int8.onnx", "decoder_joint-model.int8.onnx", "decoder.onnx"),
+    joiner: resolve("joiner.int8.onnx", "joiner-model.int8.onnx", "joiner.onnx"),
+  };
+}
+
 class ParakeetWsServer {
   constructor() {
     this.process = null;
@@ -70,13 +92,22 @@ class ParakeetWsServer {
     this.modelName = modelName;
     this.modelDir = modelDir;
 
+    const files = resolveModelFiles(modelDir);
+    const missingFiles = Object.entries(files)
+      .filter(([, v]) => !v)
+      .map(([k]) => k);
+    if (missingFiles.length > 0) {
+      throw new Error(`Model directory missing required files: ${missingFiles.join(", ")} in ${modelDir}`);
+    }
+
     const args = [
-      `--tokens=${path.join(modelDir, "tokens.txt")}`,
-      `--encoder=${path.join(modelDir, "encoder.int8.onnx")}`,
-      `--decoder=${path.join(modelDir, "decoder.int8.onnx")}`,
-      `--joiner=${path.join(modelDir, "joiner.int8.onnx")}`,
+      `--tokens=${files.tokens}`,
+      `--encoder=${files.encoder}`,
+      `--decoder=${files.decoder}`,
+      `--joiner=${files.joiner}`,
       `--port=${this.port}`,
       `--num-threads=${Math.max(1, Math.min(4, Math.floor(os.cpus().length * 0.75)))}`,
+      `--model-type=transducer`,
     ];
 
     debugLogger.debug("Starting parakeet WS server", { port: this.port, modelName, args });
@@ -315,3 +346,4 @@ class ParakeetWsServer {
 }
 
 module.exports = ParakeetWsServer;
+module.exports.resolveModelFiles = resolveModelFiles;

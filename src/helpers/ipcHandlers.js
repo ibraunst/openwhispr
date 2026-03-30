@@ -2613,14 +2613,119 @@ class IPCHandlers {
 
     ipcMain.handle("meeting-transcription-stop", async () => {
       try {
-        let result = { text: "" };
+        let result = { text: "", segments: [] };
         if (this.openaiRealtimeStreaming) {
           result = await this.openaiRealtimeStreaming.disconnect();
           this.openaiRealtimeStreaming = null;
         }
-        return { success: true, transcript: result?.text || "" };
+        return {
+          success: true,
+          transcript: result?.text || "",
+          segments: result?.segments || [],
+        };
       } catch (error) {
         debugLogger.error("Meeting transcription stop error", { error: error.message });
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Save separate meeting audio streams for speaker diarization
+    ipcMain.handle("meeting-save-split-audio", async (_event, { systemBuffer, micBuffer, meetingId }) => {
+      try {
+        const meetingDir = path.join(app.getPath("userData"), "meetings", String(meetingId));
+        fs.mkdirSync(meetingDir, { recursive: true });
+
+        const systemPath = path.join(meetingDir, "system_record.webm");
+        const micPath = path.join(meetingDir, "mic_record.webm");
+
+        fs.writeFileSync(systemPath, Buffer.from(systemBuffer));
+        fs.writeFileSync(micPath, Buffer.from(micBuffer));
+
+        debugLogger.info("Split meeting audio saved", {
+          meetingId,
+          systemSize: systemBuffer.byteLength,
+          micSize: micBuffer.byteLength,
+        }, "meeting");
+
+        return { success: true, systemPath, micPath, meetingDir };
+      } catch (error) {
+        debugLogger.error("Failed to save split meeting audio", { error: error.message }, "meeting");
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Save transcript.json for speaker diarization
+    ipcMain.handle("meeting-save-transcript", async (_event, { meetingId, segments }) => {
+      try {
+        const meetingDir = path.join(app.getPath("userData"), "meetings", String(meetingId));
+        fs.mkdirSync(meetingDir, { recursive: true });
+
+        const transcriptPath = path.join(meetingDir, "transcript.json");
+        fs.writeFileSync(transcriptPath, JSON.stringify({ segments }, null, 2));
+
+        debugLogger.info("Meeting transcript saved", {
+          meetingId,
+          segmentCount: segments.length,
+        }, "meeting");
+
+        return { success: true, transcriptPath, meetingDir };
+      } catch (error) {
+        debugLogger.error("Failed to save meeting transcript", { error: error.message }, "meeting");
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Run speaker diarization engine (Python subprocess)
+    ipcMain.handle("meeting-run-diarization", async (_event, { meetingId, hfToken: providedToken, numSpeakers }) => {
+      const hfToken = providedToken || process.env.HF_TOKEN || "";
+      if (!hfToken) {
+        return { success: false, error: "HuggingFace token required. Set it in Settings → API Keys." };
+      }
+      try {
+        const meetingDir = path.join(app.getPath("userData"), "meetings", String(meetingId));
+        const systemPath = path.join(meetingDir, "system_record.webm");
+        const micPath = path.join(meetingDir, "mic_record.webm");
+        const transcriptPath = path.join(meetingDir, "transcript.json");
+
+        for (const [filePath, name] of [[systemPath, "system audio"], [micPath, "mic audio"], [transcriptPath, "transcript"]]) {
+          if (!fs.existsSync(filePath)) {
+            return { success: false, error: `Missing ${name}: ${filePath}` };
+          }
+        }
+
+        const speakerEnginePath = path.join(__dirname, "..", "python", "speaker_engine.py");
+        if (!fs.existsSync(speakerEnginePath)) {
+          return { success: false, error: "speaker_engine.py not found" };
+        }
+
+        const voiceDbPath = path.join(app.getPath("userData"), "voicebank.db");
+
+        const args = [
+          speakerEnginePath,
+          "--system-audio", systemPath,
+          "--mic-audio", micPath,
+          "--transcript", transcriptPath,
+          "--hf-token", hfToken,
+          "--voice-db", voiceDbPath,
+        ];
+        if (numSpeakers) args.push("--num-speakers", String(numSpeakers));
+
+        const { execFile } = require("child_process");
+        const result = await new Promise((resolve, reject) => {
+          execFile("python3", args, { maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+            if (error) {
+              debugLogger.error("Speaker diarization failed", { error: error.message, stderr }, "meeting");
+              reject(new Error(stderr || error.message));
+            } else {
+              resolve(JSON.parse(stdout));
+            }
+          });
+        });
+
+        debugLogger.info("Speaker diarization complete", { meetingId }, "meeting");
+        return { success: true, transcript: result };
+      } catch (error) {
+        debugLogger.error("Speaker diarization error", { error: error.message }, "meeting");
         return { success: false, error: error.message };
       }
     });
@@ -2674,6 +2779,11 @@ class IPCHandlers {
         debugLogger.error("Local meeting transcription error", { error: error.message }, "meeting");
         return { success: false, error: error.message };
       }
+    });
+
+    ipcMain.handle("meeting-set-user-recording", async (_event, active) => {
+      this.meetingDetectionEngine?.setUserRecording(!!active);
+      return { success: true };
     });
 
     ipcMain.handle("dictation-realtime-warmup", async (event, options = {}) => {

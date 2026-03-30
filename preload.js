@@ -475,8 +475,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("meeting-transcription-start", options),
   meetingTranscriptionSend: (buffer) => ipcRenderer.send("meeting-transcription-send", buffer),
   meetingTranscriptionStop: () => ipcRenderer.invoke("meeting-transcription-stop"),
+  meetingSaveSplitAudio: (data) => ipcRenderer.invoke("meeting-save-split-audio", data),
+  meetingSaveTranscript: (data) => ipcRenderer.invoke("meeting-save-transcript", data),
+  meetingRunDiarization: (data) => ipcRenderer.invoke("meeting-run-diarization", data),
   meetingTranscribeLocal: (audioBuffer, options) =>
     ipcRenderer.invoke("meeting-transcribe-local", audioBuffer, options),
+  meetingSetUserRecording: (active) =>
+    ipcRenderer.invoke("meeting-set-user-recording", active),
   onMeetingProcessEnded: registerListener(
     "meeting-process-ended",
     (callback) => (_event, data) => callback(data)
