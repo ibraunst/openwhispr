@@ -1,6 +1,6 @@
 # customWhispr — AI Source of Truth
 
-> **Version**: 1.6.2 | **Last scanned**: 2026-03-30
+> **Version**: 1.6.2 | **Last scanned**: 2026-03-31
 
 ---
 
@@ -145,7 +145,7 @@ Speaker diarization engine:
 - [x] AI actions (reusable processing templates) — built-in + custom
 - [x] Rich text editing
 - [x] Note search (full-text via SQLite FTS5)
-- [x] Export (txt/md)
+- [x] Export (txt/md) — filename is `{title} | MM-DD-YY.{ext}`, always includes Attendees line
 - [x] Cloud sync (cloud_id)
 
 ### Agent Mode
@@ -166,7 +166,15 @@ Speaker diarization engine:
   - Cloud path: WebSocket streaming → OpenAI Realtime
 - [x] Manual meeting recording: "Record meetings" label in CalendarView becomes a clickable blue mic button when toggle is on
 - [x] Meeting auto-stop on process close or sustained silence
-- [x] Speaker diarization (Python + pyannote.audio, requires HuggingFace token)
+- [x] Speaker diarization (Python + pyannote.audio, requires HuggingFace token set in Integrations)
+  - Runs automatically after every meeting recording
+  - System + mic audio recorded separately (split recorders) for diarization input
+  - WebM → WAV conversion via ffmpeg before passing to Python (torchaudio can't read WebM)
+  - Silent system audio (solo recording) → falls back to mic audio as primary diarization source
+  - Labels speakers as "Me" / "Guest 1" / "Guest 2" etc. in `**Speaker:** text` markdown format
+  - Result persisted to `notes.transcript` column via `updateNote` IPC
+  - NoteEditor auto-switches to Transcript tab when diarization completes
+  - Exported .md file re-written with speaker labels when diarization finishes
 - [x] Calendar-aware notifications
 
 ### Infrastructure
@@ -212,6 +220,16 @@ Speaker diarization engine:
 - `useMeetingTranscription` signals recording state to the main process via `meetingSetUserRecording` IPC.
 - The pill's `useAudioRecording` (dictation) must **not** run simultaneously with meeting transcription — doing so causes whisper-server conflicts.
 - `onMeetingAutoStopExecute` is handled by both `useAudioRecording` (shows toast only) and `useMeetingTranscription` (actual stop + transcription).
+
+### Speaker Diarization Architecture (critical — do not regress)
+- `useMeetingTranscription` runs two parallel `MediaRecorder` instances: one on the system audio stream, one on the mic stream (split recorders).
+- After stop, both blobs are saved via `meetingSaveSplitAudio` IPC → `{userData}/meetings/{meetingId}/system_record.webm` and `mic_record.webm`.
+- Diarization runs automatically in an async IIFE inside `stopTranscription` — it does NOT block the UI.
+- `diarizationNoteIdRef` lives **inside the hook** (not the component) so it survives component unmount. The hook calls `updateNote` IPC directly when diarization finishes.
+- Component's `useEffect` on `diarizedTranscript` calls `initializeNotes()` to refresh the store from DB.
+- `PersonalNotesView` tracks `lastExportRef` — when diarization completes it overwrites the exported file with speaker-labeled transcript.
+- Auto-generate notes after meeting is skipped when `useReasoningModel` is `false`; export still runs immediately in that case.
+- HuggingFace token stored as `hfToken` in `settingsStore`, configurable in Integrations view.
 
 ### Build & Quality
 - Node 20/22 LTS (pinned in `.nvmrc`)
@@ -364,6 +382,26 @@ interface AppProfile {
 ### Meeting transcription double-recording bug (fixed)
 - **Cause**: `meetingDetectionEngine.handleNotificationResponse` called both `navigate-to-meeting-note` (triggering `useMeetingTranscription`) AND `sendStartDictation()` (starting a conflicting pill dictation). When the meeting ended, the pill's audioManager tried to transcribe a long audio blob → whisper-server died during startup.
 - **Fix**: Removed `sendStartDictation()` from `handleNotificationResponse`. Added `meetingSetUserRecording` IPC so `useMeetingTranscription` signals recording state to the detection engine directly.
+
+### Speaker diarization result not persisting to UI (fixed)
+- **Cause**: `diarizationNoteIdRef` was a local ref in `PersonalNotesView`. Diarization takes 30+ seconds; if the component unmounted before completion, the ref was null and `updateNote` was never called.
+- **Fix**: Moved `diarizationNoteIdRef` into `useMeetingTranscription` hook. Hook calls `updateNote` IPC directly (awaited) then `setDiarizedTranscript`. Component effect calls `initializeNotes()` to refresh store.
+
+### Diarization infinite re-render loop (fixed)
+- **Cause**: `useEffect` in `PersonalNotesView` watched `[meetingDiarizedTranscript, notes, toast]` and called `updateNoteInStore` inside, which mutated `notes`, re-triggering the effect.
+- **Fix**: Removed `notes` from dependency array; effect now just calls `initializeNotes()` to re-fetch from DB.
+
+### WebM diarization producing 0 segments (fixed)
+- **Cause**: `MediaRecorder` produces WebM/Opus without duration headers; `torchaudio` cannot read it.
+- **Fix**: `ipcHandlers.js` converts both split audio files to WAV via `convertToWav` (ffmpeg) before passing to Python.
+
+### Silent system audio producing 0 segments (fixed)
+- **Cause**: System audio stream captures display audio only — empty during solo/mic-only recordings.
+- **Fix**: RMS check on system WAV; if `rms < 0.001`, use mic WAV as primary diarization source instead.
+
+### Exported transcript file missing speaker labels (fixed)
+- **Cause**: File export ran at AI-completion time, before diarization finished. Also didn't run when AI was disabled.
+- **Fix**: `PersonalNotesView` stores export metadata in `lastExportRef`; when diarization completes it overwrites the file. Export now also triggers on AI error state and when `useReasoningModel` is off.
 
 ---
 

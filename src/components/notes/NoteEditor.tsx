@@ -65,6 +65,7 @@ interface NoteEditorProps {
   actionName?: string | null;
   isMeetingRecording?: boolean;
   isMeetingLocalProcessing?: boolean;
+  isMeetingDiarizing?: boolean;
   meetingTranscript?: string;
   onStartMeetingRecording?: () => void;
   onStopMeetingRecording?: () => void;
@@ -164,6 +165,7 @@ export default function NoteEditor({
   actionName,
   isMeetingRecording,
   isMeetingLocalProcessing,
+  isMeetingDiarizing,
   meetingTranscript,
   onStartMeetingRecording,
   onStopMeetingRecording,
@@ -409,6 +411,15 @@ export default function NoteEditor({
     }
     prevProcessingStateRef.current = actionProcessingState;
   }, [actionProcessingState]);
+
+  // Auto-switch to transcript tab when diarization completes
+  const prevDiarizingRef = useRef(isMeetingDiarizing);
+  useEffect(() => {
+    if (prevDiarizingRef.current && !isMeetingDiarizing && meetingTranscript) {
+      setViewMode("transcript");
+    }
+    prevDiarizingRef.current = isMeetingDiarizing;
+  }, [isMeetingDiarizing, meetingTranscript]);
 
   useEffect(() => {
     if (note.id !== prevNoteIdRef.current) {
@@ -837,7 +848,8 @@ export default function NoteEditor({
         />
         <DictationWidget
           isRecording={isRecording || !!isMeetingRecording}
-          isProcessing={isProcessing || !!isMeetingLocalProcessing}
+          isProcessing={isProcessing || !!isMeetingLocalProcessing || !!isMeetingDiarizing}
+          processingLabel={isMeetingDiarizing ? "Identifying speakers…" : undefined}
           onStart={onStartMeetingRecording && !isMeetingRecording ? onStartMeetingRecording : handleStartRecording}
           onStop={isMeetingRecording ? onStopMeetingRecording! : onStopRecording}
           actionPicker={

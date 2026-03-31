@@ -6,6 +6,7 @@ import { cn } from "../lib/utils";
 interface DictationWidgetProps {
   isRecording: boolean;
   isProcessing: boolean;
+  processingLabel?: string;
   onStart: () => void;
   onStop: () => void;
   actionPicker?: React.ReactNode;
@@ -16,6 +17,7 @@ const BAR_COUNT = 7;
 export default function DictationWidget({
   isRecording,
   isProcessing,
+  processingLabel,
   onStart,
   onStop,
   actionPicker,
@@ -106,7 +108,7 @@ export default function DictationWidget({
         >
           <Loader2 size={14} className="animate-spin text-primary/50" />
           <span className="text-xs font-medium text-primary/50">
-            {t("notes.editor.processing")}
+            {processingLabel ?? t("notes.editor.processing")}
           </span>
         </div>
       ) : (

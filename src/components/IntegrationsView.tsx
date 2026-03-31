@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, Check, Info, Loader2, Mail, Plus, Unlink } from "lucide-react";
+import { CalendarDays, Check, Info, Loader2, Mail, Plus, Unlink, Users } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { SettingsPanel, SettingsPanelRow } from "./ui/SettingsSection";
@@ -15,6 +15,10 @@ export default function IntegrationsView() {
   const { t } = useTranslation();
   const { gcalAccounts, setGcalAccounts, appleCalendarConnected, setAppleCalendarConnected } =
     useSettingsStore();
+  const hfToken = (useSettingsStore.getState() as any).hfToken as string ?? "";
+  const setHfToken = (useSettingsStore.getState() as any).setHfToken as (key: string) => void;
+  const [hfTokenInput, setHfTokenInput] = useState(hfToken);
+  const hfSavedRef = useRef(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [disconnectingEmail, setDisconnectingEmail] = useState<string | null>(null);
   const [confirmDisconnectEmail, setConfirmDisconnectEmail] = useState<string | null>(null);
@@ -328,6 +332,48 @@ export default function IntegrationsView() {
           )}
         </SettingsPanel>
       )}
+
+      {/* HuggingFace — speaker diarization */}
+      <div>
+        <SettingsPanel>
+          <SettingsPanelRow>
+            <div className="flex items-center gap-3 w-full">
+              <div className="w-9 h-9 rounded-lg bg-yellow-400/15 dark:bg-yellow-400/10 flex items-center justify-center shrink-0">
+                <Users size={17} className="text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-medium text-foreground">HuggingFace</p>
+                <p className="text-[11px] text-muted-foreground/60 mt-0.5">Required for speaker identification in meeting transcripts</p>
+              </div>
+              {hfToken && !hfSavedRef.current && (
+                <Check size={14} className="text-emerald-500 shrink-0" />
+              )}
+            </div>
+          </SettingsPanelRow>
+          <SettingsPanelRow>
+            <div className="flex gap-2 w-full">
+              <input
+                type="password"
+                value={hfTokenInput}
+                onChange={(e) => setHfTokenInput(e.target.value)}
+                placeholder="hf_..."
+                className="flex-1 h-8 px-3 text-xs rounded-md bg-background border border-border/40 focus:outline-none focus:ring-1 focus:ring-primary/40 font-mono"
+              />
+              <button
+                onClick={() => {
+                  setHfToken(hfTokenInput.trim());
+                  hfSavedRef.current = true;
+                  setTimeout(() => { hfSavedRef.current = false; }, 2000);
+                }}
+                disabled={!hfTokenInput.trim() || hfTokenInput.trim() === hfToken}
+                className="h-8 px-3 text-xs rounded-md bg-primary text-primary-foreground font-medium disabled:opacity-40 hover:bg-primary/90 transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </SettingsPanelRow>
+        </SettingsPanel>
+      </div>
 
       {!hasAccounts && (
         <div className="rounded-lg border border-border/40 dark:border-border-subtle/40 bg-muted/20 dark:bg-surface-2/30 p-4 flex items-start gap-3">

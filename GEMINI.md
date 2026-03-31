@@ -1,6 +1,6 @@
 # customWhispr — AI Source of Truth
 
-> **Version**: 1.6.2 | **Last scanned**: 2026-03-30
+> **Version**: 1.6.2 | **Last scanned**: 2026-03-31
 
 ---
 
@@ -43,64 +43,64 @@ External Services
 ```
 
 ### Multi-Window Architecture
-| Window                | Size                         | Traits                                               |
-| --------------------- | ---------------------------- | ---------------------------------------------------- |
+| Window | Size | Traits |
+|--------|------|--------|
 | Main (dictation pill) | 96x96 idle, 340x96 recording | `focusable:false`, transparent, alwaysOnTop, NSPanel |
-| Control Panel         | 900x700, resizable           | Frameless, hiddenInset titlebar (macOS)              |
-| Agent Overlay         | 420x300, resizable           | `focusable:true`, transparent, alwaysOnTop           |
-| Notification          | 380x88                       | `focusable:false`, transparent, alwaysOnTop          |
+| Control Panel | 900x700, resizable | Frameless, hiddenInset titlebar (macOS) |
+| Agent Overlay | 420x300, resizable | `focusable:true`, transparent, alwaysOnTop |
+| Notification | 380x88 | `focusable:false`, transparent, alwaysOnTop |
 
 ---
 
 ## 2. File Map
 
 ### Main Process (root)
-| File         | Purpose                                               |
-| ------------ | ----------------------------------------------------- |
-| `main.js`    | App entry, initializes all managers                   |
+| File | Purpose |
+|------|---------|
+| `main.js` | App entry, initializes all managers |
 | `preload.js` | Secure IPC bridge (contextBridge) — ~335 exposed APIs |
 
 ### Helpers (`src/helpers/`) — 47 modules
-| Category                      | Files                                                                                                                                                                                                                           |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Audio**                     | `audioManager.js`, `audioStorage.js`, `audioActivityDetector.js`, `ffmpegUtils.js`                                                                                                                                              |
-| **Transcription (local)**     | `whisper.js`, `whisperServer.js`, `whisperCudaManager.js`, `parakeet.js`, `parakeetServer.js`, `parakeetWsServer.js`                                                                                                            |
-| **Transcription (streaming)** | `assemblyAiStreaming.js`, `deepgramStreaming.js`, `openaiRealtimeStreaming.js`                                                                                                                                                  |
-| **AI/LLM**                    | `llamaServer.js`, `llamaCppInstaller.js/.ts`, `llamaVulkanManager.js`                                                                                                                                                           |
-| **Clipboard & Paste**         | `clipboard.js`, `mediaPlayer.js`                                                                                                                                                                                                |
-| **Window**                    | `windowManager.js`, `windowConfig.js`, `dragManager.js`                                                                                                                                                                         |
-| **Input**                     | `hotkeyManager.js`, `globeKeyManager.js`, `windowsKeyManager.js`, `gnomeShortcut.js`, `textEditMonitor.js`                                                                                                                      |
-| **Calendar**                  | `googleCalendarManager.js`, `googleCalendarOAuth.js`, `appleCalendarManager.js`                                                                                                                                                 |
-| **Meeting**                   | `meetingDetectionEngine.js`, `meetingProcessDetector.js`, `processListCache.js`                                                                                                                                                 |
-| **Database**                  | `database.js`                                                                                                                                                                                                                   |
-| **IPC**                       | `ipcHandlers.js` (252 channels)                                                                                                                                                                                                 |
-| **System**                    | `environment.js`, `debugLogger.js`, `devServerManager.js`, `tray.js`, `menuManager.js`, `i18nMain.js`, `safeTempDir.js`, `downloadUtils.js`, `modelDirUtils.js`, `modelManagerBridge.js`, `ModelManager.ts`, `ensureYdotool.js` |
+| Category | Files |
+|----------|-------|
+| **Audio** | `audioManager.js`, `audioStorage.js`, `audioActivityDetector.js`, `ffmpegUtils.js` |
+| **Transcription (local)** | `whisper.js`, `whisperServer.js`, `whisperCudaManager.js`, `parakeet.js`, `parakeetServer.js`, `parakeetWsServer.js` |
+| **Transcription (streaming)** | `assemblyAiStreaming.js`, `deepgramStreaming.js`, `openaiRealtimeStreaming.js` |
+| **AI/LLM** | `llamaServer.js`, `llamaCppInstaller.js/.ts`, `llamaVulkanManager.js` |
+| **Clipboard & Paste** | `clipboard.js`, `mediaPlayer.js` |
+| **Window** | `windowManager.js`, `windowConfig.js`, `dragManager.js` |
+| **Input** | `hotkeyManager.js`, `globeKeyManager.js`, `windowsKeyManager.js`, `gnomeShortcut.js`, `textEditMonitor.js` |
+| **Calendar** | `googleCalendarManager.js`, `googleCalendarOAuth.js`, `appleCalendarManager.js` |
+| **Meeting** | `meetingDetectionEngine.js`, `meetingProcessDetector.js`, `processListCache.js` |
+| **Database** | `database.js` |
+| **IPC** | `ipcHandlers.js` (252 channels) |
+| **System** | `environment.js`, `debugLogger.js`, `devServerManager.js`, `tray.js`, `menuManager.js`, `i18nMain.js`, `safeTempDir.js`, `downloadUtils.js`, `modelDirUtils.js`, `modelManagerBridge.js`, `ModelManager.ts`, `ensureYdotool.js` |
 
 ### Components (`src/components/`) — ~90 components
-| Area              | Key Components                                                                                                                                                                                                                                                                                                             |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Core**          | `ControlPanel.tsx`, `ControlPanelSidebar.tsx`, `SettingsPage.tsx`, `SettingsModal.tsx`, `OnboardingFlow.tsx`                                                                                                                                                                                                               |
-| **Transcription** | `HistoryView.tsx`, `TranscriptionModelPicker.tsx`, `LocalWhisperPicker.tsx`, `LocalModelPicker.tsx`, `ReasoningModelSelector.tsx`                                                                                                                                                                                          |
-| **Notes**         | `NotesView.tsx`, `NoteEditor.tsx`, `notes/PersonalNotesView.tsx`, `notes/UploadAudioView.tsx`, `notes/ActionManagerDialog.tsx`, `notes/ActionPicker.tsx`, `notes/DictationWidget.tsx`, `notes/RealtimeTranscriptionBanner.tsx`, `notes/NoteListItem.tsx`, `notes/ActionProcessingOverlay.tsx`, `notes/NotesOnboarding.tsx` |
-| **Agent**         | `AgentOverlay.tsx`, `agent/AgentChat.tsx`, `agent/AgentInput.tsx`, `agent/AgentMessage.tsx`, `agent/AgentTitleBar.tsx`                                                                                                                                                                                                     |
-| **Calendar**      | `CalendarView.tsx`, `IntegrationsView.tsx`, `UpcomingMeetings.tsx`                                                                                                                                                                                                                                                         |
-| **Meeting**       | `MeetingNotificationOverlay.tsx`                                                                                                                                                                                                                                                                                           |
-| **Auth**          | `AuthenticationStep.tsx`, `EmailVerificationStep.tsx`, `ForgotPasswordView.tsx`, `ResetPasswordView.tsx`                                                                                                                                                                                                                   |
-| **Referral**      | `ReferralDashboard.tsx`, `ReferralModal.tsx`                                                                                                                                                                                                                                                                               |
-| **Settings**      | `settings/AgentModeSettings.tsx`                                                                                                                                                                                                                                                                                           |
-| **Shared UI**     | `ui/` (43 components)                                                                                                                                                                                                                                                                                                      |
-| **Window**        | `TitleBar.tsx`, `WindowControls.tsx`, `CommandSearch.tsx`                                                                                                                                                                                                                                                                  |
+| Area | Key Components |
+|------|---------------|
+| **Core** | `ControlPanel.tsx`, `ControlPanelSidebar.tsx`, `SettingsPage.tsx`, `SettingsModal.tsx`, `OnboardingFlow.tsx` |
+| **Transcription** | `HistoryView.tsx`, `TranscriptionModelPicker.tsx`, `LocalWhisperPicker.tsx`, `LocalModelPicker.tsx`, `ReasoningModelSelector.tsx` |
+| **Notes** | `NotesView.tsx`, `NoteEditor.tsx`, `notes/PersonalNotesView.tsx`, `notes/UploadAudioView.tsx`, `notes/ActionManagerDialog.tsx`, `notes/ActionPicker.tsx`, `notes/DictationWidget.tsx`, `notes/RealtimeTranscriptionBanner.tsx`, `notes/NoteListItem.tsx`, `notes/ActionProcessingOverlay.tsx`, `notes/NotesOnboarding.tsx` |
+| **Agent** | `AgentOverlay.tsx`, `agent/AgentChat.tsx`, `agent/AgentInput.tsx`, `agent/AgentMessage.tsx`, `agent/AgentTitleBar.tsx` |
+| **Calendar** | `CalendarView.tsx`, `IntegrationsView.tsx`, `UpcomingMeetings.tsx` |
+| **Meeting** | `MeetingNotificationOverlay.tsx` |
+| **Auth** | `AuthenticationStep.tsx`, `EmailVerificationStep.tsx`, `ForgotPasswordView.tsx`, `ResetPasswordView.tsx` |
+| **Referral** | `ReferralDashboard.tsx`, `ReferralModal.tsx` |
+| **Settings** | `settings/AgentModeSettings.tsx` |
+| **Shared UI** | `ui/` (43 components) |
+| **Window** | `TitleBar.tsx`, `WindowControls.tsx`, `CommandSearch.tsx` |
 
 ### Hooks (`src/hooks/`) — 25 hooks
 `useActionProcessing`, `useAudioRecording`, `useAuth`, `useClipboard`, `useDebouncedCallback`, `useDialogs`, `useFolderManagement`, `useHotkey`, `useHotkeyRegistration`, `useLocalModels`, `useLocalStorage`, `useMeetingTranscription`, `useModelDownload`, `useNoteDragAndDrop`, `useNoteRecording`, `useNotesOnboarding`, `usePermissions`, `useScreenRecordingPermission`, `useSettings`, `useTheme`, `useUpcomingEvents`, `useUpdater`, `useUsage`, `useWhisper`, `useWindowDrag`
 
 ### Stores (`src/stores/`) — 4 stores
-| Store                   | Purpose                                                            |
-| ----------------------- | ------------------------------------------------------------------ |
-| `settingsStore.ts`      | All app settings, persisted to localStorage, synced across windows |
-| `noteStore.ts`          | Notes CRUD state                                                   |
-| `actionStore.ts`        | AI processing action templates                                     |
-| `transcriptionStore.ts` | Transcription history                                              |
+| Store | Purpose |
+|-------|---------|
+| `settingsStore.ts` | All app settings, persisted to localStorage, synced across windows |
+| `noteStore.ts` | Notes CRUD state |
+| `actionStore.ts` | AI processing action templates |
+| `transcriptionStore.ts` | Transcription history |
 
 ### Services (`src/services/`)
 `ReasoningService.ts`, `BaseReasoningService.ts`, `LocalReasoningService.ts`, `NotesService.ts`, `localReasoningBridge.js`
@@ -112,11 +112,11 @@ Speaker diarization engine:
 - Requires HuggingFace token, used by `meeting-run-diarization` IPC
 
 ### Native Binaries (`resources/`)
-| Platform          | Binaries                                                                                                                      |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Platform | Binaries |
+|----------|----------|
 | **macOS (Swift)** | `macos-globe-listener`, `macos-mic-listener`, `macos-fast-paste`, `macos-text-monitor`, `macos-media-remote`, `calendar-sync` |
-| **Windows (C)**   | `windows-key-listener`, `windows-mic-listener`, `windows-fast-paste`, `windows-text-monitor`                                  |
-| **Linux (C)**     | `linux-fast-paste`, `linux-text-monitor`                                                                                      |
+| **Windows (C)** | `windows-key-listener`, `windows-mic-listener`, `windows-fast-paste`, `windows-text-monitor` |
+| **Linux (C)** | `linux-fast-paste`, `linux-text-monitor` |
 
 ---
 
@@ -145,7 +145,7 @@ Speaker diarization engine:
 - [x] AI actions (reusable processing templates) — built-in + custom
 - [x] Rich text editing
 - [x] Note search (full-text via SQLite FTS5)
-- [x] Export (txt/md)
+- [x] Export (txt/md) — filename is `{title} | MM-DD-YY.{ext}`, always includes Attendees line
 - [x] Cloud sync (cloud_id)
 
 ### Agent Mode
@@ -166,7 +166,15 @@ Speaker diarization engine:
   - Cloud path: WebSocket streaming → OpenAI Realtime
 - [x] Manual meeting recording: "Record meetings" label in CalendarView becomes a clickable blue mic button when toggle is on
 - [x] Meeting auto-stop on process close or sustained silence
-- [x] Speaker diarization (Python + pyannote.audio, requires HuggingFace token)
+- [x] Speaker diarization (Python + pyannote.audio, requires HuggingFace token set in Integrations)
+  - Runs automatically after every meeting recording
+  - System + mic audio recorded separately (split recorders) for diarization input
+  - WebM → WAV conversion via ffmpeg before passing to Python (torchaudio can't read WebM)
+  - Silent system audio (solo recording) → falls back to mic audio as primary diarization source
+  - Labels speakers as "Me" / "Guest 1" / "Guest 2" etc. in `**Speaker:** text` markdown format
+  - Result persisted to `notes.transcript` column via `updateNote` IPC
+  - NoteEditor auto-switches to Transcript tab when diarization completes
+  - Exported .md file re-written with speaker labels when diarization finishes
 - [x] Calendar-aware notifications
 
 ### Infrastructure
@@ -212,6 +220,16 @@ Speaker diarization engine:
 - `useMeetingTranscription` signals recording state to the main process via `meetingSetUserRecording` IPC.
 - The pill's `useAudioRecording` (dictation) must **not** run simultaneously with meeting transcription — doing so causes whisper-server conflicts.
 - `onMeetingAutoStopExecute` is handled by both `useAudioRecording` (shows toast only) and `useMeetingTranscription` (actual stop + transcription).
+
+### Speaker Diarization Architecture (critical — do not regress)
+- `useMeetingTranscription` runs two parallel `MediaRecorder` instances: one on the system audio stream, one on the mic stream (split recorders).
+- After stop, both blobs are saved via `meetingSaveSplitAudio` IPC → `{userData}/meetings/{meetingId}/system_record.webm` and `mic_record.webm`.
+- Diarization runs automatically in an async IIFE inside `stopTranscription` — it does NOT block the UI.
+- `diarizationNoteIdRef` lives **inside the hook** (not the component) so it survives component unmount. The hook calls `updateNote` IPC directly when diarization finishes.
+- Component's `useEffect` on `diarizedTranscript` calls `initializeNotes()` to refresh the store from DB.
+- `PersonalNotesView` tracks `lastExportRef` — when diarization completes it overwrites the exported file with speaker-labeled transcript.
+- Auto-generate notes after meeting is skipped when `useReasoningModel` is `false`; export still runs immediately in that case.
+- HuggingFace token stored as `hfToken` in `settingsStore`, configurable in Integrations view.
 
 ### Build & Quality
 - Node 20/22 LTS (pinned in `.nvmrc`)
@@ -331,21 +349,21 @@ interface AppProfile {
 ```
 
 ### Database Tables (SQLite) — 14 tables
-| Table                    | Key Columns                                                                                                                                                                                                    |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `transcriptions`         | id, text, raw_text, timestamp, created_at, has_audio, audio_duration_ms, provider, model, status, error_message                                                                                                |
-| `custom_dictionary`      | id, word (UNIQUE), created_at                                                                                                                                                                                  |
-| `notes`                  | id, title, content, note_type, source_file, audio_duration_seconds, created_at, updated_at, enhanced_content, enhancement_prompt, enhanced_at_content_hash, cloud_id, folder_id, transcript, calendar_event_id |
-| `notes_fts`              | (virtual FTS5) title, content, enhanced_content — auto-synced via triggers                                                                                                                                     |
-| `folders`                | id, name (UNIQUE), is_default, sort_order, created_at                                                                                                                                                          |
-| `actions`                | id, name, description, prompt, icon, is_builtin, sort_order, created_at, updated_at, translation_key                                                                                                           |
-| `agent_conversations`    | id, title, created_at, updated_at                                                                                                                                                                              |
-| `agent_messages`         | id, conversation_id (FK), role, content, created_at                                                                                                                                                            |
-| `google_calendar_tokens` | id, google_email (UNIQUE), access_token, refresh_token, expires_at, scope, created_at, updated_at                                                                                                              |
-| `google_calendars`       | id, summary, description, background_color, is_selected, sync_token, account_email, created_at                                                                                                                 |
-| `apple_calendars`        | id, title, color, is_selected, created_at                                                                                                                                                                      |
-| `calendar_events`        | id, calendar_id, summary, start_time, end_time, is_all_day, status, hangout_link, conference_data, organizer_email, attendees_count, attendees, synced_at                                                      |
-| `settings`               | key (PK), value                                                                                                                                                                                                |
+| Table | Key Columns |
+|-------|-------------|
+| `transcriptions` | id, text, raw_text, timestamp, created_at, has_audio, audio_duration_ms, provider, model, status, error_message |
+| `custom_dictionary` | id, word (UNIQUE), created_at |
+| `notes` | id, title, content, note_type, source_file, audio_duration_seconds, created_at, updated_at, enhanced_content, enhancement_prompt, enhanced_at_content_hash, cloud_id, folder_id, transcript, calendar_event_id |
+| `notes_fts` | (virtual FTS5) title, content, enhanced_content — auto-synced via triggers |
+| `folders` | id, name (UNIQUE), is_default, sort_order, created_at |
+| `actions` | id, name, description, prompt, icon, is_builtin, sort_order, created_at, updated_at, translation_key |
+| `agent_conversations` | id, title, created_at, updated_at |
+| `agent_messages` | id, conversation_id (FK), role, content, created_at |
+| `google_calendar_tokens` | id, google_email (UNIQUE), access_token, refresh_token, expires_at, scope, created_at, updated_at |
+| `google_calendars` | id, summary, description, background_color, is_selected, sync_token, account_email, created_at |
+| `apple_calendars` | id, title, color, is_selected, created_at |
+| `calendar_events` | id, calendar_id, summary, start_time, end_time, is_all_day, status, hangout_link, conference_data, organizer_email, attendees_count, attendees, synced_at |
+| `settings` | key (PK), value |
 
 ---
 
@@ -364,6 +382,26 @@ interface AppProfile {
 ### Meeting transcription double-recording bug (fixed)
 - **Cause**: `meetingDetectionEngine.handleNotificationResponse` called both `navigate-to-meeting-note` (triggering `useMeetingTranscription`) AND `sendStartDictation()` (starting a conflicting pill dictation). When the meeting ended, the pill's audioManager tried to transcribe a long audio blob → whisper-server died during startup.
 - **Fix**: Removed `sendStartDictation()` from `handleNotificationResponse`. Added `meetingSetUserRecording` IPC so `useMeetingTranscription` signals recording state to the detection engine directly.
+
+### Speaker diarization result not persisting to UI (fixed)
+- **Cause**: `diarizationNoteIdRef` was a local ref in `PersonalNotesView`. Diarization takes 30+ seconds; if the component unmounted before completion, the ref was null and `updateNote` was never called.
+- **Fix**: Moved `diarizationNoteIdRef` into `useMeetingTranscription` hook. Hook calls `updateNote` IPC directly (awaited) then `setDiarizedTranscript`. Component effect calls `initializeNotes()` to refresh store.
+
+### Diarization infinite re-render loop (fixed)
+- **Cause**: `useEffect` in `PersonalNotesView` watched `[meetingDiarizedTranscript, notes, toast]` and called `updateNoteInStore` inside, which mutated `notes`, re-triggering the effect.
+- **Fix**: Removed `notes` from dependency array; effect now just calls `initializeNotes()` to re-fetch from DB.
+
+### WebM diarization producing 0 segments (fixed)
+- **Cause**: `MediaRecorder` produces WebM/Opus without duration headers; `torchaudio` cannot read it.
+- **Fix**: `ipcHandlers.js` converts both split audio files to WAV via `convertToWav` (ffmpeg) before passing to Python.
+
+### Silent system audio producing 0 segments (fixed)
+- **Cause**: System audio stream captures display audio only — empty during solo/mic-only recordings.
+- **Fix**: RMS check on system WAV; if `rms < 0.001`, use mic WAV as primary diarization source instead.
+
+### Exported transcript file missing speaker labels (fixed)
+- **Cause**: File export ran at AI-completion time, before diarization finished. Also didn't run when AI was disabled.
+- **Fix**: `PersonalNotesView` stores export metadata in `lastExportRef`; when diarization completes it overwrites the file. Export now also triggers on AI error state and when `useReasoningModel` is off.
 
 ---
 

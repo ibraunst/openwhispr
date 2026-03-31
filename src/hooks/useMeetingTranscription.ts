@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import type React from "react";
 import { getSettings } from "../stores/settingsStore";
 import { isBuiltInMicrophone } from "../utils/audioDeviceUtils";
 import { getSystemAudioStream } from "../utils/systemAudio";
@@ -7,9 +8,13 @@ import logger from "../utils/logger";
 interface UseMeetingTranscriptionReturn {
   isRecording: boolean;
   isLocalProcessing: boolean;
+  isDiarizing: boolean;
   transcript: string;
+  diarizedTranscript: string;
+  diarizationError: string | null;
   partialTranscript: string;
   error: string | null;
+  diarizationNoteIdRef: React.MutableRefObject<number | null>;
   prepareTranscription: () => Promise<void>;
   startTranscription: () => Promise<void>;
   stopTranscription: () => Promise<void>;
@@ -208,12 +213,46 @@ const flushAndDisconnectProcessor = async (processor: AudioWorkletNode | null) =
 
 // getSystemAudioStream imported from ../utils/systemAudio
 
+function formatDiarizedTranscript(segments: { start: number; end: number; text: string; speaker?: string }[]): string {
+  const lines: string[] = [];
+  let currentSpeaker = "";
+  let currentText = "";
+
+  for (const seg of segments) {
+    const speaker = seg.speaker || "Unknown";
+    const text = seg.text.trim();
+    if (!text) continue;
+
+    if (speaker === currentSpeaker) {
+      currentText += " " + text;
+    } else {
+      if (currentSpeaker) {
+        lines.push(`**${currentSpeaker}:** ${currentText}`);
+      }
+      currentSpeaker = speaker;
+      currentText = text;
+    }
+  }
+
+  if (currentSpeaker && currentText) {
+    lines.push(`**${currentSpeaker}:** ${currentText}`);
+  }
+
+  return lines.join("\n\n");
+}
+
 export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [isLocalProcessing, setIsLocalProcessing] = useState(false);
+  const [isDiarizing, setIsDiarizing] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [diarizedTranscript, setDiarizedTranscript] = useState("");
+  const [diarizationError, setDiarizationError] = useState<string | null>(null);
   const [partialTranscript, setPartialTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // Ref for the note ID to receive the diarized transcript — set by the consumer component
+  const diarizationNoteIdRef = useRef<number | null>(null);
 
   // Cloud path refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -424,15 +463,17 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
           if (result?.success && result.transcript) {
             setTranscript(result.transcript);
 
-            // Save a single-segment transcript.json for diarization to enrich
+            // Save transcript.json for diarization — must be awaited so it exists before diarization runs
             if (currentMeetingId) {
               const durationSec = (blob.size / (16000 * 2)) || 30;
-              window.electronAPI?.meetingSaveTranscript?.({
-                meetingId: currentMeetingId,
-                segments: [{ start: 0, end: durationSec, text: result.transcript }],
-              }).catch((err: Error) =>
-                logger.error("Failed to save local transcript", { error: err.message }, "meeting")
-              );
+              try {
+                await window.electronAPI?.meetingSaveTranscript?.({
+                  meetingId: currentMeetingId,
+                  segments: [{ start: 0, end: durationSec, text: result.transcript }],
+                });
+              } catch (err) {
+                logger.error("Failed to save local transcript", { error: (err as Error).message }, "meeting");
+              }
             }
           } else {
             setError(result?.error || "Transcription failed.");
@@ -507,24 +548,39 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
 
           logger.info("Split audio saved, running speaker diarization…", { meetingId: currentMeetingId }, "meeting");
 
-          const { hfToken } = getSettings();
+          const { hfToken } = getSettings() as { hfToken?: string };
           if (!hfToken) {
             logger.warn("Skipping diarization: no HuggingFace token configured", {}, "meeting");
+            setDiarizationError("No HuggingFace token configured. Add one in Settings → API Keys to enable speaker identification.");
             return;
           }
 
+          setIsDiarizing(true);
           const diarizeResult = await window.electronAPI?.meetingRunDiarization?.({
             meetingId: currentMeetingId,
             hfToken,
           });
 
-          if (diarizeResult?.success) {
+          if (diarizeResult?.success && diarizeResult.transcript?.segments?.length) {
             logger.info("Speaker diarization complete", { meetingId: currentMeetingId }, "meeting");
+            const formatted = formatDiarizedTranscript(diarizeResult.transcript.segments);
+            // Persist diarized transcript directly to the note via IPC — component may have unmounted
+            if (diarizationNoteIdRef.current) {
+              await window.electronAPI?.updateNote?.(diarizationNoteIdRef.current, { transcript: formatted });
+              diarizationNoteIdRef.current = null;
+            }
+            setDiarizedTranscript(formatted);
           } else {
-            logger.error("Speaker diarization failed", { error: diarizeResult?.error }, "meeting");
+            const errMsg = diarizeResult?.error || "Speaker diarization failed";
+            logger.error("Speaker diarization failed", { error: errMsg }, "meeting");
+            setDiarizationError(errMsg);
           }
         } catch (err) {
-          logger.error("Split audio / diarization error", { error: (err as Error).message }, "meeting");
+          const errMsg = (err as Error).message;
+          logger.error("Split audio / diarization error", { error: errMsg }, "meeting");
+          setDiarizationError(errMsg);
+        } finally {
+          setIsDiarizing(false);
         }
       })();
     }
@@ -925,9 +981,13 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
   return {
     isRecording,
     isLocalProcessing,
+    isDiarizing,
     transcript,
+    diarizedTranscript,
+    diarizationError,
     partialTranscript,
     error,
+    diarizationNoteIdRef,
     prepareTranscription,
     startTranscription,
     stopTranscription,

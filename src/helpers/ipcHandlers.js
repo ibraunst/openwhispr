@@ -2693,17 +2693,45 @@ class IPCHandlers {
           }
         }
 
-        const speakerEnginePath = path.join(__dirname, "..", "python", "speaker_engine.py");
+        const speakerEnginePath = app.isPackaged
+          ? path.join(process.resourcesPath, "python", "speaker_engine.py")
+          : path.join(__dirname, "..", "..", "python", "speaker_engine.py");
         if (!fs.existsSync(speakerEnginePath)) {
-          return { success: false, error: "speaker_engine.py not found" };
+          return { success: false, error: `speaker_engine.py not found at ${speakerEnginePath}` };
         }
 
         const voiceDbPath = path.join(app.getPath("userData"), "voicebank.db");
 
+        // Convert WebM/Opus files to WAV — torchaudio can't read WebM without duration headers
+        const { convertToWav } = require("./ffmpegUtils");
+        const systemWavPath = path.join(meetingDir, "system_record.wav");
+        const micWavPath = path.join(meetingDir, "mic_record.wav");
+
+        await Promise.all([
+          convertToWav(systemPath, systemWavPath),
+          convertToWav(micPath, micWavPath),
+        ]);
+
+        // If system audio is silent (e.g. solo recording, no meeting app audio),
+        // fall back to using the mic recording as the primary diarization source.
+        const { wavToFloat32Samples } = require("./ffmpegUtils");
+        let primaryAudioPath = systemWavPath;
+        try {
+          const wavBuf = fs.readFileSync(systemWavPath);
+          const samples = wavToFloat32Samples(wavBuf);
+          const rms = Math.sqrt(samples.reduce((s, x) => s + x * x, 0) / samples.length);
+          if (rms < 0.001) {
+            debugLogger.info("System audio silent, using mic for diarization", { meetingId }, "meeting");
+            primaryAudioPath = micWavPath;
+          }
+        } catch {
+          // if check fails, proceed with system audio
+        }
+
         const args = [
           speakerEnginePath,
-          "--system-audio", systemPath,
-          "--mic-audio", micPath,
+          "--system-audio", primaryAudioPath,
+          "--mic-audio", micWavPath,
           "--transcript", transcriptPath,
           "--hf-token", hfToken,
           "--voice-db", voiceDbPath,
@@ -2722,7 +2750,7 @@ class IPCHandlers {
           });
         });
 
-        debugLogger.info("Speaker diarization complete", { meetingId }, "meeting");
+        debugLogger.info("Speaker diarization complete", { meetingId, segmentCount: result?.segments?.length, firstSpeaker: result?.segments?.[0]?.speaker }, "meeting");
         return { success: true, transcript: result };
       } catch (error) {
         debugLogger.error("Speaker diarization error", { error: error.message }, "meeting");

@@ -86,6 +86,11 @@
   "extraResources": [
     ".env",
     "src/assets/**/*",
+    {
+      "from": "python/",
+      "to": "python/",
+      "filter": ["**/*.py", "requirements.txt"]
+    },
     "resources/bin/macos-globe-listener",
     "resources/bin/macos-fast-paste",
     "resources/bin/macos-media-remote",

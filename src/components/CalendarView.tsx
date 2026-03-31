@@ -154,7 +154,13 @@ export default function CalendarView({ onOpenNote, onStartMeetingRecording }: Ca
   useEffect(() => {
     fetchEvents();
     const interval = setInterval(fetchEvents, 60000);
-    return () => clearInterval(interval);
+    const unsubGcal = window.electronAPI?.onGcalEventsSynced?.(() => fetchEvents());
+    const unsubAcal = window.electronAPI?.onAcalEventsSynced?.(() => fetchEvents());
+    return () => {
+      clearInterval(interval);
+      unsubGcal?.();
+      unsubAcal?.();
+    };
   }, [fetchEvents]);
 
   const upcomingGroups = useMemo(() => {
