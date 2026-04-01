@@ -17,5 +17,9 @@
     <!-- Audio input for microphone recording -->
     <key>com.apple.security.device.audio-input</key>
     <true/>
+
+    <!-- Accessibility APIs (paste, text monitoring) -->
+    <key>com.apple.security.temporary-exception.accessibility</key>
+    <true/>
 </dict>
 </plist>

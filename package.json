@@ -43,7 +43,7 @@
     "build:linux:tar": "npm run build:renderer && electron-builder --linux tar.gz",
     "setup": "node setup.js",
     "prepack": "npm run compile:native && npm run download:whisper-cpp && npm run download:llama-server && npm run download:sherpa-onnx",
-    "pack": "npm run build:renderer && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir && codesign --force --deep --sign \"customWhispr Dev\" \"dist/mac-arm64/customWhispr.app\"",
+    "pack": "npm run build:renderer && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir && codesign --force --deep --entitlements resources/mac/entitlements.mac.plist --sign \"customWhispr Dev\" \"dist/mac-arm64/customWhispr.app\"",
     "predist": "npm run compile:native && npm run download:whisper-cpp && npm run download:llama-server && npm run download:sherpa-onnx",
     "dist": "npm run build:renderer && electron-builder",
     "download:whisper-cpp": "node scripts/download-whisper-cpp.js --current",
