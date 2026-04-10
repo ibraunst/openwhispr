@@ -2542,6 +2542,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     const t0 = performance.now();
     let finalText = this.streamingFinalText || "";
 
+    try {
     // 1. Update UI immediately
     this.isRecording = false;
     this.recordingStartTime = null;
@@ -2573,11 +2574,22 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     let fallbackBlob = null;
     if (this.streamingFallbackRecorder?.state === "recording") {
       fallbackBlob = await new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          logger.warn("Fallback recorder onstop timed out, resolving with partial chunks", {}, "streaming");
+          resolve(null);
+        }, 8000);
         this.streamingFallbackRecorder.onstop = () => {
+          clearTimeout(timeout);
           const mimeType = this.streamingFallbackRecorder.mimeType || "audio/webm";
           resolve(new Blob(this.streamingFallbackChunks, { type: mimeType }));
         };
-        this.streamingFallbackRecorder.stop();
+        try {
+          this.streamingFallbackRecorder.stop();
+        } catch (e) {
+          clearTimeout(timeout);
+          logger.warn("Fallback recorder stop() threw", { error: e.message }, "streaming");
+          resolve(null);
+        }
       });
     }
     if (fallbackBlob) {
@@ -2803,16 +2815,21 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       );
     }
 
-    this.isProcessing = false;
-    this.onStateChange?.({ isRecording: false, isProcessing: false, isStreaming: false });
-
-    if (this.shouldUseStreaming()) {
-      this.warmupStreamingConnection().catch((e) => {
-        logger.debug("Background re-warm failed", { error: e.message }, "streaming");
-      });
-    }
-
     return true;
+    } catch (e) {
+      logger.error("stopStreamingRecording threw unexpectedly", { error: e.message }, "streaming");
+      return false;
+    } finally {
+      if (this.isProcessing) {
+        this.isProcessing = false;
+        this.onStateChange?.({ isRecording: false, isProcessing: false, isStreaming: false });
+      }
+      if (this.shouldUseStreaming()) {
+        this.warmupStreamingConnection().catch((err) => {
+          logger.debug("Background re-warm failed", { error: err.message }, "streaming");
+        });
+      }
+    }
   }
 
   cleanupStreamingAudio() {

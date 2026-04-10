@@ -1,4 +1,4 @@
-const { ipcMain, app, shell, BrowserWindow } = require("electron");
+const { ipcMain, app, shell, BrowserWindow, powerSaveBlocker } = require("electron");
 const path = require("path");
 const http = require("http");
 const https = require("https");
@@ -320,6 +320,19 @@ class IPCHandlers {
 
     ipcMain.handle("show-dictation-panel", () => {
       this.windowManager.showDictationPanel();
+    });
+
+    let sleepBlockerId = null;
+    ipcMain.handle("set-sleep-blocker", (_event, active) => {
+      if (active && sleepBlockerId === null) {
+        sleepBlockerId = powerSaveBlocker.start("prevent-display-sleep");
+        debugLogger.debug("[SleepBlocker] Started", { id: sleepBlockerId });
+      } else if (!active && sleepBlockerId !== null) {
+        powerSaveBlocker.stop(sleepBlockerId);
+        debugLogger.debug("[SleepBlocker] Stopped", { id: sleepBlockerId });
+        sleepBlockerId = null;
+      }
+      return { success: true };
     });
 
     ipcMain.handle("force-stop-dictation", () => {

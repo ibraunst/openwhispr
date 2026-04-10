@@ -457,10 +457,11 @@ class WindowManager {
       // Detect frontmost app and wait for it so per-app profile settings
       // (correction toggle, custom prompt) are available before recording starts.
       const willStartRecording = !this._isDictatingToggle;
+      let detectedApp = null;
       if (willStartRecording) {
-        await this._detectAndSaveFrontmostApp();
+        detectedApp = await this._detectAndSaveFrontmostApp();
       }
-      this.mainWindow.webContents.send("toggle-dictation");
+      this.mainWindow.webContents.send("toggle-dictation", detectedApp);
       this.showDictationPanel();
       this._isDictatingToggle = !this._isDictatingToggle;
       this.meetingDetectionEngine?.setUserRecording(this._isDictatingToggle);
@@ -473,8 +474,8 @@ class WindowManager {
     }
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       // Wait for app detection so per-app settings are applied
-      await this._detectAndSaveFrontmostApp();
-      this.mainWindow.webContents.send("start-dictation");
+      const detectedApp = await this._detectAndSaveFrontmostApp();
+      this.mainWindow.webContents.send("start-dictation", detectedApp);
       this.showDictationPanel();
       this.meetingDetectionEngine?.setUserRecording(true);
     }
@@ -517,14 +518,14 @@ class WindowManager {
             debugLogger.debug("[AppProfiles] frontmost-app detection error", {
               error: err.message,
             });
-            resolve();
+            resolve(null);
             return;
           }
 
           try {
             const result = JSON.parse(stdout.trim());
             if (!result || !result.bundleId || !result.name) {
-              resolve();
+              resolve(null);
               return;
             }
 
@@ -548,17 +549,11 @@ class WindowManager {
               debugLogger.info("[AppProfiles] Saved new profile", { bundleId: result.bundleId, name: result.name }, "ipc");
             }
 
-            // Send to all windows so the dictation pill can show the app info
-            // AND so the renderer has the activeAppBundleId set BEFORE recording starts
-            for (const win of BrowserWindow.getAllWindows()) {
-              if (!win.isDestroyed()) {
-                win.webContents.send("frontmost-app-detected", result);
-              }
-            }
+            resolve(result);
           } catch {
             debugLogger.debug("[AppProfiles] Failed to parse frontmost app result");
+            resolve(null);
           }
-          resolve();
         }
       );
     });

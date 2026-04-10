@@ -162,28 +162,32 @@ export default function App() {
     setWindowInteractivity(false);
   }, [setWindowInteractivity]);
 
+  const handleFrontmostApp = React.useCallback((app) => {
+    if (!app || !app.bundleId || !app.name) return;
+    setActiveApp(app);
+    useSettingsStore.getState().setActiveApp(app.bundleId, app.name);
+    window.electronAPI?.getAppIcon?.(app.bundleId).then((icon) => {
+      if (icon) {
+        setActiveApp((prev) => (prev ? { ...prev, icon } : prev));
+        setAppIcon(app.bundleId, icon);
+      }
+    });
+  }, []);
+
   const { isRecording, isProcessing, toggleListening, cancelRecording, cancelProcessing, getVolume } =
     useAudioRecording(toast, {
       onToggle: handleDictationToggle,
+      onFrontmostApp: handleFrontmostApp,
     });
 
-  // Listen for frontmost app info pushed from the main process when dictation starts
+  // Fallback: also listen for the standalone frontmost-app-detected event
+  // (covers edge cases where the payload couldn't be bundled with the IPC signal)
   useEffect(() => {
     const unsubscribe = window.electronAPI?.onFrontmostAppDetected?.((app) => {
-      if (app && app.bundleId && app.name) {
-        setActiveApp(app);
-        useSettingsStore.getState().setActiveApp(app.bundleId, app.name);
-        // Fetch icon asynchronously
-        window.electronAPI?.getAppIcon?.(app.bundleId).then((icon) => {
-          if (icon) {
-            setActiveApp((prev) => (prev ? { ...prev, icon } : prev));
-            setAppIcon(app.bundleId, icon);
-          }
-        });
-      }
+      handleFrontmostApp(app);
     });
     return () => unsubscribe?.();
-  }, []);
+  }, [handleFrontmostApp]);
 
   // Clear active app when recording and processing both stop
   useEffect(() => {
