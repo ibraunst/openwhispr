@@ -418,6 +418,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     isStartingRef.current = false;
     setIsRecording(false);
     window.electronAPI?.meetingSetUserRecording?.(false);
+    window.electronAPI?.setSleepBlocker?.(false);
 
     const wasLocalMode = localModeRef.current;
     localModeRef.current = false;
@@ -647,6 +648,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     isRecordingRef.current = true;
     setIsRecording(true);
     window.electronAPI?.meetingSetUserRecording?.(true);
+    window.electronAPI?.setSleepBlocker?.(true);
 
     if (options.provider === "local") {
       // Local recording path: capture audio with MediaRecorder
