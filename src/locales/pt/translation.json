@@ -1922,6 +1922,7 @@
     "renameVoice": "Renomear",
     "deleteVoice": "Esquecer voz",
     "deleteConfirmTitle": "Esquecer “{{name}}”?",
-    "deleteConfirmDescription": "Reuniões futuras tratarão esta pessoa como um novo convidado."
+    "deleteConfirmDescription": "Reuniões futuras tratarão esta pessoa como um novo convidado.",
+    "customName": "Nome personalizado…"
   }
 }

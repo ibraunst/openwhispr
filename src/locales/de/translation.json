@@ -1922,6 +1922,7 @@
     "renameVoice": "Umbenennen",
     "deleteVoice": "Stimme vergessen",
     "deleteConfirmTitle": "„{{name}}“ vergessen?",
-    "deleteConfirmDescription": "In künftigen Meetings wird diese Person als neuer Gast behandelt."
+    "deleteConfirmDescription": "In künftigen Meetings wird diese Person als neuer Gast behandelt.",
+    "customName": "Eigener Name…"
   }
 }

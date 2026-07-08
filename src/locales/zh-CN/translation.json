@@ -1922,6 +1922,7 @@
     "renameVoice": "重命名",
     "deleteVoice": "忘记声音",
     "deleteConfirmTitle": "忘记“{{name}}”？",
-    "deleteConfirmDescription": "之后的会议将把此人视为新访客。"
+    "deleteConfirmDescription": "之后的会议将把此人视为新访客。",
+    "customName": "自定义名称…"
   }
 }

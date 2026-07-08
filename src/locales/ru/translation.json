@@ -1922,6 +1922,7 @@
     "renameVoice": "Переименовать",
     "deleteVoice": "Забыть голос",
     "deleteConfirmTitle": "Забыть «{{name}}»?",
-    "deleteConfirmDescription": "На будущих встречах этот человек будет считаться новым гостем."
+    "deleteConfirmDescription": "На будущих встречах этот человек будет считаться новым гостем.",
+    "customName": "Своё имя…"
   }
 }

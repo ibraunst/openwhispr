@@ -9,6 +9,8 @@ import {
   Radio,
   MessageSquareText,
   Pencil,
+  ChevronDown,
+  UserRound,
 } from "lucide-react";
 import SpeakerRenameDialog from "./SpeakerRenameDialog";
 import { MarkdownTextarea } from "../ui/MarkdownTextarea";
@@ -17,6 +19,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "../ui/dropdown-menu";
 import { cn } from "../lib/utils";
 import type { NoteItem } from "../../types/electron";
@@ -851,26 +854,54 @@ export default function NoteEditor({
             <>
               {onRenameSpeaker && transcriptSpeakers.length > 0 && (
                 <div className="flex items-center gap-1.5 flex-wrap px-5 pt-3">
-                  {transcriptSpeakers.map((speaker) => (
-                    <button
-                      key={speaker}
-                      onClick={() => setRenameSpeakerTarget(speaker)}
-                      title={t("voicebank.renameTooltip")}
-                      className={cn(
-                        "group flex items-center gap-1.5 h-6 px-2.5 rounded-full text-xs font-medium",
-                        "bg-foreground/4 dark:bg-white/4 border border-foreground/8 dark:border-white/8",
-                        "text-foreground/60 hover:text-foreground/80",
-                        "hover:bg-foreground/8 dark:hover:bg-white/8 hover:border-foreground/15",
-                        "transition-colors duration-150"
-                      )}
-                    >
-                      {speaker}
-                      <Pencil
-                        size={9}
-                        className="text-foreground/25 group-hover:text-foreground/50 transition-colors"
-                      />
-                    </button>
-                  ))}
+                  {transcriptSpeakers.map((speaker) => {
+                    // Attendees not already assigned to a speaker in this transcript
+                    const availableNames = (speakerSuggestions ?? []).filter(
+                      (name) => name !== speaker && !transcriptSpeakers.includes(name)
+                    );
+                    return (
+                      <DropdownMenu key={speaker}>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            title={t("voicebank.renameTooltip")}
+                            className={cn(
+                              "group flex items-center gap-1.5 h-6 px-2.5 rounded-full text-xs font-medium",
+                              "bg-foreground/4 dark:bg-white/4 border border-foreground/8 dark:border-white/8",
+                              "text-foreground/60 hover:text-foreground/80",
+                              "hover:bg-foreground/8 dark:hover:bg-white/8 hover:border-foreground/15",
+                              "transition-colors duration-150"
+                            )}
+                          >
+                            {speaker}
+                            <ChevronDown
+                              size={9}
+                              className="text-foreground/25 group-hover:text-foreground/50 transition-colors"
+                            />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" sideOffset={4} className="min-w-40">
+                          {availableNames.map((name) => (
+                            <DropdownMenuItem
+                              key={name}
+                              onClick={() => void onRenameSpeaker(speaker, name)}
+                              className="text-xs gap-2"
+                            >
+                              <UserRound size={12} className="text-foreground/40" />
+                              {name}
+                            </DropdownMenuItem>
+                          ))}
+                          {availableNames.length > 0 && <DropdownMenuSeparator />}
+                          <DropdownMenuItem
+                            onClick={() => setRenameSpeakerTarget(speaker)}
+                            className="text-xs gap-2"
+                          >
+                            <Pencil size={12} className="text-foreground/40" />
+                            {t("voicebank.customName")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    );
+                  })}
                 </div>
               )}
               <MarkdownTextarea value={effectiveTranscript} disabled />
