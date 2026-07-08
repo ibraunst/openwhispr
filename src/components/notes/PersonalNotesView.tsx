@@ -613,6 +613,13 @@ export default function PersonalNotesView({
           const updated = currentTranscript.split(marker).join(`**${newLabel}:**`);
           await window.electronAPI.updateNote(noteId, { transcript: updated });
           if (activeMeetingDiarized) overrideDiarizedTranscript(updated);
+          // Rewrite this meeting's exported file with the new speaker name.
+          // Gated to the current meeting note — lastExportRef points at ITS
+          // file; renames on older notes must not touch it.
+          if (lastExportRef.current && noteId === meetingNoteId) {
+            const { filename, directory, headerLines } = lastExportRef.current;
+            writeTranscriptExport(headerLines.join("\n") + updated, filename, directory);
+          }
           await initializeNotes(null, 50, activeFolderId);
         }
 
@@ -632,6 +639,8 @@ export default function PersonalNotesView({
       activeFolderId,
       activeMeetingDiarized,
       overrideDiarizedTranscript,
+      meetingNoteId,
+      writeTranscriptExport,
       toast,
       t,
     ]
@@ -725,12 +734,13 @@ export default function PersonalNotesView({
     prevDiarizedRef.current = meetingDiarizedTranscript;
     if (!meetingDiarizedTranscript || prev) return;
     initializeNotes(null, 50, activeFolderId);
-    // Overwrite the exported file with speaker-labeled transcript
+    // Overwrite the exported file with speaker-labeled transcript. Keep the
+    // ref armed afterwards — speaker renames rewrite the same file via
+    // handleRenameSpeaker. It's cleared at the next recording start.
     if (lastExportRef.current) {
       const { filename, directory, headerLines } = lastExportRef.current;
       const fileContent = headerLines.join("\n") + meetingDiarizedTranscript;
       writeTranscriptExport(fileContent, filename, directory);
-      lastExportRef.current = null;
     }
     toast({ title: "Speaker labels added to transcript" });
   }, [meetingDiarizedTranscript, activeFolderId, toast, writeTranscriptExport]);
@@ -787,13 +797,12 @@ export default function PersonalNotesView({
         headerLines.push(`**Attendees:** ${attendeeList || "—"}`);
         headerLines.push("", "---", "");
         // Diarization may already be done — export the labeled transcript
-        // directly; only arm the rewrite ref when labels are still pending.
+        // directly. Always arm the rewrite ref: pending diarization and
+        // later speaker renames both rewrite this same file.
         const exportTranscript = meetingDiarizedTranscript || meetingTranscript;
         const fileContent = headerLines.join("\n") + exportTranscript;
         writeTranscriptExport(fileContent, filename, exportDirectory);
-        lastExportRef.current = meetingDiarizedTranscript
-          ? null
-          : { filename, directory: exportDirectory, headerLines };
+        lastExportRef.current = { filename, directory: exportDirectory, headerLines };
       }
       return;
     }
@@ -860,13 +869,12 @@ export default function PersonalNotesView({
         headerLines.push(`**Attendees:** ${attendeeList || "—"}`);
         headerLines.push("", "---", "");
         // Diarization may already be done — export the labeled transcript
-        // directly; only arm the rewrite ref when labels are still pending.
+        // directly. Always arm the rewrite ref: pending diarization and
+        // later speaker renames both rewrite this same file.
         const exportTranscript = meetingDiarizedTranscript || meetingTranscript;
         const fileContent = headerLines.join("\n") + exportTranscript;
         writeTranscriptExport(fileContent, filename, exportDirectory);
-        lastExportRef.current = meetingDiarizedTranscript
-          ? null
-          : { filename, directory: exportDirectory, headerLines };
+        lastExportRef.current = { filename, directory: exportDirectory, headerLines };
       }
 
       calendarTitleRef.current = null;
