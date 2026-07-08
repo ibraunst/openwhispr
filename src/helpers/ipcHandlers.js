@@ -325,6 +325,18 @@ class IPCHandlers {
       this.windowManager.showDictationPanel();
     });
 
+    ipcMain.handle("show-control-panel", () => {
+      const win = this.windowManager.controlPanelWindow;
+      if (win && !win.isDestroyed()) {
+        if (win.isMinimized()) win.restore();
+        win.show();
+        win.focus();
+      } else {
+        this.windowManager.createControlPanelWindow();
+      }
+      return { success: true };
+    });
+
     let sleepBlockerId = null;
     ipcMain.handle("set-sleep-blocker", (_event, active) => {
       if (active && sleepBlockerId === null) {
@@ -2917,6 +2929,15 @@ class IPCHandlers {
 
     ipcMain.handle("meeting-set-user-recording", async (_event, active) => {
       this.meetingDetectionEngine?.setUserRecording(!!active);
+      // Drive the pill's persistent meeting-recording indicator
+      const pill = this.windowManager?.mainWindow;
+      if (pill && !pill.isDestroyed()) {
+        pill.webContents.send("meeting-recording-indicator", { active: !!active });
+      }
+      if (active) {
+        // Make sure the indicator is visible even when the pill is auto-hidden
+        this.windowManager?.showDictationPanel?.();
+      }
       return { success: true };
     });
 
@@ -4396,6 +4417,16 @@ class IPCHandlers {
       } catch (error) {
         debugLogger.error("acal-get-calendars failed", { error: error.message }, "acal");
         return { success: false, calendars: [] };
+      }
+    });
+
+    ipcMain.handle("acal-sync-events", async () => {
+      try {
+        await this.appleCalendarManager?.syncEvents();
+        return { success: true };
+      } catch (error) {
+        debugLogger.error("acal-sync-events failed", { error: error.message }, "acal");
+        return { success: false, error: error.message };
       }
     });
 

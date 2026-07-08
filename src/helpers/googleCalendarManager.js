@@ -77,7 +77,10 @@ class GoogleCalendarManager {
     this.addAccount(result.email);
 
     await this.fetchCalendars(result.email);
-    await this.syncEvents();
+    // Post-connect sync failure must not fail the connect itself
+    await this.syncEvents().catch((err) =>
+      debugLogger.error("Post-connect sync failed", { error: err.message }, "gcal")
+    );
     this._consecutiveFailures = 0;
     this.scheduleNextMeeting();
     this._startSyncInterval();
@@ -139,10 +142,14 @@ class GoogleCalendarManager {
     const selectedCalendars = this.databaseManager.getSelectedCalendars();
     if (selectedCalendars.length === 0) return;
 
+    let failures = 0;
+    let lastError = null;
     for (const calendar of selectedCalendars) {
       try {
         await this._syncCalendar(calendar);
       } catch (err) {
+        failures++;
+        lastError = err;
         debugLogger.error(
           "Error syncing calendar",
           { calendarId: calendar.id, error: err.message },
@@ -153,56 +160,47 @@ class GoogleCalendarManager {
 
     this.broadcastToWindows("gcal-events-synced", {});
     this.scheduleNextMeeting();
+
+    // Propagate total failure so the sync interval's backoff engages — with
+    // errors swallowed here, a revoked token hammered the API forever.
+    if (failures > 0 && failures === selectedCalendars.length) {
+      throw lastError || new Error("All calendar syncs failed");
+    }
   }
 
   async _syncCalendar(calendar) {
     const accountEmail = calendar.account_email;
-    const params = new URLSearchParams({
-      singleEvents: "true",
-      orderBy: "startTime",
-      timeMin: new Date().toISOString(),
-      timeMax: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    });
+    const windowStart = new Date();
+    const windowEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    if (calendar.sync_token) {
-      params.delete("timeMin");
-      params.delete("timeMax");
-      params.delete("orderBy");
-      params.set("syncToken", calendar.sync_token);
-    }
-
-    let data;
-    try {
-      data = await this._apiGet(
+    // Full-window sync with pagination + reconciliation. Sync tokens are
+    // deliberately not used: they pin the original time window (events beyond
+    // the initial 7-day horizon would never appear), and the API never issued
+    // them here anyway because orderBy blocks nextSyncToken. A bounded window
+    // fetch is cheap and self-heals: whatever isn't in the response anymore
+    // (cancelled/moved events) is removed locally.
+    const items = [];
+    let pageToken = null;
+    do {
+      const params = new URLSearchParams({
+        singleEvents: "true",
+        timeMin: windowStart.toISOString(),
+        timeMax: windowEnd.toISOString(),
+        maxResults: "250",
+      });
+      if (pageToken) params.set("pageToken", pageToken);
+      const data = await this._apiGet(
         `/calendars/${encodeURIComponent(calendar.id)}/events?${params.toString()}`,
         accountEmail
       );
-    } catch (err) {
-      // 410 Gone means syncToken is invalid; fall back to full sync
-      if (err.statusCode === 410) {
-        const fullParams = new URLSearchParams({
-          singleEvents: "true",
-          orderBy: "startTime",
-          timeMin: new Date().toISOString(),
-          timeMax: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        });
-        data = await this._apiGet(
-          `/calendars/${encodeURIComponent(calendar.id)}/events?${fullParams.toString()}`,
-          accountEmail
-        );
-      } else {
-        throw err;
-      }
-    }
+      items.push(...(data.items || []));
+      pageToken = data.nextPageToken || null;
+    } while (pageToken);
 
     const toUpsert = [];
-    const toRemove = [];
 
-    for (const item of data.items || []) {
-      if (item.status === "cancelled") {
-        toRemove.push(item.id);
-        continue;
-      }
+    for (const item of items) {
+      if (item.status === "cancelled") continue; // absent from keep-set → reconciled away
 
       const isAllDay = !item.start?.dateTime;
       toUpsert.push({
@@ -224,9 +222,25 @@ class GoogleCalendarManager {
     }
 
     if (toUpsert.length > 0) this.databaseManager.upsertCalendarEvents(toUpsert);
-    if (toRemove.length > 0) this.databaseManager.removeCalendarEvents(toRemove);
-    if (data.nextSyncToken)
-      this.databaseManager.updateCalendarSyncToken(calendar.id, data.nextSyncToken);
+
+    // Reconcile: drop local events in this window that the API no longer
+    // returns (cancelled or moved out of the window). Runs only after a fully
+    // successful fetch — errors above throw before anything is deleted.
+    const keepIds = new Set(toUpsert.map((e) => e.id));
+    const localIds = this.databaseManager.getCalendarEventIdsInWindow(
+      calendar.id,
+      windowStart.toISOString(),
+      windowEnd.toISOString()
+    );
+    const stale = localIds.filter((id) => !keepIds.has(id));
+    if (stale.length > 0) {
+      debugLogger.info(
+        "Removing events no longer on Google Calendar",
+        { calendarId: calendar.id, removed: stale.length },
+        "gcal"
+      );
+      this.databaseManager.removeCalendarEvents(stale);
+    }
   }
 
   scheduleNextMeeting() {
@@ -235,8 +249,13 @@ class GoogleCalendarManager {
       this.nextMeetingTimer = null;
     }
 
+    // Skip Apple events — appleCalendarManager schedules its own
+    // notifications; without this filter both managers notify for the same
+    // event and gcal's activeMeeting can hold an Apple event.
     const upcoming = this.databaseManager.getUpcomingEvents(1440);
-    const next = upcoming.find((e) => !this.notifiedMeetings.has(e.id));
+    const next = upcoming.find(
+      (e) => e.calendar_id !== "__apple__" && !this.notifiedMeetings.has(e.id)
+    );
     if (!next) return;
 
     const PRE_MEETING_LEAD_MS = 60 * 1000;
@@ -355,7 +374,10 @@ class GoogleCalendarManager {
 
   async setCalendarSelection(calendarId, isSelected) {
     this.databaseManager.updateCalendarSelection(calendarId, isSelected);
-    await this.syncEvents();
+    // Selection is already persisted — a sync failure must not undo that
+    await this.syncEvents().catch((err) =>
+      debugLogger.error("Post-selection sync failed", { error: err.message }, "gcal")
+    );
     this._consecutiveFailures = 0;
     this.scheduleNextMeeting();
   }

@@ -9,6 +9,26 @@ import { useAudioRecording } from "./hooks/useAudioRecording";
 import { useSettingsStore, setAppIcon } from "./stores/settingsStore";
 
 
+// Persistent Granola-style indicator shown while a meeting is being recorded
+const MeetingRecordingBars = () => (
+  <div className="flex items-end justify-center gap-[3px]" style={{ height: 18 }}>
+    {[10, 16, 12, 18].map((height, i) => (
+      <div
+        key={i}
+        className="rounded-full animate-pulse"
+        style={{
+          width: 3,
+          height,
+          background: "#34d399",
+          boxShadow: "0 0 6px rgba(52, 211, 153, 0.6)",
+          animationDelay: `${i * 0.15}s`,
+          animationDuration: `${0.7 + i * 0.15}s`,
+        }}
+      />
+    ))}
+  </div>
+);
+
 // Voice Wave Animation Component (for processing state)
 const VoiceWaveIndicator = ({ isListening }) => {
   return (
@@ -43,6 +63,15 @@ export default function App() {
   const [dragStartPos, setDragStartPos] = useState(null);
   const [hasDragged, setHasDragged] = useState(false);
   const [activeApp, setActiveApp] = useState(null); // { name, bundleId, icon }
+  const [meetingRecording, setMeetingRecording] = useState(false);
+
+  // Persistent meeting-recording indicator, driven by the main process
+  useEffect(() => {
+    const unsubscribe = window.electronAPI?.onMeetingRecordingIndicator?.((data) => {
+      setMeetingRecording(!!data?.active);
+    });
+    return () => unsubscribe?.();
+  }, []);
 
   // Activation mode (tap vs push/hold)
   const activationMode = useSettingsStore((s) => s.activationMode);
@@ -227,7 +256,9 @@ export default function App() {
   useEffect(() => {
     let hideTimeout;
 
-    if (floatingIconAutoHide && !isRecording && !isProcessing && toastCount === 0) {
+    // Never auto-hide while a meeting is being recorded — the persistent
+    // indicator is the user's only signal that recording is live.
+    if (floatingIconAutoHide && !isRecording && !isProcessing && toastCount === 0 && !meetingRecording) {
       // Hide immediately to prevent the idle icon from flashing on screen
       // after the recording/processing cycle ends.
       hideTimeout = setTimeout(() => {
@@ -239,7 +270,7 @@ export default function App() {
 
     prevAutoHideRef.current = floatingIconAutoHide;
     return () => clearTimeout(hideTimeout);
-  }, [isRecording, isProcessing, floatingIconAutoHide, toastCount]);
+  }, [isRecording, isProcessing, floatingIconAutoHide, toastCount, meetingRecording]);
 
   const handleClose = () => {
     window.electronAPI.hideWindow();
@@ -384,8 +415,47 @@ export default function App() {
         </div>
       )}
 
+      {/* Persistent meeting-recording indicator (Granola-style) */}
+      {!showPill && meetingRecording && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center"
+          onMouseEnter={() => {
+            setIsHovered(true);
+            setWindowInteractivity(true);
+          }}
+          onMouseLeave={() => {
+            setIsHovered(false);
+            setWindowInteractivity(false);
+          }}
+        >
+          <button
+            onClick={() => window.electronAPI?.showControlPanel?.()}
+            title={t("app.meetingRecordingIndicator")}
+            className="flex flex-col items-center justify-center gap-1.5 rounded-full backdrop-blur-2xl cursor-pointer"
+            style={{
+              width: 44,
+              height: 64,
+              background: "rgba(30, 30, 30, 0.85)",
+              boxShadow: "0 6px 24px rgba(0,0,0,0.45), inset 0 0.5px 0 rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.1)",
+            }}
+          >
+            <div
+              className="rounded-full"
+              style={{
+                width: 6,
+                height: 6,
+                background: "#ef4444",
+                boxShadow: "0 0 6px rgba(239, 68, 68, 0.7)",
+              }}
+            />
+            <MeetingRecordingBars />
+          </button>
+        </div>
+      )}
+
       {/* Idle state - invisible but keeps window alive for hotkey activation */}
-      {!showPill && <div className="fixed inset-0" />}
+      {!showPill && !meetingRecording && <div className="fixed inset-0" />}
     </div>
   );
 }

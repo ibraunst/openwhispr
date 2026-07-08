@@ -19,7 +19,9 @@ export default function IntegrationsView() {
   const hfToken = (useSettingsStore.getState() as any).hfToken as string ?? "";
   const setHfToken = (useSettingsStore.getState() as any).setHfToken as (key: string) => void;
   const [hfTokenInput, setHfTokenInput] = useState(hfToken);
-  const hfSavedRef = useRef(false);
+  // State, not a ref: the "saved" flash drives render output, and a ref reset
+  // by setTimeout never triggers the re-render that restores the check icon
+  const [hfJustSaved, setHfJustSaved] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [disconnectingEmail, setDisconnectingEmail] = useState<string | null>(null);
   const [confirmDisconnectEmail, setConfirmDisconnectEmail] = useState<string | null>(null);
@@ -386,7 +388,7 @@ export default function IntegrationsView() {
                 <p className="text-[13px] font-medium text-foreground">HuggingFace</p>
                 <p className="text-[11px] text-muted-foreground/60 mt-0.5">Required for speaker identification in meeting transcripts</p>
               </div>
-              {hfToken && !hfSavedRef.current && (
+              {hfToken && !hfJustSaved && (
                 <Check size={14} className="text-emerald-500 shrink-0" />
               )}
             </div>
@@ -403,8 +405,8 @@ export default function IntegrationsView() {
               <button
                 onClick={() => {
                   setHfToken(hfTokenInput.trim());
-                  hfSavedRef.current = true;
-                  setTimeout(() => { hfSavedRef.current = false; }, 2000);
+                  setHfJustSaved(true);
+                  setTimeout(() => setHfJustSaved(false), 2000);
                 }}
                 disabled={!hfTokenInput.trim() || hfTokenInput.trim() === hfToken}
                 className="h-8 px-3 text-xs rounded-md bg-primary text-primary-foreground font-medium disabled:opacity-40 hover:bg-primary/90 transition-colors"

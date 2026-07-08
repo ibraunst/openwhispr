@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Calendar, Loader2, LogIn, Monitor, Video } from "lucide-react";
 import { Button } from "./ui/button";
@@ -42,7 +42,13 @@ export default function UpcomingMeetings({ events, isLoading }: UpcomingMeetings
   const screenRecording = useScreenRecordingPermission();
   const isSignedIn = useSettingsStore((s) => s.isSignedIn);
 
-  const now = useMemo(() => new Date(), []);
+  // Tick every 30s — memoizing mount time froze "happening now" forever in
+  // the long-lived control panel
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const groupedEvents = useMemo(() => {
     if (events.length === 0) return [];

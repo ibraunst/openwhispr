@@ -56,6 +56,11 @@ export default function AgentOverlay() {
       conversationIdRef.current = conv?.id ?? null;
     }
 
+    // Capture the conversation this exchange belongs to — reading the shared
+    // ref again after the stream completes persists the reply into whatever
+    // conversation is active THEN (e.g. after "New chat" mid-stream).
+    const conversationId = conversationIdRef.current;
+
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: "user",
@@ -64,15 +69,15 @@ export default function AgentOverlay() {
     };
     setMessages((prev) => [...prev, userMsg]);
 
-    if (conversationIdRef.current) {
-      window.electronAPI?.addAgentMessage?.(conversationIdRef.current, "user", text);
+    if (conversationId) {
+      window.electronAPI?.addAgentMessage?.(conversationId, "user", text);
     }
 
     // Auto-title after first user message
     const allMessages = messagesRef.current;
-    if (conversationIdRef.current && allMessages.length === 0) {
+    if (conversationId && allMessages.length === 0) {
       const title = text.slice(0, 50) + (text.length > 50 ? "..." : "");
-      window.electronAPI?.updateAgentConversationTitle?.(conversationIdRef.current, title);
+      window.electronAPI?.updateAgentConversationTitle?.(conversationId, title);
     }
 
     setAgentState("thinking");
@@ -117,8 +122,8 @@ export default function AgentOverlay() {
         prev.map((m) => (m.id === assistantId ? { ...m, isStreaming: false } : m))
       );
 
-      if (conversationIdRef.current) {
-        window.electronAPI?.addAgentMessage?.(conversationIdRef.current, "assistant", fullContent);
+      if (conversationId) {
+        window.electronAPI?.addAgentMessage?.(conversationId, "assistant", fullContent);
       }
     } catch (error) {
       setMessages((prev) =>

@@ -1170,11 +1170,17 @@ class WindowManager {
       this.dismissMeetingNotification();
     }, 60000);
 
-    this.notificationWindow.on("closed", () => {
-      this.notificationWindow = null;
-      if (this._notificationTimeout) {
-        clearTimeout(this._notificationTimeout);
-        this._notificationTimeout = null;
+    // Capture this window instance: when a new notification replaces this
+    // one, the OLD window's async closed event must not null out (or clear
+    // the timeout of) the NEW window it was replaced with.
+    const thisWindow = this.notificationWindow;
+    thisWindow.on("closed", () => {
+      if (this.notificationWindow === thisWindow) {
+        this.notificationWindow = null;
+        if (this._notificationTimeout) {
+          clearTimeout(this._notificationTimeout);
+          this._notificationTimeout = null;
+        }
       }
       if (this.meetingDetectionEngine) {
         setTimeout(() => this.meetingDetectionEngine._flushNotificationQueue(), 1000);

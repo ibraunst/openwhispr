@@ -2950,6 +2950,15 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     if (this.mediaRecorder?.state === "recording") {
       this.stopRecording();
     }
+    // Release the pre-warmed mic stream — every AudioManager grabs one at
+    // construction, so leaking it here accumulates live mic captures (and the
+    // OS mic-in-use indicator) on each mount/unmount of a consumer.
+    if (this._warmMicStream) {
+      try {
+        this._warmMicStream.getTracks().forEach((track) => track.stop());
+      } catch {}
+      this._warmMicStream = null;
+    }
     if (this.persistentAudioContext && this.persistentAudioContext.state !== "closed") {
       this.persistentAudioContext.close().catch(() => {});
       this.persistentAudioContext = null;

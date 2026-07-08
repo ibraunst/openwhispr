@@ -151,6 +151,24 @@ export default function CalendarView({ onOpenNote, onStartMeetingRecording }: Ca
     }
   }, []);
 
+  // Refresh = real sync from the providers, then re-read. fetchEvents alone
+  // only re-reads the local cache, so the button appeared to do nothing.
+  // Separate refreshing state: syncing can take seconds and `loading` swaps
+  // the whole view to a spinner.
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.allSettled([
+        window.electronAPI?.gcalSyncEvents?.(),
+        window.electronAPI?.acalSyncEvents?.(),
+      ]);
+      await fetchEvents();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchEvents]);
+
   useEffect(() => {
     fetchEvents();
     const interval = setInterval(fetchEvents, 60000);
@@ -228,11 +246,12 @@ export default function CalendarView({ onOpenNote, onStartMeetingRecording }: Ca
                   )}
                   <Toggle checked={recordMeetings} onChange={handleRecordMeetingsToggle} />
                   <button
-                    onClick={() => { setLoading(true); fetchEvents(); }}
-                    className="p-1.5 rounded-md hover:bg-foreground/5 dark:hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    className="p-1.5 rounded-md hover:bg-foreground/5 dark:hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50"
                     title="Refresh"
                   >
-                    <RefreshCw size={14} />
+                    <RefreshCw size={14} className={refreshing ? "animate-spin" : undefined} />
                   </button>
                 </div>
               </div>

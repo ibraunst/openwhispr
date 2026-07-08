@@ -134,7 +134,14 @@ export const useAudioRecording = (toast, options = {}) => {
           // Skip saving personal dictation transcriptions — only meeting transcripts are persisted
           // audioManagerRef.current.saveTranscription(result.text, result.rawText ?? result.text);
 
-          if (result.source === "openai" && getSettings().useLocalWhisper) {
+          // The fallback paths tag results as "openai-fallback" (local→cloud)
+          // or "openai-reasoned" — the exact match on "openai" never fired,
+          // so local-mode users were never told their audio went to the cloud.
+          if (
+            typeof result.source === "string" &&
+            result.source.startsWith("openai") &&
+            getSettings().useLocalWhisper
+          ) {
             toast({
               title: t("hooks.audioRecording.fallback.title"),
               description: t("hooks.audioRecording.fallback.description"),

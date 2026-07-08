@@ -382,9 +382,33 @@ app.on("open-url", (event, url) => {
 // Extract the session verifier from the deep link and navigate the control
 // panel to its app URL with the verifier param so the Neon Auth SDK can
 // read it from window.location.search and complete authentication.
+let pendingOAuthVerifier = null;
+
+function flushPendingOAuthVerifier() {
+  if (!pendingOAuthVerifier) return;
+  const verifier = pendingOAuthVerifier;
+  pendingOAuthVerifier = null;
+  navigateControlPanelWithVerifier(verifier);
+}
+
 function navigateControlPanelWithVerifier(verifier) {
   if (!verifier) return;
-  if (!isLiveWindow(windowManager?.controlPanelWindow)) return;
+  if (!isLiveWindow(windowManager?.controlPanelWindow)) {
+    // Cold start / startMinimized: the window doesn't exist yet. Dropping the
+    // verifier silently fails the sign-in — queue it and create the window.
+    pendingOAuthVerifier = verifier;
+    if (windowManager) {
+      Promise.resolve(windowManager.createControlPanelWindow())
+        .then(() => flushPendingOAuthVerifier())
+        .catch((err) => {
+          if (debugLogger)
+            debugLogger.error("Failed to create window for OAuth verifier", { error: err.message });
+        });
+    }
+    // If windowManager doesn't exist yet (open-url before init), startup
+    // flushes the queued verifier once windows are created.
+    return;
+  }
 
   const appUrl = DevServerManager.getAppUrl(true);
 
@@ -594,6 +618,9 @@ async function startApp() {
   if (!startMinimized) {
     await windowManager.createControlPanelWindow();
   }
+
+  // Deliver an OAuth verifier that arrived via open-url before init finished
+  flushPendingOAuthVerifier();
 
   // Create agent window (hidden) and set up agent hotkey
   await windowManager.createAgentWindow();

@@ -1748,7 +1748,8 @@
     "oauth": {
       "redirectTitle": "正在跳转到应用...",
       "closeTab": "您可以关闭此标签页。"
-    }
+    },
+    "meetingRecordingIndicator": "会议录制中——点击打开"
   },
   "agentMode": {
     "settings": {

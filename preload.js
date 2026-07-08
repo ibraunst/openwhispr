@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   pasteText: (text, options) => ipcRenderer.invoke("paste-text", text, options),
   hideWindow: () => ipcRenderer.invoke("hide-window"),
   showDictationPanel: () => ipcRenderer.invoke("show-dictation-panel"),
+  showControlPanel: () => ipcRenderer.invoke("show-control-panel"),
   setSleepBlocker: (active) => ipcRenderer.invoke("set-sleep-blocker", active),
   onToggleDictation: registerListener("toggle-dictation", (callback) => (_event, app) => callback(app)),
   onStartDictation: registerListener("start-dictation", (callback) => (_event, app) => callback(app)),
@@ -488,6 +489,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("meeting-transcribe-local", audioBuffer, options),
   meetingSetUserRecording: (active) =>
     ipcRenderer.invoke("meeting-set-user-recording", active),
+  onMeetingRecordingIndicator: registerListener(
+    "meeting-recording-indicator",
+    (callback) => (_event, data) => callback(data)
+  ),
   onMeetingProcessEnded: registerListener(
     "meeting-process-ended",
     (callback) => (_event, data) => callback(data)
@@ -637,6 +642,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   gcalSetCalendarSelection: (calendarId, isSelected) =>
     ipcRenderer.invoke("gcal-set-calendar-selection", calendarId, isSelected),
   gcalSyncEvents: () => ipcRenderer.invoke("gcal-sync-events"),
+  acalSyncEvents: () => ipcRenderer.invoke("acal-sync-events"),
   gcalGetUpcomingEvents: (windowMinutes) =>
     ipcRenderer.invoke("gcal-get-upcoming-events", windowMinutes),
 

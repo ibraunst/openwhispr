@@ -1748,7 +1748,8 @@
     "oauth": {
       "redirectTitle": "Reindirizzamento all'app...",
       "closeTab": "Puoi chiudere questa scheda."
-    }
+    },
+    "meetingRecordingIndicator": "La riunione è in fase di registrazione — clicca per aprire"
   },
   "agentMode": {
     "settings": {

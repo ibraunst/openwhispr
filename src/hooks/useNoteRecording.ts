@@ -146,9 +146,11 @@ export function useNoteRecording({
     if (!manager) return;
 
     const state = manager.getState();
-    if (!state.isRecording) return;
+    if (!state.isRecording && !state.isStreamingStartInProgress) return;
 
-    if (state.isStreaming) {
+    // During streaming startup the pipeline isn't wired yet — route to the
+    // streaming stop (it defers internally) or the click is silently dropped.
+    if (state.isStreaming || state.isStreamingStartInProgress) {
       await manager.stopStreamingRecording();
     } else {
       manager.stopRecording();
@@ -160,7 +162,7 @@ export function useNoteRecording({
     if (!manager) return;
 
     const state = manager.getState();
-    if (state.isStreaming) {
+    if (state.isStreaming || state.isStreamingStartInProgress) {
       manager.stopStreamingRecording();
     } else {
       manager.cancelRecording();

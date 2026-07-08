@@ -1748,7 +1748,8 @@
     "oauth": {
       "redirectTitle": "Redirecionando para o app...",
       "closeTab": "Você pode fechar esta aba."
-    }
+    },
+    "meetingRecordingIndicator": "A reunião está sendo gravada — clique para abrir"
   },
   "agentMode": {
     "settings": {

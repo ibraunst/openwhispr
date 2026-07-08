@@ -178,6 +178,7 @@ export async function startMigration(): Promise<void> {
 
   const { NotesService } = await import("../services/NotesService.js");
   const CHUNK_SIZE = 50;
+  let failedChunks = 0;
 
   for (let i = 0; i < unsynced.length; i += CHUNK_SIZE) {
     const chunk = unsynced.slice(i, i + CHUNK_SIZE);
@@ -210,9 +211,15 @@ export async function startMigration(): Promise<void> {
           : null,
       }));
     } catch (err) {
+      failedChunks++;
       console.error("Migration chunk failed:", err);
     }
   }
 
+  if (failedChunks > 0) {
+    console.error(
+      `Cloud migration incomplete: ${failedChunks} chunk(s) failed — those notes were not synced`
+    );
+  }
   useNoteStore.setState({ migration: null });
 }

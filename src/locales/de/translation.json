@@ -1748,7 +1748,8 @@
     "oauth": {
       "redirectTitle": "Weiterleitung zur App...",
       "closeTab": "Du kannst diesen Tab schließen."
-    }
+    },
+    "meetingRecordingIndicator": "Meeting wird aufgezeichnet — zum Öffnen klicken"
   },
   "agentMode": {
     "settings": {

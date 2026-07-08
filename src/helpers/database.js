@@ -868,7 +868,7 @@ class DatabaseManager {
         .get(id);
       if (!conversation) return null;
       const messages = this.db
-        .prepare("SELECT * FROM agent_messages WHERE conversation_id = ? ORDER BY created_at ASC")
+        .prepare("SELECT * FROM agent_messages WHERE conversation_id = ? ORDER BY created_at ASC, id ASC")
         .all(id);
       return { ...conversation, messages };
     } catch (error) {
@@ -1094,7 +1094,7 @@ class DatabaseManager {
     try {
       if (!this.db) throw new Error("Database not initialized");
       return this.db
-        .prepare("SELECT * FROM agent_messages WHERE conversation_id = ? ORDER BY created_at ASC")
+        .prepare("SELECT * FROM agent_messages WHERE conversation_id = ? ORDER BY created_at ASC, id ASC")
         .all(conversationId);
     } catch (error) {
       debugLogger.error("Error getting agent messages", { error: error.message }, "database");
@@ -1336,11 +1336,31 @@ class DatabaseManager {
   removeCalendarEvents(eventIds) {
     try {
       if (!this.db) throw new Error("Database not initialized");
-      const placeholders = eventIds.map(() => "?").join(", ");
-      this.db.prepare(`DELETE FROM calendar_events WHERE id IN (${placeholders})`).run(...eventIds);
+      if (!eventIds || eventIds.length === 0) return { success: true };
+      // Chunk to stay under SQLite's bound-parameter limit
+      for (let i = 0; i < eventIds.length; i += 500) {
+        const chunk = eventIds.slice(i, i + 500);
+        const placeholders = chunk.map(() => "?").join(", ");
+        this.db.prepare(`DELETE FROM calendar_events WHERE id IN (${placeholders})`).run(...chunk);
+      }
       return { success: true };
     } catch (error) {
       debugLogger.error("Error removing calendar events", { error: error.message }, "gcal");
+      throw error;
+    }
+  }
+
+  getCalendarEventIdsInWindow(calendarId, startISO, endISO) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      return this.db
+        .prepare(
+          "SELECT id FROM calendar_events WHERE calendar_id = ? AND datetime(start_time) >= datetime(?) AND datetime(start_time) <= datetime(?)"
+        )
+        .all(calendarId, startISO, endISO)
+        .map((r) => r.id);
+    } catch (error) {
+      debugLogger.error("Error listing calendar events in window", { error: error.message }, "gcal");
       throw error;
     }
   }

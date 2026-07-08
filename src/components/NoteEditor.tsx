@@ -6,6 +6,7 @@ import { ConfirmDialog } from "./ui/dialog.js";
 import { cn } from "./lib/utils";
 import type { NoteItem } from "../types/electron.js";
 import { syncNoteUpdateToCloud, syncNoteDeleteToCloud } from "../stores/noteStore.js";
+import logger from "../utils/logger";
 
 const NOTE_TYPE_COLORS: Record<NoteItem["note_type"], string> = {
   personal: "bg-foreground/5 text-foreground/50",
@@ -62,7 +63,13 @@ export default function NoteEditor({ note, cloudEnabled, onDelete, onUpdate }: N
           const updated = { ...note, ...updates };
           onUpdate(updated);
           if (cloudEnabled) {
-            syncNoteUpdateToCloud(updated, updates).catch(() => {});
+            syncNoteUpdateToCloud(updated, updates).catch((err: Error) => {
+              logger.error(
+                "Cloud note sync failed — local and cloud copies diverge",
+                { noteId: note.id, error: err.message },
+                "notes"
+              );
+            });
           }
           setSaveState("saved");
           fadeTimerRef.current = setTimeout(() => setSaveState("idle"), 2000);
@@ -103,7 +110,13 @@ export default function NoteEditor({ note, cloudEnabled, onDelete, onUpdate }: N
   const handleConfirmDelete = useCallback(async () => {
     await window.electronAPI.deleteNote(note.id);
     if (cloudEnabled && note.cloud_id) {
-      syncNoteDeleteToCloud(note.cloud_id).catch(() => {});
+      syncNoteDeleteToCloud(note.cloud_id).catch((err: Error) => {
+        logger.error(
+          "Cloud note delete failed — note remains in cloud",
+          { cloudId: note.cloud_id, error: err.message },
+          "notes"
+        );
+      });
     }
     onDelete(note.id);
   }, [note, cloudEnabled, onDelete]);

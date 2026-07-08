@@ -205,7 +205,9 @@ class GoogleCalendarOAuth {
       this.databaseManager.saveGoogleTokens({
         google_email: tokens.google_email,
         access_token: refreshed.access_token,
-        refresh_token: tokens.refresh_token,
+        // Google may rotate the refresh token on refresh — keep the new one
+        // or the stored token eventually stops working
+        refresh_token: refreshed.refresh_token || tokens.refresh_token,
         expires_at: newExpiresAt,
         scope: tokens.scope,
       });

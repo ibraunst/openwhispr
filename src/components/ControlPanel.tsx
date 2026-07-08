@@ -61,6 +61,9 @@ export default function ControlPanel() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
   const [isMeetingMode, setIsMeetingMode] = useState(false);
+  // True while a meeting recording/transcription/diarization is in flight —
+  // keeps PersonalNotesView mounted so navigation doesn't kill the recording
+  const [meetingActivityActive, setMeetingActivityActive] = useState(false);
   const [meetingRecordingRequest, setMeetingRecordingRequest] = useState<{
     noteId: number;
     folderId: number;
@@ -631,17 +634,22 @@ export default function ControlPanel() {
                 />
               </Suspense>
             )}
-            {activeView === "personal-notes" && (
+            {/* Keep mounted (hidden) while a meeting is recording/processing —
+                unmounting the view stops the recording. */}
+            {(activeView === "personal-notes" || meetingActivityActive) && (
               <Suspense fallback={null}>
-                <PersonalNotesView
-                  onOpenSettings={(section) => {
-                    setSettingsSection(section);
-                    setShowSettings(true);
-                  }}
-                  meetingRecordingRequest={meetingRecordingRequest}
-                  onMeetingRecordingRequestHandled={handleMeetingRecordingRequestHandled}
-                  isMeetingMode={isMeetingMode}
-                />
+                <div className={activeView === "personal-notes" ? "h-full" : "hidden"}>
+                  <PersonalNotesView
+                    onOpenSettings={(section) => {
+                      setSettingsSection(section);
+                      setShowSettings(true);
+                    }}
+                    meetingRecordingRequest={meetingRecordingRequest}
+                    onMeetingRecordingRequestHandled={handleMeetingRecordingRequestHandled}
+                    isMeetingMode={isMeetingMode}
+                    onMeetingActivityChange={setMeetingActivityActive}
+                  />
+                </div>
               </Suspense>
             )}
             {activeView === "dictionary" && (

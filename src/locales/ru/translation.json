@@ -1748,7 +1748,8 @@
     "oauth": {
       "redirectTitle": "Перенаправление в приложение...",
       "closeTab": "Можете закрыть эту вкладку."
-    }
+    },
+    "meetingRecordingIndicator": "Идёт запись встречи — нажмите, чтобы открыть"
   },
   "agentMode": {
     "settings": {

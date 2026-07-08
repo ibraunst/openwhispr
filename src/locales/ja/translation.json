@@ -1748,7 +1748,8 @@
     "oauth": {
       "redirectTitle": "アプリにリダイレクト中...",
       "closeTab": "このタブを閉じてください。"
-    }
+    },
+    "meetingRecordingIndicator": "会議を録音中 — クリックで開く"
   },
   "agentMode": {
     "settings": {

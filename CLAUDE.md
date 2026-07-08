@@ -439,6 +439,11 @@ interface AppProfile {
 - **`.env` writes are serialized + atomic** (`environment.js`): all writers funnel through `saveAllKeysToEnvFile`'s promise queue and temp-file+rename. Never add a bare `writeFile` of the .env — concurrent fire-and-forget callers corrupt the file holding every API key.
 - **Model-server `start(modelPath)` joins an in-flight startup only for the SAME model** (whisper/llama/parakeet-ws): returning it unconditionally serves the wrong model while `currentServerModel` records the requested one. Startup timeouts must kill the spawned process (still loading = holds port + GBs of RAM).
 - **Parakeet deletes the archive on EXTRACTION_FAILED** — the reuse-existing-archive path would otherwise re-extract the same corrupt file on every retry forever.
+- **PersonalNotesView stays mounted during meeting work**: ControlPanel keeps it rendered (hidden) while `onMeetingActivityChange` reports recording/processing/diarizing — conditional unmount stops the recording.
+- **Gcal sync = full-window fetch + pagination + reconciliation, NO sync tokens**: tokens pin the original 7-day horizon (new events beyond it never appear). Reconciliation (delete local ids missing from the response) runs only after a fully successful fetch. `syncEvents` throws when ALL calendars fail so interval backoff engages; per-calendar failures only log.
+- **gcal scheduleNextMeeting skips `__apple__` events** — Apple manager notifies for its own events; without the filter both fire.
+- **OAuth deep links queue** (`pendingOAuthVerifier` in main.js) when the control panel isn't live; flushed after window creation. Dropping the verifier silently fails sign-in.
+- **Export files**: `lastExportRef` is cleared at every recording start (stale ref rewrites the previous meeting's file with the new meeting's transcript); export content prefers the diarized transcript when already available; filename separator is platform-aware ("|" is invalid on Windows).
 
 ---
 

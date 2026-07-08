@@ -46,6 +46,11 @@ function makeContentHash(content: string): string {
   return String(content.length) + "-" + content.slice(0, 50);
 }
 
+// "|" is invalid in Windows filenames — the write would fail silently there
+const EXPORT_TITLE_SEPARATOR = navigator.platform?.toLowerCase().includes("win")
+  ? " - "
+  : " | ";
+
 /** Attendee display names from a calendar event's attendees JSON, excluding the user's own accounts. */
 function parseAttendeeNames(attendeesJson: string | null): string[] {
   if (!attendeesJson) return [];
@@ -81,6 +86,7 @@ interface PersonalNotesViewProps {
   meetingRecordingRequest?: { noteId: number; folderId: number; event: any } | null;
   onMeetingRecordingRequestHandled?: () => void;
   isMeetingMode?: boolean;
+  onMeetingActivityChange?: (active: boolean) => void;
 }
 
 export default function PersonalNotesView({
@@ -88,6 +94,7 @@ export default function PersonalNotesView({
   meetingRecordingRequest,
   onMeetingRecordingRequestHandled,
   isMeetingMode,
+  onMeetingActivityChange,
 }: PersonalNotesViewProps) {
   const { t } = useTranslation();
   const notes = useNotes();
@@ -136,11 +143,44 @@ export default function PersonalNotesView({
   // Which note the current/most-recent meeting belongs to. The hook's
   // transcript state must never render on (or be written into) other notes.
   const [meetingNoteId, setMeetingNoteId] = useState<number | null>(null);
+
+  // Tell the parent while meeting work is in flight so it keeps this view
+  // mounted — unmounting stops the recording.
+  useEffect(() => {
+    onMeetingActivityChange?.(isMeetingRecording || isMeetingLocalProcessing || isMeetingDiarizing);
+  }, [isMeetingRecording, isMeetingLocalProcessing, isMeetingDiarizing, onMeetingActivityChange]);
+
+  // Reset the parent flag if this view unmounts for any other reason, so it
+  // doesn't stay force-mounted forever.
+  useEffect(() => {
+    return () => onMeetingActivityChange?.(false);
+  }, [onMeetingActivityChange]);
   const calendarTitleRef = useRef<string | null>(null);
   const calendarStartTimeRef = useRef<string | null>(null);
   const calendarAttendeesRef = useRef<string | null>(null);
   // Track the last exported transcript file so we can overwrite it with speaker labels
   const lastExportRef = useRef<{ filename: string; directory: string; headerLines: string[] } | null>(null);
+
+  const writeTranscriptExport = useCallback(
+    (content: string, filename: string, directory: string) => {
+      window.electronAPI
+        .saveTranscriptToFile?.(content, filename, directory)
+        .then((result: { success?: boolean; error?: string } | void) => {
+          if (result && result.success === false) {
+            throw new Error(result.error || "Write failed");
+          }
+        })
+        .catch((err: Error) => {
+          logger.error("Transcript export failed", { filename, error: err.message }, "notes");
+          toast({
+            title: "Transcript export failed",
+            description: `${filename}: ${err.message}`,
+            variant: "destructive",
+          });
+        });
+    },
+    [toast]
+  );
 
   const {
     folders,
@@ -603,6 +643,9 @@ export default function PersonalNotesView({
     calendarStartTimeRef.current = null;
     calendarAttendeesRef.current = null;
     diarizationAttendeesRef.current = null;
+    // A stale ref from the previous meeting would rewrite ITS file with THIS
+    // meeting's transcript when diarization completes
+    lastExportRef.current = null;
     meetingNoteIdRef.current = activeNoteId;
     diarizationNoteIdRef.current = activeNoteId;
     setMeetingNoteId(activeNoteId);
@@ -630,6 +673,7 @@ export default function PersonalNotesView({
     meetingNoteIdRef.current = meetingRecordingRequest.noteId;
     diarizationNoteIdRef.current = meetingRecordingRequest.noteId;
     setMeetingNoteId(meetingRecordingRequest.noteId);
+    lastExportRef.current = null;
     // Only use event title if it's a real calendar event — synthetic process-detected
     // events use calendar_id "__detected__" and their title (e.g. "Zoom Meeting")
     // should be replaced by the AI-generated subject after transcription.
@@ -685,11 +729,11 @@ export default function PersonalNotesView({
     if (lastExportRef.current) {
       const { filename, directory, headerLines } = lastExportRef.current;
       const fileContent = headerLines.join("\n") + meetingDiarizedTranscript;
-      window.electronAPI.saveTranscriptToFile?.(fileContent, filename, directory).catch(() => {});
+      writeTranscriptExport(fileContent, filename, directory);
       lastExportRef.current = null;
     }
     toast({ title: "Speaker labels added to transcript" });
-  }, [meetingDiarizedTranscript, activeFolderId, toast]);
+  }, [meetingDiarizedTranscript, activeFolderId, toast, writeTranscriptExport]);
 
   useEffect(() => {
     if (!meetingDiarizationError) return;
@@ -729,7 +773,7 @@ export default function PersonalNotesView({
         const _d = timestampSource;
         const datePart = `${String(_d.getMonth() + 1).padStart(2, "0")}-${String(_d.getDate()).padStart(2, "0")}-${String(_d.getFullYear()).slice(2)}`;
         const safeTitle = (finalTitle || "meeting").replace(/[/\\?%*:|"<>]/g, "-");
-        const filename = `${safeTitle} | ${datePart}.${ext}`;
+        const filename = `${safeTitle}${EXPORT_TITLE_SEPARATOR}${datePart}.${ext}`;
         const headerLines: string[] = [];
         headerLines.push(`# ${finalTitle || safeTitle}`);
         headerLines.push(`**Date:** ${timestampSource.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`);
@@ -742,16 +786,21 @@ export default function PersonalNotesView({
         }
         headerLines.push(`**Attendees:** ${attendeeList || "—"}`);
         headerLines.push("", "---", "");
-        const fileContent = headerLines.join("\n") + meetingTranscript;
-        window.electronAPI.saveTranscriptToFile?.(fileContent, filename, exportDirectory).catch(() => {});
-        lastExportRef.current = { filename, directory: exportDirectory, headerLines };
+        // Diarization may already be done — export the labeled transcript
+        // directly; only arm the rewrite ref when labels are still pending.
+        const exportTranscript = meetingDiarizedTranscript || meetingTranscript;
+        const fileContent = headerLines.join("\n") + exportTranscript;
+        writeTranscriptExport(fileContent, filename, exportDirectory);
+        lastExportRef.current = meetingDiarizedTranscript
+          ? null
+          : { filename, directory: exportDirectory, headerLines };
       }
       return;
     }
 
     isAutoGenerateRunningRef.current = true;
     handleGenerateNotes();
-  }, [isMeetingRecording, isMeetingLocalProcessing, meetingTranscript, handleGenerateNotes, localTitle]);
+  }, [isMeetingRecording, isMeetingLocalProcessing, meetingTranscript, meetingDiarizedTranscript, handleGenerateNotes, localTitle, writeTranscriptExport]);
 
   // Update note title once AI generation completes (or fails)
   const prevActionStateRef = useRef<string>("idle");
@@ -792,7 +841,7 @@ export default function PersonalNotesView({
         const _d = timestampSource;
         const datePart = `${String(_d.getMonth() + 1).padStart(2, "0")}-${String(_d.getDate()).padStart(2, "0")}-${String(_d.getFullYear()).slice(2)}`;
         const safeTitle = finalTitle?.replace(/[/\\?%*:|"<>]/g, "-") || "meeting";
-        const filename = `${safeTitle} | ${datePart}.${ext}`;
+        const filename = `${safeTitle}${EXPORT_TITLE_SEPARATOR}${datePart}.${ext}`;
 
         const headerLines: string[] = [];
         headerLines.push(`# ${finalTitle || safeTitle}`);
@@ -810,9 +859,14 @@ export default function PersonalNotesView({
         }
         headerLines.push(`**Attendees:** ${attendeeList || "—"}`);
         headerLines.push("", "---", "");
-        const fileContent = headerLines.join("\n") + meetingTranscript;
-        window.electronAPI.saveTranscriptToFile?.(fileContent, filename, exportDirectory).catch(() => {});
-        lastExportRef.current = { filename, directory: exportDirectory, headerLines };
+        // Diarization may already be done — export the labeled transcript
+        // directly; only arm the rewrite ref when labels are still pending.
+        const exportTranscript = meetingDiarizedTranscript || meetingTranscript;
+        const fileContent = headerLines.join("\n") + exportTranscript;
+        writeTranscriptExport(fileContent, filename, exportDirectory);
+        lastExportRef.current = meetingDiarizedTranscript
+          ? null
+          : { filename, directory: exportDirectory, headerLines };
       }
 
       calendarTitleRef.current = null;
@@ -820,7 +874,7 @@ export default function PersonalNotesView({
       calendarAttendeesRef.current = null;
     }
     prevActionStateRef.current = actionProcessingState ?? "idle";
-  }, [actionProcessingState, activeNoteId, handleTitleChange, meetingTranscript, localTitle]);
+  }, [actionProcessingState, activeNoteId, handleTitleChange, meetingTranscript, meetingDiarizedTranscript, localTitle, writeTranscriptExport]);
 
   const editorNote = activeNote
     ? { ...activeNote, title: localTitle, content: localContent }

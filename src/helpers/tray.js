@@ -54,8 +54,13 @@ class TrayManager {
       this.updateTrayMenu?.();
     });
 
-    window.on("destroyed", () => {
-      this.controlPanelWindow = null;
+    // BrowserWindow emits "closed", not "destroyed" (that's a webContents
+    // event) — the old listener never fired, leaving a stale reference.
+    window.on("closed", () => {
+      if (this.controlPanelWindow === window) {
+        this.controlPanelWindow = null;
+      }
+      this.attachedControlPanels.delete(window);
       this.updateTrayMenu?.();
     });
   }
