@@ -1632,7 +1632,8 @@
     },
     "enhance": {
       "title": "Error de mejora"
-    }
+    },
+    "liveTranscript": "Transcripción en vivo"
   },
   "dictionary": {
     "addWord": "Añadir palabra",

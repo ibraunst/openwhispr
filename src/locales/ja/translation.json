@@ -1560,7 +1560,8 @@
     },
     "enhance": {
       "title": "強化エラー"
-    }
+    },
+    "liveTranscript": "ライブ文字起こし"
   },
   "dictionary": {
     "addWord": "単語を追加",

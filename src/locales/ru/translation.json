@@ -1632,7 +1632,8 @@
     },
     "enhance": {
       "title": "Ошибка улучшения"
-    }
+    },
+    "liveTranscript": "Живая транскрипция"
   },
   "dictionary": {
     "addWord": "Добавить слово",

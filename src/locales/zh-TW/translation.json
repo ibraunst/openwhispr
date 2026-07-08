@@ -1632,7 +1632,8 @@
     },
     "enhance": {
       "title": "增強錯誤"
-    }
+    },
+    "liveTranscript": "即時轉錄"
   },
   "dictionary": {
     "addWord": "新增詞語",

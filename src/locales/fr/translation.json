@@ -1670,7 +1670,8 @@
     },
     "enhance": {
       "title": "Erreur d'amélioration"
-    }
+    },
+    "liveTranscript": "Transcription en direct"
   },
   "dictionary": {
     "title": "Dictionnaire personnalisé",

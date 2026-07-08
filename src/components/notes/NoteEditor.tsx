@@ -26,6 +26,7 @@ import type { NoteItem } from "../../types/electron";
 import type { ActionProcessingState } from "../../hooks/useActionProcessing";
 import ActionProcessingOverlay from "./ActionProcessingOverlay";
 import DictationWidget from "./DictationWidget";
+import LiveTranscriptPanel from "./LiveTranscriptPanel";
 import { normalizeDbDate } from "../../utils/dateFormatting";
 import { useSettingsStore } from "../../stores/settingsStore";
 
@@ -936,6 +937,9 @@ export default function NoteEditor({
             }}
             onRename={onRenameSpeaker}
           />
+        )}
+        {!!isMeetingRecording && !!meetingTranscript && (
+          <LiveTranscriptPanel text={meetingTranscript} />
         )}
         <DictationWidget
           isRecording={isRecording || !!isMeetingRecording}

@@ -1753,7 +1753,8 @@
     },
     "enhance": {
       "title": "Enhancement error"
-    }
+    },
+    "liveTranscript": "Live transcript"
   },
   "dictionary": {
     "title": "Custom Dictionary",
