@@ -44,6 +44,8 @@ export interface NoteItem {
   transcript: string | null;
   calendar_event_id: string | null;
   cloud_id: string | null;
+  export_path: string | null;
+  export_header: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -346,6 +348,10 @@ declare global {
         filename: string,
         directory: string
       ) => Promise<{ success: boolean; filePath?: string; error?: string }>;
+      overwriteExportedFile: (
+        path: string,
+        text: string
+      ) => Promise<{ success: boolean; error?: string }>;
 
       // Audio retention operations
       saveTranscriptionAudio: (
@@ -404,6 +410,8 @@ declare global {
           folder_id?: number | null;
           transcript?: string | null;
           calendar_event_id?: string | null;
+          export_path?: string | null;
+          export_header?: string | null;
         }
       ) => Promise<{ success: boolean; note?: NoteItem }>;
       deleteNote: (id: number) => Promise<{ success: boolean }>;

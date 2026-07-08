@@ -60,6 +60,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   selectExportDirectory: () => ipcRenderer.invoke("select-export-directory"),
   saveTranscriptToFile: (text, filename, directory) =>
     ipcRenderer.invoke("save-transcript-to-file", { text, filename, directory }),
+  overwriteExportedFile: (path, text) =>
+    ipcRenderer.invoke("overwrite-exported-file", { path, text }),
 
   // Dictionary functions
   getDictionary: () => ipcRenderer.invoke("db-get-dictionary"),

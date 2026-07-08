@@ -346,6 +346,16 @@ class DatabaseManager {
       } catch (err) {
         if (!err.message.includes("duplicate column")) throw err;
       }
+      try {
+        this.db.exec("ALTER TABLE notes ADD COLUMN export_path TEXT");
+      } catch (err) {
+        if (!err.message.includes("duplicate column")) throw err;
+      }
+      try {
+        this.db.exec("ALTER TABLE notes ADD COLUMN export_header TEXT");
+      } catch (err) {
+        if (!err.message.includes("duplicate column")) throw err;
+      }
 
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS settings (
@@ -629,6 +639,8 @@ class DatabaseManager {
         "folder_id",
         "transcript",
         "calendar_event_id",
+        "export_path",
+        "export_header",
       ];
       const fields = [];
       const values = [];

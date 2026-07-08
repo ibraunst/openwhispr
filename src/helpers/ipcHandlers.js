@@ -996,6 +996,19 @@ class IPCHandlers {
       }
     });
 
+    // Rewrite a previously-exported transcript file at a known absolute path
+    // (used when a speaker rename needs to update an old meeting's export).
+    ipcMain.handle("overwrite-exported-file", async (_event, { path: filePath, text }) => {
+      try {
+        const fs = require("fs");
+        fs.writeFileSync(filePath, text, "utf-8");
+        return { success: true };
+      } catch (error) {
+        debugLogger.error("Error overwriting exported file", { error: error.message }, "notes");
+        return { success: false, error: error.message };
+      }
+    });
+
     ipcMain.handle("select-export-directory", async () => {
       const { dialog } = require("electron");
       const result = await dialog.showOpenDialog({

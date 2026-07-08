@@ -162,12 +162,28 @@ export default function PersonalNotesView({
   const lastExportRef = useRef<{ filename: string; directory: string; headerLines: string[] } | null>(null);
 
   const writeTranscriptExport = useCallback(
-    (content: string, filename: string, directory: string) => {
+    (
+      content: string,
+      filename: string,
+      directory: string,
+      // Persists the resulting file path + header on the note itself so a
+      // later speaker rename can find and rewrite this file even after the
+      // in-memory lastExportRef pointer is gone (note switch, app restart).
+      persistTo?: { noteId: number; header: string }
+    ) => {
       window.electronAPI
         .saveTranscriptToFile?.(content, filename, directory)
-        .then((result: { success?: boolean; error?: string } | void) => {
+        .then((result?: { success?: boolean; filePath?: string; error?: string }) => {
           if (result && result.success === false) {
             throw new Error(result.error || "Write failed");
+          }
+          if (persistTo && result?.filePath) {
+            window.electronAPI
+              .updateNote(persistTo.noteId, {
+                export_path: result.filePath,
+                export_header: persistTo.header,
+              })
+              .catch(() => {});
           }
         })
         .catch((err: Error) => {
@@ -613,12 +629,27 @@ export default function PersonalNotesView({
           const updated = currentTranscript.split(marker).join(`**${newLabel}:**`);
           await window.electronAPI.updateNote(noteId, { transcript: updated });
           if (activeMeetingDiarized) overrideDiarizedTranscript(updated);
-          // Rewrite this meeting's exported file with the new speaker name.
-          // Gated to the current meeting note — lastExportRef points at ITS
-          // file; renames on older notes must not touch it.
+          // Rewrite the exported file with the new speaker name. Prefer the
+          // live in-session pointer (current meeting); fall back to what's
+          // persisted on the note itself so renames on older meetings —
+          // from a prior session, after switching notes — still land.
           if (lastExportRef.current && noteId === meetingNoteId) {
             const { filename, directory, headerLines } = lastExportRef.current;
             writeTranscriptExport(headerLines.join("\n") + updated, filename, directory);
+          } else if (activeNote?.export_path && activeNote?.export_header) {
+            window.electronAPI
+              .overwriteExportedFile?.(activeNote.export_path, activeNote.export_header + updated)
+              .then((res: { success?: boolean; error?: string } | void) => {
+                if (res && res.success === false) throw new Error(res.error || "Write failed");
+              })
+              .catch((err: Error) => {
+                logger.error("Transcript export rewrite failed", { error: err.message }, "notes");
+                toast({
+                  title: "Transcript export failed",
+                  description: err.message,
+                  variant: "destructive",
+                });
+              });
           }
           await initializeNotes(null, 50, activeFolderId);
         }
@@ -636,6 +667,8 @@ export default function PersonalNotesView({
     [
       activeNoteId,
       activeNote?.transcript,
+      activeNote?.export_path,
+      activeNote?.export_header,
       activeFolderId,
       activeMeetingDiarized,
       overrideDiarizedTranscript,
@@ -739,8 +772,15 @@ export default function PersonalNotesView({
     // handleRenameSpeaker. It's cleared at the next recording start.
     if (lastExportRef.current) {
       const { filename, directory, headerLines } = lastExportRef.current;
-      const fileContent = headerLines.join("\n") + meetingDiarizedTranscript;
-      writeTranscriptExport(fileContent, filename, directory);
+      const header = headerLines.join("\n");
+      const fileContent = header + meetingDiarizedTranscript;
+      const persistNoteId = meetingNoteIdRef.current;
+      writeTranscriptExport(
+        fileContent,
+        filename,
+        directory,
+        persistNoteId ? { noteId: persistNoteId, header } : undefined
+      );
     }
     toast({ title: "Speaker labels added to transcript" });
   }, [meetingDiarizedTranscript, activeFolderId, toast, writeTranscriptExport]);
@@ -800,8 +840,15 @@ export default function PersonalNotesView({
         // directly. Always arm the rewrite ref: pending diarization and
         // later speaker renames both rewrite this same file.
         const exportTranscript = meetingDiarizedTranscript || meetingTranscript;
-        const fileContent = headerLines.join("\n") + exportTranscript;
-        writeTranscriptExport(fileContent, filename, exportDirectory);
+        const header = headerLines.join("\n");
+        const fileContent = header + exportTranscript;
+        const persistNoteId = meetingNoteIdRef.current;
+        writeTranscriptExport(
+          fileContent,
+          filename,
+          exportDirectory,
+          persistNoteId ? { noteId: persistNoteId, header } : undefined
+        );
         lastExportRef.current = { filename, directory: exportDirectory, headerLines };
       }
       return;
@@ -872,8 +919,15 @@ export default function PersonalNotesView({
         // directly. Always arm the rewrite ref: pending diarization and
         // later speaker renames both rewrite this same file.
         const exportTranscript = meetingDiarizedTranscript || meetingTranscript;
-        const fileContent = headerLines.join("\n") + exportTranscript;
-        writeTranscriptExport(fileContent, filename, exportDirectory);
+        const header = headerLines.join("\n");
+        const fileContent = header + exportTranscript;
+        const persistNoteId = meetingNoteIdRef.current;
+        writeTranscriptExport(
+          fileContent,
+          filename,
+          exportDirectory,
+          persistNoteId ? { noteId: persistNoteId, header } : undefined
+        );
         lastExportRef.current = { filename, directory: exportDirectory, headerLines };
       }
 
