@@ -265,9 +265,9 @@ export default function AgentOverlay() {
       <div
         className={cn(
           "flex flex-col w-full h-full",
-          "bg-surface-0",
+          "bg-surface-0/85 backdrop-blur-2xl backdrop-saturate-150",
           "border border-border/50 rounded-lg",
-          "shadow-[var(--shadow-elevated)]",
+          "shadow-[inset_0_1px_0_rgba(255,255,255,0.07),var(--shadow-elevated,0_8px_24px_rgba(0,0,0,0.2))]",
           "overflow-hidden"
         )}
       >

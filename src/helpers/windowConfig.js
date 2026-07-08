@@ -8,6 +8,7 @@ const isGnomeWayland =
 const WINDOW_SIZES = {
   BASE: { width: 214, height: 56 },
   RECORDING: { width: 214, height: 56 },
+  MEETING_INDICATOR: { width: 64, height: 84 },
   WITH_MENU: { width: 240, height: 280 },
   WITH_TOAST: { width: 400, height: 500 },
   EXPANDED: { width: 400, height: 500 },
@@ -72,6 +73,11 @@ const CONTROL_PANEL_CONFIG = {
   ...(process.platform === "darwin" && {
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 20, y: 20 },
+    // Liquid glass: desktop shows through the translucent renderer tint.
+    // The renderer marks its root with .control-panel-vibrancy on darwin.
+    vibrancy: "under-window",
+    visualEffectState: "followWindow",
+    backgroundColor: "#00000000",
   }),
   transparent: false,
   minimizable: true,

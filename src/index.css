@@ -77,6 +77,13 @@
   /* Model picker premium effects (light mode) */
   --shadow-metallic-light: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.08);
   --shadow-card-hover-subtle: 0 2px 8px -2px rgba(0, 0, 0, 0.1);
+
+  /* Liquid glass — light mode */
+  --glass-bg: oklch(0.985 0.002 260 / 0.55);
+  --glass-bg-strong: oklch(0.985 0.002 260 / 0.78);
+  --glass-border: oklch(0.3 0.01 260 / 0.14);
+  --glass-highlight: oklch(1 0 0 / 0.7);
+  --glass-shadow: 0 12px 40px -12px oklch(0.25 0.02 260 / 0.3);
 }
 
 .dark {
@@ -133,6 +140,13 @@
   --shadow-selected-glow:
     inset 0 0 0 1px oklch(0.65 0.2 260 / 0.2), 0 0 16px -4px oklch(0.65 0.2 260 / 0.2);
   --shadow-card-hover-subtle: 0 2px 8px -2px rgba(0, 0, 0, 0.12);
+
+  /* Liquid glass — dark mode */
+  --glass-bg: oklch(0.26 0.008 260 / 0.55);
+  --glass-bg-strong: oklch(0.27 0.009 260 / 0.75);
+  --glass-border: oklch(1 0 0 / 0.1);
+  --glass-highlight: oklch(1 0 0 / 0.12);
+  --glass-shadow: 0 12px 40px -8px oklch(0 0 0 / 0.5);
 }
 
 @layer base {
@@ -285,9 +299,11 @@ textarea {
   box-shadow: 0 0 0 2px oklch(from var(--color-ring) l c h / 0.15);
 }
 
-/* Card styling - elevated parchment */
+/* Card styling — translucent glass card */
 .card {
-  background-color: var(--color-card);
+  background-color: oklch(from var(--color-card) l c h / 0.65);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card, 0 1px 3px oklch(from var(--color-foreground) l c h / 0.08));
@@ -349,12 +365,143 @@ a:hover {
   color: var(--color-brand-link);
 }
 
+/* ---- Liquid Glass System ----
+   Chrome surfaces (sidebar, dialogs, menus, toasts, pill) are translucent
+   layers that blur whatever sits behind them. On macOS the control panel
+   window uses under-window vibrancy so the desktop refracts through too. */
+
+/* Sidebar / rails — light frosting, content scrolls behind conceptually */
+.glass-panel {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  backdrop-filter: blur(24px) saturate(170%);
+}
+
+/* Floating layers — menus, popovers, tooltips */
+.glass-float {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  backdrop-filter: blur(28px) saturate(170%);
+  border-color: var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    var(--glass-shadow);
+}
+
+/* Modal layers — dialogs, settings */
+.glass-modal {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
+  border-color: var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    0 24px 64px -16px oklch(0 0 0 / 0.45);
+}
+
+/* Control panel over macOS vibrancy — body goes clear, root gets a
+   theme tint so the desktop glows through without hurting contrast */
+body:has(.control-panel-vibrancy),
+body:has(.control-panel-vibrancy) #root {
+  background: transparent;
+}
+
+.control-panel-vibrancy {
+  background-color: oklch(from var(--color-background) l c h / 0.78);
+}
+
+/* Ambient color field behind the control panel — gives the glass
+   something to refract. Sits at z -1 inside an isolated root. */
+.ambient-glass-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ambient-glass-bg::before,
+.ambient-glass-bg::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  animation: mesh-drift 30s ease-in-out infinite alternate;
+}
+
+.ambient-glass-bg::before {
+  width: 480px;
+  height: 480px;
+  top: -140px;
+  right: -100px;
+  background: oklch(0.6 0.19 260);
+  opacity: 0.07;
+}
+
+.ambient-glass-bg::after {
+  width: 420px;
+  height: 420px;
+  bottom: -120px;
+  left: -80px;
+  background: oklch(0.62 0.16 300);
+  opacity: 0.06;
+  animation-delay: -15s;
+  animation-direction: alternate-reverse;
+}
+
+.dark .ambient-glass-bg::before {
+  opacity: 0.11;
+}
+
+.dark .ambient-glass-bg::after {
+  opacity: 0.09;
+}
+
+/* Floating pill + meeting indicator — faux glass over the desktop
+   (transparent window, so depth comes from fill, sheen and specular edges) */
+.liquid-pill {
+  position: relative;
+  overflow: hidden;
+  background: rgba(28, 30, 36, 0.62);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  backdrop-filter: blur(28px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.03),
+    0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.liquid-pill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0.1),
+    transparent 38%,
+    transparent 72%,
+    rgba(255, 255, 255, 0.05)
+  );
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-glass-bg::before,
+  .ambient-glass-bg::after {
+    animation: none;
+  }
+}
+
 /* ---- Premium UI Utilities ---- */
 
 /* Section panel — grouped settings container */
 .section-panel {
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-subtle);
+  background: oklch(from var(--color-surface-2) l c h / 0.55);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
 }
 
@@ -390,12 +537,14 @@ a:hover {
   filter: invert(1);
 }
 
-/* Toast — opaque dark HUD surface, same in light & dark mode */
+/* Toast — dark glass HUD surface, same in light & dark mode */
 .toast-surface {
-  background: oklch(0.15 0.006 260);
-  border: 1px solid oklch(0.25 0.006 260);
+  background: oklch(0.17 0.008 260 / 0.8);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid oklch(1 0 0 / 0.1);
   box-shadow:
-    inset 0 1px 0 oklch(1 0 0 / 0.04),
+    inset 0 1px 0 oklch(1 0 0 / 0.09),
     0 8px 24px -4px oklch(0 0 0 / 0.5),
     0 2px 8px -2px oklch(0 0 0 / 0.3);
 }

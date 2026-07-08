@@ -462,7 +462,13 @@ export default function ControlPanel() {
   );
 
   return (
-    <div className="h-screen bg-background flex flex-col">
+    <div
+      className={cn(
+        "h-screen bg-background flex flex-col relative isolate",
+        platform === "darwin" && "control-panel-vibrancy"
+      )}
+    >
+      <div className="ambient-glass-bg" aria-hidden="true" />
       <ConfirmDialog
         open={confirmDialog.open}
         onOpenChange={hideConfirmDialog}

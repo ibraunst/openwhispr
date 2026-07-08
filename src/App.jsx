@@ -236,12 +236,14 @@ export default function App() {
         window.electronAPI?.resizeMainWindow?.("WITH_TOAST");
       } else if (isRecording || isProcessing) {
         window.electronAPI?.resizeMainWindow?.("RECORDING");
+      } else if (meetingRecording) {
+        window.electronAPI?.resizeMainWindow?.("MEETING_INDICATOR");
       } else {
         window.electronAPI?.resizeMainWindow?.("BASE");
       }
     };
     resizeWindow();
-  }, [isCommandMenuOpen, toastCount, isRecording, isProcessing]);
+  }, [isCommandMenuOpen, toastCount, isRecording, isProcessing, meetingRecording]);
 
   // Sync auto-hide from main process — setState directly to avoid IPC echo
   useEffect(() => {
@@ -330,13 +332,8 @@ export default function App() {
           }}
         >
           <div
-            className="flex flex-col items-start rounded-[18px] backdrop-blur-2xl cursor-pointer w-full"
-            style={{
-              background: "rgba(40, 40, 40, 0.75)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.4), inset 0 0.5px 0 rgba(255,255,255,0.08)",
-              padding: "7px 14px 5px",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
+            className="liquid-pill flex flex-col items-start rounded-[18px] cursor-pointer w-full"
+            style={{ padding: "7px 14px 5px" }}
             onClick={() => {
               if (!hasDragged) toggleListening();
             }}
@@ -429,16 +426,30 @@ export default function App() {
           }}
         >
           <button
-            onClick={() => window.electronAPI?.showControlPanel?.()}
-            title={t("app.meetingRecordingIndicator")}
-            className="flex flex-col items-center justify-center gap-1.5 rounded-full backdrop-blur-2xl cursor-pointer"
-            style={{
-              width: 44,
-              height: 64,
-              background: "rgba(30, 30, 30, 0.85)",
-              boxShadow: "0 6px 24px rgba(0,0,0,0.45), inset 0 0.5px 0 rgba(255,255,255,0.08)",
-              border: "1px solid rgba(255,255,255,0.1)",
+            onClick={() => {
+              if (!hasDragged) window.electronAPI?.showControlPanel?.();
             }}
+            onMouseDown={(e) => {
+              setDragStartPos({ x: e.clientX, y: e.clientY });
+              setHasDragged(false);
+              handleMouseDown(e);
+            }}
+            onMouseMove={(e) => {
+              if (dragStartPos && !hasDragged) {
+                const distance = Math.sqrt(
+                  Math.pow(e.clientX - dragStartPos.x, 2) +
+                    Math.pow(e.clientY - dragStartPos.y, 2)
+                );
+                if (distance > 5) setHasDragged(true);
+              }
+            }}
+            onMouseUp={(e) => {
+              handleMouseUp(e);
+              setDragStartPos(null);
+            }}
+            title={t("app.meetingRecordingIndicator")}
+            className="liquid-pill flex flex-col items-center justify-center gap-1.5 rounded-full cursor-pointer"
+            style={{ width: 44, height: 64 }}
           >
             <div
               className="rounded-full"

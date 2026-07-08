@@ -91,7 +91,7 @@ export default function ControlPanelSidebar({
   };
 
   return (
-    <div className="h-full w-48 shrink-0 border-r border-border/15 dark:border-white/6 flex flex-col bg-surface-1/60 dark:bg-surface-1">
+    <div className="glass-panel h-full w-48 shrink-0 border-r border-border/15 dark:border-white/6 flex flex-col">
       <div className="w-full shrink-0 relative" style={{ height: 52 }}>
         <div
           className="absolute inset-0 z-0"

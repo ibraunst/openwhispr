@@ -161,10 +161,26 @@ class WindowManager {
       // Recording pill always centers horizontally at screen bottom
       newX = Math.round(workArea.x + (workArea.width - newSize.width) / 2);
       newY = workArea.y + workArea.height - newSize.height - MARGIN;
-    } else if (sizeKey === "BASE" && this._preRecordingBounds) {
-      // Restore to pre-recording position
-      const restored = this._preRecordingBounds;
+    } else if (sizeKey === "MEETING_INDICATOR") {
+      const saved = this._preRecordingBounds;
+      if (saved && saved.width === newSize.width && saved.height === newSize.height) {
+        // A dictation interrupted the indicator — return to where the user
+        // had it (including anywhere they dragged it).
+        this._preRecordingBounds = null;
+        newX = saved.x;
+        newY = saved.y;
+      } else {
+        // Remember the pill's position so it can return there after the meeting
+        this._preIndicatorBounds = { ...currentBounds };
+        // Default dock: far right edge, vertically centered
+        newX = workArea.x + workArea.width - newSize.width - MARGIN;
+        newY = Math.round(workArea.y + (workArea.height - newSize.height) / 2);
+      }
+    } else if (sizeKey === "BASE" && (this._preRecordingBounds || this._preIndicatorBounds)) {
+      // Restore to pre-recording / pre-indicator position
+      const restored = this._preRecordingBounds || this._preIndicatorBounds;
       this._preRecordingBounds = null;
+      this._preIndicatorBounds = null;
       this.mainWindow.setBounds({
         x: restored.x,
         y: restored.y,
