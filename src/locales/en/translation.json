@@ -1397,6 +1397,13 @@
           "description": "Configure your own provider and API key.",
           "title": "Switched to Custom Setup"
         }
+      },
+      "meetingModel": {
+        "title": "Meeting transcription model",
+        "description": "Choose which model transcribes meeting recordings, independent of the dictation model.",
+        "same": "Same as dictation",
+        "whisper": "Whisper (local)",
+        "parakeet": "Parakeet (local)"
       }
     }
   },

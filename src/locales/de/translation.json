@@ -1315,6 +1315,13 @@
           "description": "Konfigurieren Sie Ihren eigenen Anbieter und API-Schlüssel.",
           "title": "Zu benutzerdefinierter Einrichtung gewechselt"
         }
+      },
+      "meetingModel": {
+        "title": "Modell für Meeting-Transkription",
+        "description": "Wählen Sie, welches Modell Meeting-Aufnahmen transkribiert – unabhängig vom Diktiermodell.",
+        "same": "Wie Diktat",
+        "whisper": "Whisper (lokal)",
+        "parakeet": "Parakeet (lokal)"
       }
     }
   },

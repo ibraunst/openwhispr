@@ -1315,6 +1315,13 @@
           "description": "Configurez votre propre fournisseur et clé API.",
           "title": "Basculé vers la configuration personnalisée"
         }
+      },
+      "meetingModel": {
+        "title": "Modèle de transcription des réunions",
+        "description": "Choisissez le modèle qui transcrit les enregistrements de réunions, indépendamment du modèle de dictée.",
+        "same": "Identique à la dictée",
+        "whisper": "Whisper (local)",
+        "parakeet": "Parakeet (local)"
       }
     }
   },

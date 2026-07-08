@@ -34,6 +34,9 @@ const getMeetingTranscriptionOptions = () => {
     openaiApiKey,
     useLocalWhisper,
     localTranscriptionProvider,
+    meetingTranscriptionProvider,
+    whisperModel,
+    parakeetModel,
   } = getSettings();
 
   const hasOpenAIKey = !!openaiApiKey && openaiApiKey.trim() !== "";
@@ -41,10 +44,19 @@ const getMeetingTranscriptionOptions = () => {
     cloudTranscriptionMode === "customwhispr" ||
     (cloudTranscriptionMode === "byok" && hasOpenAIKey);
 
-  if (useLocalWhisper || !canUseCloud) {
+  // A dedicated meeting model overrides the dictation setup entirely —
+  // it always runs locally with the chosen engine.
+  const meetingOverride =
+    meetingTranscriptionProvider && meetingTranscriptionProvider !== "same"
+      ? meetingTranscriptionProvider
+      : null;
+
+  if (meetingOverride || useLocalWhisper || !canUseCloud) {
     return {
       provider: "local" as const,
-      localProvider: localTranscriptionProvider || "whisper",
+      localProvider: meetingOverride || localTranscriptionProvider || "whisper",
+      whisperModel,
+      parakeetModel,
     };
   }
 
@@ -548,8 +560,17 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
 
         try {
           const arrayBuffer = await blob.arrayBuffer();
-          const { localProvider } = getMeetingTranscriptionOptions() as { provider: "local"; localProvider: string };
-          const result = await window.electronAPI?.meetingTranscribeLocal?.(arrayBuffer, { localProvider });
+          const { localProvider, whisperModel, parakeetModel } = getMeetingTranscriptionOptions() as {
+            provider: "local";
+            localProvider: string;
+            whisperModel?: string;
+            parakeetModel?: string;
+          };
+          const result = await window.electronAPI?.meetingTranscribeLocal?.(arrayBuffer, {
+            localProvider,
+            whisperModel,
+            parakeetModel,
+          });
 
           if (result?.success && result.transcript) {
             setTranscript(result.transcript);

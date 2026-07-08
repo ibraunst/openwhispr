@@ -29,6 +29,7 @@ import PermissionCard from "./ui/PermissionCard";
 import MicrophoneSettings from "./ui/MicrophoneSettings";
 import PasteToolsInfo from "./ui/PasteToolsInfo";
 import TranscriptionModelPicker from "./TranscriptionModelPicker";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import {
   ConfirmDialog,
   AlertDialog,
@@ -206,6 +207,10 @@ function TranscriptionSection({
   const { t } = useTranslation();
   const isCustomMode = cloudTranscriptionMode === "byok" || useLocalWhisper;
   const isCloudMode = isSignedIn && cloudTranscriptionMode === "customwhispr" && !useLocalWhisper;
+  const meetingTranscriptionProvider = useSettingsStore((s) => s.meetingTranscriptionProvider);
+  const setMeetingTranscriptionProvider = useSettingsStore(
+    (s) => s.setMeetingTranscriptionProvider
+  );
 
   return (
     <div className="space-y-4">
@@ -380,6 +385,45 @@ function TranscriptionSection({
           variant="settings"
         />
       )}
+
+      {/* Meeting transcription model — independent of the dictation model */}
+      <SettingsPanel>
+        <SettingsPanelRow>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <span className="text-xs font-medium text-foreground">
+                {t("settingsPage.transcription.meetingModel.title")}
+              </span>
+              <p className="text-xs text-muted-foreground/80 mt-0.5">
+                {t("settingsPage.transcription.meetingModel.description")}
+              </p>
+            </div>
+            <Select
+              value={meetingTranscriptionProvider}
+              onValueChange={(value) =>
+                setMeetingTranscriptionProvider(
+                  value as "same" | LocalTranscriptionProvider
+                )
+              }
+            >
+              <SelectTrigger className="w-44 h-8 text-xs shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="same">
+                  {t("settingsPage.transcription.meetingModel.same")}
+                </SelectItem>
+                <SelectItem value="whisper">
+                  {t("settingsPage.transcription.meetingModel.whisper")}
+                </SelectItem>
+                <SelectItem value="nvidia">
+                  {t("settingsPage.transcription.meetingModel.parakeet")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </SettingsPanelRow>
+      </SettingsPanel>
     </div>
   );
 }

@@ -131,6 +131,7 @@ export interface SettingsState
   setWhisperModel: (value: string) => void;
   setLocalTranscriptionProvider: (value: LocalTranscriptionProvider) => void;
   setParakeetModel: (value: string) => void;
+  setMeetingTranscriptionProvider: (value: "same" | LocalTranscriptionProvider) => void;
   setAllowOpenAIFallback: (value: boolean) => void;
   setAllowLocalFallback: (value: boolean) => void;
   setFallbackWhisperModel: (value: string) => void;
@@ -252,6 +253,11 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     ? "nvidia"
     : "whisper") as LocalTranscriptionProvider,
   parakeetModel: readString("parakeetModel", ""),
+  meetingTranscriptionProvider: (["whisper", "nvidia"].includes(
+    readString("meetingTranscriptionProvider", "same")
+  )
+    ? readString("meetingTranscriptionProvider", "same")
+    : "same") as "same" | LocalTranscriptionProvider,
   allowOpenAIFallback: readBoolean("allowOpenAIFallback", false),
   allowLocalFallback: readBoolean("allowLocalFallback", false),
   fallbackWhisperModel: readString("fallbackWhisperModel", "base"),
@@ -410,6 +416,10 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     set({ localTranscriptionProvider: value });
   },
   setParakeetModel: createStringSetter("parakeetModel"),
+  setMeetingTranscriptionProvider: (value: "same" | LocalTranscriptionProvider) => {
+    if (isBrowser) localStorage.setItem("meetingTranscriptionProvider", value);
+    set({ meetingTranscriptionProvider: value });
+  },
   setAllowOpenAIFallback: createBooleanSetter("allowOpenAIFallback"),
   setAllowLocalFallback: createBooleanSetter("allowLocalFallback"),
   setFallbackWhisperModel: createStringSetter("fallbackWhisperModel"),
@@ -607,6 +617,8 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     if (settings.localTranscriptionProvider !== undefined)
       s.setLocalTranscriptionProvider(settings.localTranscriptionProvider);
     if (settings.parakeetModel !== undefined) s.setParakeetModel(settings.parakeetModel);
+    if (settings.meetingTranscriptionProvider !== undefined)
+      s.setMeetingTranscriptionProvider(settings.meetingTranscriptionProvider);
     if (settings.allowOpenAIFallback !== undefined)
       s.setAllowOpenAIFallback(settings.allowOpenAIFallback);
     if (settings.allowLocalFallback !== undefined)

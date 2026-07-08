@@ -1315,6 +1315,13 @@
           "description": "独自のプロバイダーと API キーを設定してください。",
           "title": "カスタム設定に切り替えました"
         }
+      },
+      "meetingModel": {
+        "title": "会議文字起こしモデル",
+        "description": "会議録音の文字起こしに使うモデルを選択します（音声入力のモデルとは独立）。",
+        "same": "音声入力と同じ",
+        "whisper": "Whisper（ローカル）",
+        "parakeet": "Parakeet（ローカル）"
       }
     }
   },

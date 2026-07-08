@@ -10,6 +10,7 @@ export interface TranscriptionSettings {
   whisperModel: string;
   localTranscriptionProvider: LocalTranscriptionProvider;
   parakeetModel: string;
+  meetingTranscriptionProvider: "same" | LocalTranscriptionProvider;
   allowOpenAIFallback: boolean;
   allowLocalFallback: boolean;
   fallbackWhisperModel: string;

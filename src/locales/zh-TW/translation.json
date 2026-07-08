@@ -1315,6 +1315,13 @@
           "description": "設定你自己的供應商和 API Key。",
           "title": "已切換至自訂設定"
         }
+      },
+      "meetingModel": {
+        "title": "會議轉錄模型",
+        "description": "選擇用於轉錄會議錄音的模型，與聽寫模型相互獨立。",
+        "same": "與聽寫相同",
+        "whisper": "Whisper（本地）",
+        "parakeet": "Parakeet（本地）"
       }
     }
   },

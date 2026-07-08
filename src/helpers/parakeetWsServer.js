@@ -113,7 +113,9 @@ class ParakeetWsServer {
       `--joiner=${files.joiner}`,
       `--port=${this.port}`,
       `--num-threads=${Math.max(1, Math.min(4, Math.floor(os.cpus().length * 0.75)))}`,
-      `--model-type=transducer`,
+      // Parakeet models are NeMo transducers; plain "transducer" makes
+      // sherpa-onnx expect Zipformer metadata (vocab_size) and die on startup
+      `--model-type=nemo_transducer`,
     ];
 
     debugLogger.debug("Starting parakeet WS server", { port: this.port, modelName, args });

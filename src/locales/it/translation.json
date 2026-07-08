@@ -1315,6 +1315,13 @@
           "description": "Configura il tuo provider e la tua chiave API.",
           "title": "Passato a configurazione personalizzata"
         }
+      },
+      "meetingModel": {
+        "title": "Modello di trascrizione riunioni",
+        "description": "Scegli quale modello trascrive le registrazioni delle riunioni, indipendente dal modello di dettatura.",
+        "same": "Uguale alla dettatura",
+        "whisper": "Whisper (locale)",
+        "parakeet": "Parakeet (locale)"
       }
     }
   },
