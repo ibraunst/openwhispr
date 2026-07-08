@@ -2927,6 +2927,30 @@ class IPCHandlers {
       }
     });
 
+    // Live transcript preview chunks during a local meeting recording.
+    // Lean path: Parakeet only (fast enough for near-real-time), no
+    // segments, no transcript.json — the full pass at stop is authoritative.
+    ipcMain.handle("meeting-transcribe-live-chunk", async (_event, audioBuffer, options = {}) => {
+      if (!this.parakeetManager) {
+        return { success: false, unavailable: true, error: "Parakeet not available" };
+      }
+      try {
+        const result = await this.parakeetManager.transcribeLocalParakeet(audioBuffer, {
+          model: options.parakeetModel || process.env.PARAKEET_MODEL || "parakeet-tdt-0.6b-v3",
+          language: options.language || null,
+        });
+        return { success: true, text: result?.text || "" };
+      } catch (error) {
+        const unavailable = /not downloaded|not found/i.test(error.message || "");
+        debugLogger.debug(
+          "Live chunk transcription failed",
+          { error: error.message, unavailable },
+          "meeting"
+        );
+        return { success: false, unavailable, error: error.message };
+      }
+    });
+
     ipcMain.handle("meeting-set-user-recording", async (_event, active) => {
       this.meetingDetectionEngine?.setUserRecording(!!active);
       // Drive the pill's persistent meeting-recording indicator

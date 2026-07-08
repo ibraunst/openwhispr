@@ -1217,6 +1217,10 @@ declare global {
         segments?: Array<{ start: number; end: number; text: string }>;
         error?: string;
       }>;
+      meetingTranscribeLiveChunk?: (
+        audioBuffer: ArrayBuffer,
+        options?: { parakeetModel?: string; language?: string }
+      ) => Promise<{ success: boolean; text?: string; unavailable?: boolean; error?: string }>;
       onMeetingProcessEnded?: (callback: (data: { processKey: string; appName: string }) => void) => () => void;
       meetingSetUserRecording?: (active: boolean) => Promise<{ success: boolean }>;
       onMeetingAutoStopExecute?: (callback: (data: { reason: string }) => void) => () => void;

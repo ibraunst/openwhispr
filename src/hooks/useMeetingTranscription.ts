@@ -67,6 +67,47 @@ const getMeetingTranscriptionOptions = () => {
   return { provider: "openai-realtime" as const, model, mode };
 };
 
+// Live preview chunking (local mode). Parakeet transcribes each flushed
+// chunk while the meeting records; the end-of-meeting full pass replaces it.
+const LIVE_SAMPLE_RATE = 16000;
+const LIVE_MIN_FLUSH_SEC = 4;
+const LIVE_MAX_FLUSH_SEC = 10;
+const LIVE_QUIET_RMS = 0.01;
+const LIVE_QUIET_TAIL_MS = 250;
+
+const encodeWavPcm16 = (
+  chunks: Int16Array[],
+  totalSamples: number,
+  sampleRate: number
+): ArrayBuffer => {
+  const buffer = new ArrayBuffer(44 + totalSamples * 2);
+  const view = new DataView(buffer);
+  const writeStr = (off: number, s: string) => {
+    for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
+  };
+  writeStr(0, "RIFF");
+  view.setUint32(4, 36 + totalSamples * 2, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, "data");
+  view.setUint32(40, totalSamples * 2, true);
+  let off = 44;
+  for (const c of chunks) {
+    for (let i = 0; i < c.length; i++) {
+      view.setInt16(off, c[i], true);
+      off += 2;
+    }
+  }
+  return buffer;
+};
+
 const getMeetingWorkletBlobUrl = (() => {
   let blobUrl: string | null = null;
 
@@ -356,6 +397,10 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
   const localMediaRecorderRef = useRef<MediaRecorder | null>(null);
   const localChunksRef = useRef<Blob[]>([]);
   const localMixContextRef = useRef<AudioContext | null>(null);
+  // Live transcript preview (local mode): 16 kHz tap on the mixed stream
+  const liveContextRef = useRef<AudioContext | null>(null);
+  const liveProcessorRef = useRef<AudioWorkletNode | null>(null);
+  const liveSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const localModeRef = useRef(false);
 
   // Split audio recording refs (for speaker diarization)
@@ -439,6 +484,23 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
       localMediaRecorderRef.current = null;
     }
 
+    if (liveProcessorRef.current) {
+      await flushAndDisconnectProcessor(liveProcessorRef.current);
+      liveProcessorRef.current = null;
+    }
+
+    if (liveSourceRef.current) {
+      liveSourceRef.current.disconnect();
+      liveSourceRef.current = null;
+    }
+
+    if (liveContextRef.current) {
+      try {
+        await liveContextRef.current.close();
+      } catch {}
+      liveContextRef.current = null;
+    }
+
     if (localMixContextRef.current) {
       try {
         await localMixContextRef.current.close();
@@ -506,6 +568,13 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     isRecordingRef.current = false;
     isStartingRef.current = false;
     setIsRecording(false);
+    if (localModeRef.current) {
+      // Clear the live preview text in the same render that flips recording
+      // off — otherwise the component's auto-generate effect sees a non-empty
+      // transcript in the gap before local processing starts and generates
+      // notes from the rough live text.
+      setTranscript("");
+    }
     window.electronAPI?.meetingSetUserRecording?.(false);
     window.electronAPI?.setSleepBlocker?.(false);
 
@@ -878,6 +947,98 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
           { mimeType, hasMic: !!micResult },
           "meeting"
         );
+
+        // Live transcript preview: tap the mixed stream at 16 kHz and feed
+        // ~4-10s chunks (cut at silence when possible) to Parakeet while the
+        // meeting records. Best-effort — any failure disables the preview and
+        // never touches the recording or the end-of-meeting full pass.
+        try {
+          const liveContext = new AudioContext({ sampleRate: LIVE_SAMPLE_RATE });
+          liveContextRef.current = liveContext;
+
+          let liveChunks: Int16Array[] = [];
+          let liveSampleCount = 0;
+          let quietTailMs = 0;
+          let liveDisabled = false;
+          let liveFailures = 0;
+          let liveQueue: Promise<void> = Promise.resolve();
+          const liveParakeetModel = getSettings().parakeetModel || undefined;
+
+          const flushLive = () => {
+            if (liveSampleCount === 0) return;
+            const wav = encodeWavPcm16(liveChunks, liveSampleCount, LIVE_SAMPLE_RATE);
+            liveChunks = [];
+            liveSampleCount = 0;
+            quietTailMs = 0;
+            // Serialize chunk transcriptions so results append in order
+            liveQueue = liveQueue.then(async () => {
+              if (liveDisabled || !isRecordingRef.current) return;
+              try {
+                const res = await window.electronAPI?.meetingTranscribeLiveChunk?.(wav, {
+                  parakeetModel: liveParakeetModel,
+                });
+                if (res?.success) {
+                  liveFailures = 0;
+                  const text = res.text?.trim();
+                  if (text && isRecordingRef.current && localModeRef.current) {
+                    setTranscript((prev) => (prev ? `${prev} ${text}` : text));
+                  }
+                } else {
+                  liveFailures += 1;
+                  if (res?.unavailable || liveFailures >= 2) {
+                    liveDisabled = true;
+                    logger.info(
+                      "Live transcript preview disabled",
+                      { error: res?.error },
+                      "meeting"
+                    );
+                  }
+                }
+              } catch {
+                liveFailures += 1;
+                if (liveFailures >= 2) liveDisabled = true;
+              }
+            });
+          };
+
+          const { source: liveSource, processor: liveProcessor } = await createAudioPipeline({
+            stream: destination.stream,
+            context: liveContext,
+            label: "Meeting live preview",
+            onChunk: (chunk) => {
+              if (!isRecordingRef.current || liveDisabled) return;
+              const samples = new Int16Array(chunk);
+              liveChunks.push(samples);
+              liveSampleCount += samples.length;
+
+              // Prefer cutting at a quiet moment so words aren't split
+              let sum = 0;
+              for (let i = 0; i < samples.length; i++) {
+                const v = samples[i] / 32768;
+                sum += v * v;
+              }
+              const rms = Math.sqrt(sum / samples.length);
+              const chunkMs = (samples.length / LIVE_SAMPLE_RATE) * 1000;
+              quietTailMs = rms < LIVE_QUIET_RMS ? quietTailMs + chunkMs : 0;
+
+              const bufferedSec = liveSampleCount / LIVE_SAMPLE_RATE;
+              if (
+                (bufferedSec >= LIVE_MIN_FLUSH_SEC && quietTailMs >= LIVE_QUIET_TAIL_MS) ||
+                bufferedSec >= LIVE_MAX_FLUSH_SEC
+              ) {
+                flushLive();
+              }
+            },
+          });
+          liveSourceRef.current = liveSource;
+          liveProcessorRef.current = liveProcessor;
+        } catch (liveErr) {
+          logger.info(
+            "Live transcript preview unavailable",
+            { error: (liveErr as Error).message },
+            "meeting"
+          );
+        }
       } catch (err) {
         logger.error("Local meeting recording setup failed", { error: (err as Error).message }, "meeting");
         isRecordingRef.current = false;

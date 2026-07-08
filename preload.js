@@ -487,6 +487,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getCalendarEventById: (eventId) => ipcRenderer.invoke("get-calendar-event-by-id", eventId),
   meetingTranscribeLocal: (audioBuffer, options) =>
     ipcRenderer.invoke("meeting-transcribe-local", audioBuffer, options),
+  meetingTranscribeLiveChunk: (audioBuffer, options) =>
+    ipcRenderer.invoke("meeting-transcribe-live-chunk", audioBuffer, options),
   meetingSetUserRecording: (active) =>
     ipcRenderer.invoke("meeting-set-user-recording", active),
   onMeetingRecordingIndicator: registerListener(
