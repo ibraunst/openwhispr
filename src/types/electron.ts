@@ -48,6 +48,21 @@ export interface NoteItem {
   updated_at: string;
 }
 
+export interface VoiceBankEntry {
+  id: string;
+  label: string;
+  meeting_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VoiceBankSpeakerMeta {
+  label: string;
+  voiceprint_id: string | null;
+  is_new: boolean;
+  is_me: boolean;
+}
+
 export interface FolderItem {
   id: number;
   name: string;
@@ -341,6 +356,7 @@ declare global {
       getAudioBuffer: (id: number) => Promise<ArrayBuffer | null>;
       deleteTranscriptionAudio: (id: number) => Promise<{ success: boolean }>;
       getAudioStorageUsage: () => Promise<{ fileCount: number; totalBytes: number }>;
+      setAudioRetentionDays: (days: number) => Promise<{ success: boolean; error?: string }>;
       deleteAllAudio: () => Promise<{ deleted: number }>;
       retryTranscription: (
         id: number
@@ -1088,6 +1104,9 @@ declare global {
         active: CalendarEvent[];
         past: CalendarEvent[];
       }>;
+      getCalendarEventById?: (eventId: string) => Promise<{
+        event: { summary: string; start_time: string; end_time: string; attendees?: string | null } | null;
+      }>;
 
       // Apple Calendar
       acalConnect?: () => Promise<{ success: boolean; error?: string }>;
@@ -1170,16 +1189,31 @@ declare global {
         numSpeakers?: number;
       }) => Promise<{
         success: boolean;
-        transcript?: { segments: Array<{ start: number; end: number; text: string; speaker: string }> };
+        transcript?: {
+          segments: Array<{ start: number; end: number; text: string; speaker: string }>;
+          speakers?: VoiceBankSpeakerMeta[];
+        };
         error?: string;
       }>;
+      voicebankList?: () => Promise<{ success: boolean; voices?: VoiceBankEntry[]; error?: string }>;
+      voicebankRename?: (data: {
+        id?: string;
+        oldLabel?: string;
+        newLabel: string;
+      }) => Promise<{ success: boolean; changes?: number; error?: string }>;
+      voicebankDelete?: (id: string) => Promise<{ success: boolean; changes?: number; error?: string }>;
       onMeetingTranscriptionPartial?: (callback: (text: string) => void) => () => void;
       onMeetingTranscriptionFinal?: (callback: (text: string) => void) => () => void;
       onMeetingTranscriptionError?: (callback: (error: string) => void) => () => void;
       meetingTranscribeLocal?: (
         audioBuffer: ArrayBuffer,
         options?: { localProvider?: string; language?: string; whisperModel?: string; parakeetModel?: string }
-      ) => Promise<{ success: boolean; transcript?: string; error?: string }>;
+      ) => Promise<{
+        success: boolean;
+        transcript?: string;
+        segments?: Array<{ start: number; end: number; text: string }>;
+        error?: string;
+      }>;
       onMeetingProcessEnded?: (callback: (data: { processKey: string; appName: string }) => void) => () => void;
       meetingSetUserRecording?: (active: boolean) => Promise<{ success: boolean }>;
       onMeetingAutoStopExecute?: (callback: (data: { reason: string }) => void) => () => void;

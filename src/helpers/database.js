@@ -1215,6 +1215,16 @@ class DatabaseManager {
     }
   }
 
+  getCalendarEventById(eventId) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      return this.db.prepare("SELECT * FROM calendar_events WHERE id = ?").get(eventId) || null;
+    } catch (error) {
+      debugLogger.error("Error getting calendar event by id", { error: error.message }, "gcal");
+      throw error;
+    }
+  }
+
   getEventAtTime(timestampISO) {
     try {
       if (!this.db) throw new Error("Database not initialized");
@@ -1232,11 +1242,22 @@ class DatabaseManager {
   searchNotes(query, limit = 50) {
     try {
       if (!this.db) throw new Error("Database not initialized");
-      const term = query
+      // Quote every token as an FTS5 string literal: preserves non-Latin and
+      // accented text (the old \w-only sanitizer emptied those queries) and
+      // neutralizes FTS operators (a bare AND/OR/NOT is a syntax error).
+      const tokens = query
         .trim()
-        .replace(/[^\w\s]/g, " ")
-        .trim();
-      if (!term) return [];
+        .split(/\s+/)
+        .filter((t) => /[\p{L}\p{N}]/u.test(t))
+        .slice(0, 12);
+      if (tokens.length === 0) return [];
+      const matchExpr = tokens
+        .map((t, i) => {
+          const literal = `"${t.replace(/"/g, '""')}"`;
+          // Prefix-match the final token so search feels incremental
+          return i === tokens.length - 1 ? `${literal}*` : literal;
+        })
+        .join(" ");
       return this.db
         .prepare(
           `
@@ -1248,7 +1269,7 @@ class DatabaseManager {
         LIMIT ?
       `
         )
-        .all(term + "*", limit);
+        .all(matchExpr, limit);
     } catch (error) {
       debugLogger.error("Error searching notes", { error: error.message }, "database");
       throw error;
@@ -1327,8 +1348,14 @@ class DatabaseManager {
   clearFutureEventsByCalendarId(calendarId) {
     try {
       if (!this.db) throw new Error("Database not initialized");
+      // datetime(start_time) is required: start_time is stored as an ISO string
+      // ("2026-07-07T09:00:00.000Z") and comparing it lexically against
+      // datetime('now') ("2026-07-07 17:00:00") makes every event dated today
+      // "future" ('T' > ' '), deleting in-progress and past events on each sync.
       this.db
-        .prepare("DELETE FROM calendar_events WHERE calendar_id = ? AND start_time >= datetime('now')")
+        .prepare(
+          "DELETE FROM calendar_events WHERE calendar_id = ? AND datetime(start_time) >= datetime('now')"
+        )
         .run(calendarId);
       return { success: true };
     } catch (error) {

@@ -1,10 +1,13 @@
 export function normalizeDbDate(dateStr: string): Date {
-  const source = dateStr.endsWith("Z") ? dateStr : `${dateStr}Z`;
-  return new Date(source);
+  // SQLite CURRENT_TIMESTAMP produces bare "YYYY-MM-DD HH:MM:SS" in UTC;
+  // without a zone marker new Date() parses it as LOCAL time. Only append
+  // "Z" when the string carries no timezone of its own.
+  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(dateStr);
+  return new Date(hasTimezone ? dateStr : `${dateStr}Z`);
 }
 
 export function formatUpcomingDateGroup(date: Date | string, t: (key: string) => string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = typeof date === "string" ? normalizeDbDate(date) : date;
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const tomorrow = new Date(today);
@@ -17,7 +20,7 @@ export function formatUpcomingDateGroup(date: Date | string, t: (key: string) =>
 }
 
 export function formatDateGroup(date: Date | string, t: (key: string) => string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = typeof date === "string" ? normalizeDbDate(date) : date;
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today);

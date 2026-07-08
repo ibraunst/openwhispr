@@ -163,6 +163,19 @@ class VoiceBank:
         )
         self._conn.commit()
 
+    def next_guest_number(self) -> int:
+        """Next available N for a 'Guest N' label, unique across all meetings."""
+        rows = self._conn.execute(
+            "SELECT label FROM voice_prints WHERE label LIKE 'Guest %'"
+        ).fetchall()
+        max_n = 0
+        for (label,) in rows:
+            try:
+                max_n = max(max_n, int(label.split(" ", 1)[1]))
+            except (IndexError, ValueError):
+                continue
+        return max_n + 1
+
     def rename(self, voice_id: str, new_label: str) -> bool:
         cur = self._conn.execute(
             "UPDATE voice_prints SET label = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
@@ -322,8 +335,12 @@ class SpeakerEngine:
         segments: list[DiarizedSegment],
         system_audio: str | Path,
         mic_embedding: np.ndarray,
-    ) -> list[DiarizedSegment]:
-        """Resolve each pyannote speaker ID to 'Me', a known voice, or 'Guest N'."""
+    ) -> tuple[list[DiarizedSegment], list[dict]]:
+        """Resolve each pyannote speaker ID to 'Me', a known voice, or 'Guest N'.
+
+        Returns the labeled segments plus per-speaker metadata
+        ({label, voiceprint_id, is_new, is_me}) so the app can offer renames.
+        """
         speaker_embeddings: dict[str, list[np.ndarray]] = {}
         for seg in segments:
             emb = self._extract_segment_embedding(system_audio, seg.start, seg.end)
@@ -335,7 +352,10 @@ class SpeakerEngine:
         }
 
         label_map: dict[str, str] = {}
-        guest_counter = 0
+        speaker_meta: dict[str, dict] = {}
+        # Seed from the voicebank so guest numbers stay unique across meetings —
+        # otherwise a new speaker in meeting 2 collides with meeting 1's "Guest 1".
+        next_guest = self.voice_bank.next_guest_number()
 
         for spk, avg_emb in speaker_avg.items():
             sim = _cosine_similarity(avg_emb, mic_embedding)
@@ -343,6 +363,10 @@ class SpeakerEngine:
 
             if sim >= self.similarity_threshold:
                 label_map[spk] = ME_LABEL
+                speaker_meta.setdefault(ME_LABEL, {
+                    "label": ME_LABEL, "voiceprint_id": None,
+                    "is_new": False, "is_me": True,
+                })
                 continue
 
             match = self.voice_bank.find_match(avg_emb, threshold=self.voicebank_threshold)
@@ -352,9 +376,13 @@ class SpeakerEngine:
                 match.embedding = (1 - alpha) * match.embedding + alpha * avg_emb
                 self.voice_bank.upsert(match)
                 label_map[spk] = match.label
+                speaker_meta.setdefault(match.label, {
+                    "label": match.label, "voiceprint_id": match.id,
+                    "is_new": False, "is_me": False,
+                })
             else:
-                guest_counter += 1
-                guest_label = f"Guest {guest_counter}"
+                guest_label = f"Guest {next_guest}"
+                next_guest += 1
                 vp = VoicePrint(
                     id=str(uuid.uuid4()),
                     label=guest_label,
@@ -363,11 +391,15 @@ class SpeakerEngine:
                 )
                 self.voice_bank.upsert(vp)
                 label_map[spk] = guest_label
+                speaker_meta[guest_label] = {
+                    "label": guest_label, "voiceprint_id": vp.id,
+                    "is_new": True, "is_me": False,
+                }
 
         for seg in segments:
             seg.resolved_label = label_map.get(seg.speaker, f"Unknown ({seg.speaker})")
 
-        return segments
+        return segments, list(speaker_meta.values())
 
     # -- transcript merging ------------------------------------------------
 
@@ -456,8 +488,14 @@ class SpeakerEngine:
             logger.warning("No speech segments detected in system audio")
             return json.loads(transcript_path.read_text(encoding="utf-8"))
 
-        segments = self.identify_speakers(segments, system_audio, mic_embedding)
+        segments, speaker_meta = self.identify_speakers(segments, system_audio, mic_embedding)
         transcript = self.merge_transcript(transcript_path, segments)
+
+        # Attach per-speaker metadata (voiceprint IDs, new-guest flags) and
+        # persist it so the app can offer renames after the fact.
+        transcript["speakers"] = speaker_meta
+        with open(transcript_path, "w", encoding="utf-8") as f:
+            json.dump(transcript, f, indent=2, ensure_ascii=False)
 
         speaker_counts: dict[str, int] = {}
         for seg in segments:
@@ -504,7 +542,15 @@ def main() -> None:
             transcript_path=args.transcript,
             num_speakers=args.num_speakers,
         )
-        print(json.dumps(result, indent=2, ensure_ascii=False))
+        # The full labeled transcript is written to --transcript; keep stdout
+        # small — consumers read the file, and a huge stdout can overflow the
+        # caller's buffer on long meetings.
+        summary = {
+            "ok": True,
+            "segments": len(result.get("segments", [])),
+            "speakers": result.get("speakers", []),
+        }
+        print(json.dumps(summary, ensure_ascii=False))
     finally:
         engine.close()
 

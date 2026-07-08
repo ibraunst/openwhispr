@@ -10,6 +10,7 @@ class UpdateManager {
     this.isInstalling = false;
     this.isDownloading = false;
     this.eventListeners = [];
+    this.updaterDisabled = false;
 
     this.setupAutoUpdater();
   }
@@ -23,6 +24,19 @@ class UpdateManager {
     // Only configure auto-updater in production
     if (process.env.NODE_ENV === "development") {
       // Auto-updater disabled in development mode
+      return;
+    }
+
+    // HARD GUARD for the customWhispr fork: the feed below points at the
+    // upstream OpenWhispr repo. Installing one of its releases would silently
+    // replace this fork (autoInstallOnAppQuit applies on normal quit). Flip
+    // this to true only after the feed targets a repo that ships customWhispr.
+    const FEED_SHIPS_THIS_APP = false;
+    if (!FEED_SHIPS_THIS_APP) {
+      console.log(
+        "Auto-updater disabled: update feed points at upstream OpenWhispr, not this fork"
+      );
+      this.updaterDisabled = true;
       return;
     }
 
@@ -158,6 +172,12 @@ class UpdateManager {
           message: "Update checks are disabled in development mode",
         };
       }
+      if (this.updaterDisabled) {
+        return {
+          updateAvailable: false,
+          message: "Updates are disabled for this build",
+        };
+      }
 
       console.log("🔍 Checking for updates...");
       const result = await autoUpdater.checkForUpdates();
@@ -194,6 +214,12 @@ class UpdateManager {
         return {
           success: false,
           message: "Update downloads are disabled in development mode",
+        };
+      }
+      if (this.updaterDisabled) {
+        return {
+          success: false,
+          message: "Updates are disabled for this build",
         };
       }
 
@@ -303,6 +329,7 @@ class UpdateManager {
   }
 
   checkForUpdatesOnStartup() {
+    if (this.updaterDisabled) return;
     if (process.env.NODE_ENV !== "development") {
       setTimeout(() => {
         console.log("🔄 Checking for updates on startup...");

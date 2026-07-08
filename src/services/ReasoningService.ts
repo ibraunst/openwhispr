@@ -546,7 +546,7 @@ class ReasoningService extends BaseReasoningService {
             } else {
               requestBody.messages = messages;
               if (isOlderModel) {
-                requestBody.temperature = config.temperature || 0.3;
+                requestBody.temperature = config.temperature ?? 0.3;
               }
             }
 
@@ -838,7 +838,7 @@ class ReasoningService extends BaseReasoningService {
           },
         ],
         generationConfig: {
-          temperature: config.temperature || 0.3,
+          temperature: config.temperature ?? 0.3,
           maxOutputTokens:
             config.maxTokens ||
             Math.max(
@@ -1122,9 +1122,20 @@ class ReasoningService extends BaseReasoningService {
         case "custom":
           endpoint = buildApiUrl(this.getConfiguredOpenAIBase(), "/chat/completions");
           break;
-        default:
-          endpoint = buildApiUrl(API_ENDPOINTS.OPENAI_BASE, "/chat/completions");
+        // Anthropic and Gemini both expose OpenAI-compatible chat-completions
+        // endpoints with SSE streaming, authenticated via Bearer key.
+        case "anthropic":
+          endpoint = "https://api.anthropic.com/v1/chat/completions";
           break;
+        case "gemini":
+          endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+          break;
+        default: {
+          // Never fall through to another provider's endpoint — that would
+          // send this provider's API key to the wrong host.
+          const exhaustive: never = providerKey;
+          throw new Error(`Unsupported agent provider: ${String(exhaustive)}`);
+        }
       }
     }
 

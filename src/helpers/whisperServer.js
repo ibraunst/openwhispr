@@ -193,7 +193,14 @@ class WhisperServerManager extends EventEmitter {
   }
 
   async start(modelPath, options = {}) {
-    if (this.startupPromise) return this.startupPromise;
+    // Join an in-flight startup only if it is loading the SAME model —
+    // returning it unconditionally serves the wrong model while callers
+    // record the requested one as loaded (transcriptions then silently run
+    // against the wrong model until an unrelated restart).
+    while (this.startupPromise) {
+      if (this.startingModelPath === modelPath) return this.startupPromise;
+      await this.startupPromise.catch(() => {});
+    }
 
     if (this.ready && this.modelPath === modelPath) return;
 
@@ -201,11 +208,13 @@ class WhisperServerManager extends EventEmitter {
       await this.stop();
     }
 
+    this.startingModelPath = modelPath;
     this.startupPromise = this._doStart(modelPath, options);
     try {
       await this.startupPromise;
     } finally {
       this.startupPromise = null;
+      this.startingModelPath = null;
     }
   }
 
@@ -304,6 +313,15 @@ class WhisperServerManager extends EventEmitter {
         });
         this.emit("cuda-fallback");
         return this._doStart(modelPath, { ...options, useCuda: false });
+      }
+      // Startup timed out but the process may still be loading — kill it or
+      // it keeps the model in RAM and holds the port with no health check.
+      if (this.process && !this.process.killed) {
+        debugLogger.warn("Killing whisper-server after failed startup", { port: this.port });
+        try {
+          this.process.kill("SIGKILL");
+        } catch {}
+        this.process = null;
       }
       throw err;
     }
@@ -435,7 +453,7 @@ class WhisperServerManager extends EventEmitter {
           : "too short",
     });
 
-    const { language, initialPrompt } = options;
+    const { language, initialPrompt, responseFormat = "json" } = options;
 
     // Always convert to 16kHz mono WAV - whisper.cpp requires this exact format
     let finalBuffer = audioBuffer;
@@ -476,7 +494,7 @@ class WhisperServerManager extends EventEmitter {
     parts.push(
       `--${boundary}\r\n` +
         `Content-Disposition: form-data; name="response_format"\r\n\r\n` +
-        `json\r\n`
+        `${responseFormat}\r\n`
     );
     parts.push(`--${boundary}--\r\n`);
 

@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, Check, Info, Loader2, Mail, Plus, Unlink, Users } from "lucide-react";
+import { CalendarDays, Check, Info, Loader2, Mail, Pencil, Plus, Trash2, Unlink, UserRound, Users } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { SettingsPanel, SettingsPanelRow } from "./ui/SettingsSection";
 import { ConfirmDialog } from "./ui/dialog";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useScreenRecordingPermission } from "../hooks/useScreenRecordingPermission";
+import type { VoiceBankEntry } from "../types/electron";
 import googleCalendarIcon from "../assets/icons/google-calendar.svg";
 
 const isMacOS = navigator.userAgent.includes("Mac");
@@ -29,6 +30,46 @@ export default function IntegrationsView() {
   const [loadingAcalCalendars, setLoadingAcalCalendars] = useState(false);
   const screenRecording = useScreenRecordingPermission();
   const hasAccounts = gcalAccounts.length > 0;
+
+  // Known voices (speaker voicebank)
+  const [voices, setVoices] = useState<VoiceBankEntry[]>([]);
+  const [renamingVoiceId, setRenamingVoiceId] = useState<string | null>(null);
+  const [voiceRenameValue, setVoiceRenameValue] = useState("");
+  const [confirmDeleteVoice, setConfirmDeleteVoice] = useState<VoiceBankEntry | null>(null);
+  const voiceRenameInputRef = useRef<HTMLInputElement>(null);
+
+  const loadVoices = useCallback(async () => {
+    const result = await window.electronAPI?.voicebankList?.();
+    if (result?.success && result.voices) setVoices(result.voices);
+  }, []);
+
+  useEffect(() => {
+    loadVoices();
+  }, [loadVoices]);
+
+  useEffect(() => {
+    if (renamingVoiceId) voiceRenameInputRef.current?.focus();
+  }, [renamingVoiceId]);
+
+  const handleVoiceRenameConfirm = useCallback(async () => {
+    const id = renamingVoiceId;
+    const name = voiceRenameValue.trim();
+    setRenamingVoiceId(null);
+    setVoiceRenameValue("");
+    if (!id || !name) return;
+    const current = voices.find((v) => v.id === id);
+    if (!current || current.label === name) return;
+    await window.electronAPI?.voicebankRename?.({ id, newLabel: name });
+    loadVoices();
+  }, [renamingVoiceId, voiceRenameValue, voices, loadVoices]);
+
+  const handleVoiceDelete = useCallback(
+    async (id: string) => {
+      await window.electronAPI?.voicebankDelete?.(id);
+      loadVoices();
+    },
+    [loadVoices]
+  );
 
   const startOAuth = useCallback(async () => {
     setIsConnecting(true);
@@ -372,6 +413,68 @@ export default function IntegrationsView() {
               </button>
             </div>
           </SettingsPanelRow>
+
+          {voices.length > 0 && (
+            <SettingsPanelRow>
+              <div className="w-full space-y-0.5">
+                <p className="text-xs font-medium text-muted-foreground/70 mb-2">
+                  {t("voicebank.knownVoices")}
+                </p>
+                {voices.map((voice) => (
+                  <div key={voice.id} className="group flex items-center gap-2.5 h-7">
+                    <UserRound size={13} className="text-muted-foreground/50 shrink-0" />
+                    {renamingVoiceId === voice.id ? (
+                      <input
+                        ref={voiceRenameInputRef}
+                        value={voiceRenameValue}
+                        onChange={(e) => setVoiceRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleVoiceRenameConfirm();
+                          if (e.key === "Escape") {
+                            setRenamingVoiceId(null);
+                            setVoiceRenameValue("");
+                          }
+                        }}
+                        onBlur={handleVoiceRenameConfirm}
+                        className="flex-1 h-6 px-2 text-xs rounded bg-foreground/5 dark:bg-white/5 text-foreground outline-none border border-primary/30 focus:border-primary/50"
+                      />
+                    ) : (
+                      <>
+                        <span className="text-xs text-foreground/80 truncate">{voice.label}</span>
+                        <span className="text-xs text-muted-foreground/40 shrink-0">
+                          {t("voicebank.meetings", { count: voice.meeting_count })}
+                        </span>
+                        <span className="flex-1" />
+                        <button
+                          onClick={() => {
+                            setRenamingVoiceId(voice.id);
+                            setVoiceRenameValue(voice.label);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/8 transition-all"
+                          aria-label={t("voicebank.renameVoice")}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteVoice(voice)}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                          aria-label={t("voicebank.deleteVoice")}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </SettingsPanelRow>
+          )}
+
+          {hfToken && voices.length === 0 && (
+            <SettingsPanelRow>
+              <p className="text-xs text-muted-foreground/50">{t("voicebank.noVoices")}</p>
+            </SettingsPanelRow>
+          )}
         </SettingsPanel>
       </div>
 
@@ -423,6 +526,20 @@ export default function IntegrationsView() {
         confirmText={t("integrations.appleCalendar.disconnect")}
         variant="destructive"
         onConfirm={handleAcalDisconnect}
+      />
+
+      <ConfirmDialog
+        open={!!confirmDeleteVoice}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDeleteVoice(null);
+        }}
+        title={t("voicebank.deleteConfirmTitle", { name: confirmDeleteVoice?.label ?? "" })}
+        description={t("voicebank.deleteConfirmDescription")}
+        confirmText={t("voicebank.deleteVoice")}
+        variant="destructive"
+        onConfirm={() => {
+          if (confirmDeleteVoice) handleVoiceDelete(confirmDeleteVoice.id);
+        }}
       />
     </div>
   );

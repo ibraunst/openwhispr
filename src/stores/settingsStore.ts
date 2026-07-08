@@ -530,6 +530,9 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setAudioRetentionDays: (days: number) => {
     if (isBrowser) localStorage.setItem("audioRetentionDays", String(days));
     set({ audioRetentionDays: days });
+    // Main process owns the cleanup job — persist there too or the setting
+    // has no effect (cleanup would run with the built-in default).
+    window.electronAPI?.setAudioRetentionDays?.(days)?.catch?.(() => {});
   },
   setAudioCuesEnabled: createBooleanSetter("audioCuesEnabled"),
   setPauseMediaOnDictation: createBooleanSetter("pauseMediaOnDictation"),
@@ -767,6 +770,14 @@ export async function initializeSettings(): Promise<void> {
         { error: (err as Error).message },
         "settings"
       );
+    }
+
+    // Push audio retention to the main process, which owns the cleanup job —
+    // without this, a previously chosen retention is silently ignored there.
+    try {
+      window.electronAPI.setAudioRetentionDays?.(state.audioRetentionDays)?.catch?.(() => {});
+    } catch {
+      // non-fatal — main falls back to its default
     }
 
     // Sync dictation key from main process

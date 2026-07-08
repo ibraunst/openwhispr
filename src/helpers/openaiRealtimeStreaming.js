@@ -26,6 +26,22 @@ class OpenAIRealtimeStreaming {
     this.model = "gpt-4o-mini-transcribe";
   }
 
+  /**
+   * Reset per-recording state without touching the socket. Must be called when
+   * a recording actually starts on a pre-warmed connection: segment timestamps
+   * are measured from recordingStartTime, which connect() set at WARM-UP time —
+   * reusing it shifts every segment by however long the connection idled,
+   * systematically mislabeling speakers when merged with the diarization audio.
+   */
+  resetSession() {
+    this.completedSegments = [];
+    this.timedSegments = [];
+    this.currentPartial = "";
+    this.segmentStartTime = null;
+    this.recordingStartTime = Date.now() / 1000;
+    this.audioBytesSent = 0;
+  }
+
   getFullTranscript() {
     return this.completedSegments.join(" ");
   }

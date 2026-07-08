@@ -1905,5 +1905,22 @@
     "saved": "Meeting note template saved",
     "reset": "Meeting note template reset to default",
     "resetToDefault": "Reset"
+  },
+  "voicebank": {
+    "renameTitle": "Renommer « {{name}} »",
+    "renameDescription": "Le nouveau nom s'applique à cette transcription et aux futures réunions où cette voix est reconnue.",
+    "renamePlaceholder": "Nom de l'intervenant",
+    "suggestions": "Depuis les participants du calendrier",
+    "save": "Enregistrer",
+    "renamed": "Intervenant renommé en {{name}}",
+    "renameFailed": "Impossible de renommer l'intervenant",
+    "renameTooltip": "Renommer l'intervenant",
+    "knownVoices": "Voix connues",
+    "noVoices": "Aucune voix apprise pour l'instant — enregistrez une réunion pour commencer à reconnaître les intervenants.",
+    "meetings": "Réunions : {{count}}",
+    "renameVoice": "Renommer",
+    "deleteVoice": "Oublier la voix",
+    "deleteConfirmTitle": "Oublier « {{name}} » ?",
+    "deleteConfirmDescription": "Lors des prochaines réunions, cette personne sera traitée comme un nouvel invité."
   }
 }

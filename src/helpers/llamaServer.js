@@ -112,7 +112,11 @@ class LlamaServerManager {
   }
 
   async start(modelPath, options = {}) {
-    if (this.startupPromise) return this.startupPromise;
+    // Join an in-flight startup only for the SAME model — see whisperServer
+    while (this.startupPromise) {
+      if (this.startingModelPath === modelPath) return this.startupPromise;
+      await this.startupPromise.catch(() => {});
+    }
 
     if (this.ready && this.modelPath === modelPath) return;
 
@@ -120,11 +124,13 @@ class LlamaServerManager {
       await this.stop();
     }
 
+    this.startingModelPath = modelPath;
     this.startupPromise = this._doStart(modelPath, options);
     try {
       await this.startupPromise;
     } finally {
       this.startupPromise = null;
+      this.startingModelPath = null;
     }
   }
 
@@ -194,10 +200,22 @@ class LlamaServerManager {
     if (!binaryPaths.cpu) throw new Error("No CPU llama-server binary available");
 
     debugLogger.debug("Starting with CPU backend");
+    try {
+      await this._startWithBinaryCpu(binaryPaths.cpu, cpuArgs);
+      return;
+    } catch (err) {
+      // Kill the still-loading process — a startup timeout otherwise leaves
+      // it holding the port and GBs of RAM with no health check attached.
+      await this._killCurrentProcess();
+      throw err;
+    }
+  }
+
+  async _startWithBinaryCpu(binaryPath, cpuArgs) {
     await this._startWithBinary(
-      binaryPaths.cpu,
+      binaryPath,
       cpuArgs,
-      this._buildEnv(binaryPaths.cpu),
+      this._buildEnv(binaryPath),
       STARTUP_TIMEOUT_MS
     );
     this.activeBackend = "cpu";

@@ -201,7 +201,23 @@ OPENAI_API_KEY=${apiKey}
   }
 
   async saveAllKeysToEnvFile() {
+    // Serialize writes: this is called fire-and-forget from many sites
+    // (API-key saves, hotkey changes, provider toggles). Overlapping bare
+    // writeFile calls on the file holding every API key can interleave or
+    // truncate it. Chain onto the previous write and write atomically
+    // (temp file + rename) so a crash mid-write never corrupts the file.
+    this._envWriteQueue = (this._envWriteQueue || Promise.resolve()).then(() =>
+      this._writeEnvFileAtomic()
+    );
+    // Keep the chain alive after a failure so later writes still run
+    const result = this._envWriteQueue;
+    this._envWriteQueue = this._envWriteQueue.catch(() => {});
+    return result;
+  }
+
+  async _writeEnvFileAtomic() {
     const envPath = path.join(app.getPath("userData"), ".env");
+    const tempPath = `${envPath}.tmp-${process.pid}`;
 
     let envContent = "# customWhispr Environment Variables\n";
 
@@ -211,7 +227,13 @@ OPENAI_API_KEY=${apiKey}
       }
     }
 
-    await fsPromises.writeFile(envPath, envContent, "utf8");
+    await fsPromises.writeFile(tempPath, envContent, "utf8");
+    try {
+      await fsPromises.rename(tempPath, envPath);
+    } catch (err) {
+      await fsPromises.unlink(tempPath).catch(() => {});
+      throw err;
+    }
     require("dotenv").config({ path: envPath });
 
     return { success: true, path: envPath };

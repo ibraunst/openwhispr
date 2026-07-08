@@ -1905,5 +1905,22 @@
     "saved": "Meeting note template saved",
     "reset": "Meeting note template reset to default",
     "resetToDefault": "Reset"
+  },
+  "voicebank": {
+    "renameTitle": "「{{name}}」の名前を変更",
+    "renameDescription": "新しい名前はこの文字起こしと、今後この声が認識される会議に適用されます。",
+    "renamePlaceholder": "話者名",
+    "suggestions": "カレンダーの参加者から",
+    "save": "保存",
+    "renamed": "話者名を {{name}} に変更しました",
+    "renameFailed": "話者名を変更できませんでした",
+    "renameTooltip": "話者名を変更",
+    "knownVoices": "既知の声",
+    "noVoices": "まだ声を学習していません。会議を録音すると話者の認識が始まります。",
+    "meetings": "会議: {{count}}",
+    "renameVoice": "名前を変更",
+    "deleteVoice": "声を削除",
+    "deleteConfirmTitle": "「{{name}}」を削除しますか？",
+    "deleteConfirmDescription": "今後の会議では、この人物は新しいゲストとして扱われます。"
   }
 }

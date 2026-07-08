@@ -569,9 +569,15 @@
     "noMoreMeetings": "No more meetings today",
     "now": "Now",
     "join": "Join",
-    "untitledEvent": "Untitled event",
+    "untitledEvent": "Untitled Event",
     "screenRecordingRequired": "Screen Recording permission is needed to capture meeting audio.",
-    "openSettings": "Open System Settings"
+    "openSettings": "Open System Settings",
+    "signInRequired": "Sign in to use meeting recording",
+    "signInDescription": "Create an account or sign in to record and transcribe meetings.",
+    "connectCalendar": "Connect your calendar",
+    "connectCalendarDescription": "Link your Google Calendar to see upcoming meetings and automatically record notes.",
+    "notABot": "customWhispr records using your system audio — it never joins meetings as a bot.",
+    "connectCalendarButton": "Connect Calendar"
   },
   "cleanupPrompt": "Cleanup",
   "developerSection": {
@@ -1007,7 +1013,11 @@
         "enterprise": {
           "name": "Enterprise",
           "price": "Custom",
-          "features": ["Cloud sync", "Team features (coming soon)", "SSO & compliance"],
+          "features": [
+            "Cloud sync",
+            "Team features (coming soon)",
+            "SSO & compliance"
+          ],
           "cta": "Contact Us"
         },
         "currentPlan": "Current plan"
@@ -1918,23 +1928,6 @@
       "noCalendarsFound": "No calendars found"
     }
   },
-  "upcoming": {
-    "title": "Upcoming Meetings",
-    "transcriptions": "Transcriptions",
-    "tomorrow": "Tomorrow",
-    "noMoreMeetings": "No more meetings today",
-    "now": "Now",
-    "join": "Join",
-    "untitledEvent": "Untitled Event",
-    "screenRecordingRequired": "Screen Recording permission is needed to capture meeting audio.",
-    "openSettings": "Open System Settings",
-    "signInRequired": "Sign in to use meeting recording",
-    "signInDescription": "Create an account or sign in to record and transcribe meetings.",
-    "connectCalendar": "Connect your calendar",
-    "connectCalendarDescription": "Link your Google Calendar to see upcoming meetings and automatically record notes.",
-    "notABot": "customWhispr records using your system audio — it never joins meetings as a bot.",
-    "connectCalendarButton": "Connect Calendar"
-  },
   "notesView": {
     "searchPlaceholder": "Search notes…",
     "newNote": "New Note",
@@ -1983,5 +1976,22 @@
     "saved": "Meeting note template saved",
     "reset": "Meeting note template reset to default",
     "resetToDefault": "Reset"
+  },
+  "voicebank": {
+    "renameTitle": "Rename “{{name}}”",
+    "renameDescription": "The new name applies to this transcript and to future meetings where this voice is recognized.",
+    "renamePlaceholder": "Speaker name",
+    "suggestions": "From calendar attendees",
+    "save": "Save",
+    "renamed": "Speaker renamed to {{name}}",
+    "renameFailed": "Could not rename speaker",
+    "renameTooltip": "Rename speaker",
+    "knownVoices": "Known voices",
+    "noVoices": "No voices learned yet — record a meeting to start recognizing speakers.",
+    "meetings": "Meetings: {{count}}",
+    "renameVoice": "Rename",
+    "deleteVoice": "Forget voice",
+    "deleteConfirmTitle": "Forget “{{name}}”?",
+    "deleteConfirmDescription": "Future meetings will treat this person as a new guest."
   }
 }

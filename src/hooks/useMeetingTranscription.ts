@@ -15,6 +15,8 @@ interface UseMeetingTranscriptionReturn {
   partialTranscript: string;
   error: string | null;
   diarizationNoteIdRef: React.MutableRefObject<number | null>;
+  diarizationAttendeesRef: React.MutableRefObject<string | null>;
+  overrideDiarizedTranscript: (transcript: string) => void;
   prepareTranscription: () => Promise<void>;
   startTranscription: () => Promise<void>;
   stopTranscription: () => Promise<void>;
@@ -213,6 +215,76 @@ const flushAndDisconnectProcessor = async (processor: AudioWorkletNode | null) =
 
 // getSystemAudioStream imported from ../utils/systemAudio
 
+interface DiarizedSegmentResult {
+  start: number;
+  end: number;
+  text: string;
+  speaker?: string;
+}
+
+interface DiarizedSpeakerMeta {
+  label: string;
+  voiceprint_id: string | null;
+  is_new: boolean;
+  is_me: boolean;
+}
+
+/**
+ * If exactly one brand-new guest was detected and the calendar event has exactly
+ * one attendee besides the user, name the guest after that attendee: rename the
+ * voiceprint (so future meetings recognize them) and relabel the segments.
+ * Any ambiguity (multiple guests, multiple attendees) skips auto-naming — the
+ * user can rename manually from the transcript view.
+ */
+async function autoNameLoneGuest(
+  segments: DiarizedSegmentResult[],
+  speakers: DiarizedSpeakerMeta[],
+  attendeesJson: string | null
+): Promise<DiarizedSegmentResult[]> {
+  if (!attendeesJson) return segments;
+
+  const newGuests = speakers.filter((s) => s.is_new && s.voiceprint_id);
+  if (newGuests.length !== 1) return segments;
+
+  let attendees: { name?: string | null; email?: string | null }[];
+  try {
+    attendees = JSON.parse(attendeesJson);
+  } catch {
+    logger.warn("Malformed attendees JSON, skipping guest auto-naming", {}, "meeting");
+    return segments;
+  }
+  if (!Array.isArray(attendees)) return segments;
+
+  const ownEmails = new Set(
+    (getSettings().gcalAccounts || [])
+      .map((a) => a.email?.toLowerCase())
+      .filter((e): e is string => !!e)
+  );
+  const others = attendees.filter((a) => !(a.email && ownEmails.has(a.email.toLowerCase())));
+  if (others.length !== 1) return segments;
+
+  const name = (others[0].name || others[0].email || "").trim();
+  if (!name) return segments;
+
+  const guest = newGuests[0];
+  try {
+    const result = await window.electronAPI?.voicebankRename?.({
+      id: guest.voiceprint_id!,
+      newLabel: name,
+    });
+    if (!result?.success) {
+      logger.warn("Voicebank rename failed during auto-naming", { error: result?.error }, "meeting");
+      return segments;
+    }
+  } catch (err) {
+    logger.warn("Voicebank rename error during auto-naming", { error: (err as Error).message }, "meeting");
+    return segments;
+  }
+
+  logger.info("Auto-named guest from calendar attendee", { guest: guest.label, name }, "meeting");
+  return segments.map((seg) => (seg.speaker === guest.label ? { ...seg, speaker: name } : seg));
+}
+
 function formatDiarizedTranscript(segments: { start: number; end: number; text: string; speaker?: string }[]): string {
   const lines: string[] = [];
   let currentSpeaker = "";
@@ -253,6 +325,10 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
 
   // Ref for the note ID to receive the diarized transcript — set by the consumer component
   const diarizationNoteIdRef = useRef<number | null>(null);
+  // Calendar attendees JSON for the current meeting — set by the consumer component,
+  // used to auto-name a lone new guest after diarization. Lives in the hook (not the
+  // component) so it survives unmount during the 30s+ diarization run.
+  const diarizationAttendeesRef = useRef<string | null>(null);
 
   // Cloud path refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -276,6 +352,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
   const micRecorderRef = useRef<MediaRecorder | null>(null);
   const micChunksRef = useRef<Blob[]>([]);
   const meetingIdRef = useRef<string>("");
+  const recordingStartedAtRef = useRef<number>(0);
 
   const startSplitRecorder = useCallback(
     (stream: MediaStream, chunksRef: React.MutableRefObject<Blob[]>): MediaRecorder | null => {
@@ -427,6 +504,19 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     const splitSystemPromise = stopSplitRecorder(systemRecorderRef.current, systemChunksRef);
     const splitMicPromise = stopSplitRecorder(micRecorderRef.current, micChunksRef);
     const currentMeetingId = meetingIdRef.current;
+    // Consume this meeting's context NOW. The diarization IIFE below runs for
+    // 30s+; if the user starts meeting B in that window, reading the shared
+    // refs later would write meeting A's transcript into B's note and use B's
+    // attendees for A's speaker auto-naming.
+    meetingIdRef.current = "";
+    const targetNoteId = diarizationNoteIdRef.current;
+    const attendeesJson = diarizationAttendeesRef.current;
+    diarizationNoteIdRef.current = null;
+    diarizationAttendeesRef.current = null;
+    const recordingDurationSec = recordingStartedAtRef.current
+      ? (Date.now() - recordingStartedAtRef.current) / 1000
+      : 30;
+    recordingStartedAtRef.current = 0;
 
     if (wasLocalMode) {
       // Local path: stop MediaRecorder, wait for onstop, then transcribe
@@ -464,13 +554,28 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
           if (result?.success && result.transcript) {
             setTranscript(result.transcript);
 
-            // Save transcript.json for diarization — must be awaited so it exists before diarization runs
+            // Persist to the note here — the component's transition effect
+            // can't (recording flipped off long before this state arrives),
+            // and the component may already be unmounted.
+            if (targetNoteId) {
+              window.electronAPI
+                ?.updateNote?.(targetNoteId, { transcript: result.transcript })
+                .catch((err: Error) =>
+                  logger.error("Failed to persist local transcript to note", { error: err.message }, "meeting")
+                );
+            }
+
+            // Save transcript.json for diarization — must be awaited so it exists before diarization runs.
+            // whisper provides per-segment timestamps; without them a single
+            // whole-meeting segment can only ever receive ONE speaker label.
             if (currentMeetingId) {
-              const durationSec = (blob.size / (16000 * 2)) || 30;
+              const segments = result.segments?.length
+                ? result.segments
+                : [{ start: 0, end: recordingDurationSec, text: result.transcript }];
               try {
                 await window.electronAPI?.meetingSaveTranscript?.({
                   meetingId: currentMeetingId,
-                  segments: [{ start: 0, end: durationSec, text: result.transcript }],
+                  segments,
                 });
               } catch (err) {
                 logger.error("Failed to save local transcript", { error: (err as Error).message }, "meeting");
@@ -498,6 +603,15 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
         const result = await window.electronAPI?.meetingTranscriptionStop?.();
         if (result?.success && result.transcript) {
           setTranscript(result.transcript);
+          // Persist the complete final transcript (includes the last flushed
+          // utterance, which the component's effect misses) — unmount-safe.
+          if (targetNoteId) {
+            window.electronAPI
+              ?.updateNote?.(targetNoteId, { transcript: result.transcript })
+              .catch((err: Error) =>
+                logger.error("Failed to persist cloud transcript to note", { error: err.message }, "meeting")
+              );
+          }
         }
         if (result?.error) {
           setError(result.error);
@@ -564,11 +678,17 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
 
           if (diarizeResult?.success && diarizeResult.transcript?.segments?.length) {
             logger.info("Speaker diarization complete", { meetingId: currentMeetingId }, "meeting");
-            const formatted = formatDiarizedTranscript(diarizeResult.transcript.segments);
-            // Persist diarized transcript directly to the note via IPC — component may have unmounted
-            if (diarizationNoteIdRef.current) {
-              await window.electronAPI?.updateNote?.(diarizationNoteIdRef.current, { transcript: formatted });
-              diarizationNoteIdRef.current = null;
+            const segments = await autoNameLoneGuest(
+              diarizeResult.transcript.segments,
+              diarizeResult.transcript.speakers || [],
+              attendeesJson
+            );
+            const formatted = formatDiarizedTranscript(segments);
+            // Persist diarized transcript directly to the note via IPC — the
+            // component may have unmounted, and targetNoteId was captured at
+            // stop time so a newer meeting can't redirect this write.
+            if (targetNoteId) {
+              await window.electronAPI?.updateNote?.(targetNoteId, { transcript: formatted });
             }
             setDiarizedTranscript(formatted);
           } else {
@@ -641,11 +761,17 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     setTranscript("");
     setPartialTranscript("");
     setError(null);
+    // Clear the previous meeting's diarization output — without this, meeting
+    // B's note displays meeting A's speaker transcript until B's own
+    // diarization completes.
+    setDiarizedTranscript("");
+    setDiarizationError(null);
 
     const options = getMeetingTranscriptionOptions();
 
     // Set recording state immediately for instant UI feedback
     isRecordingRef.current = true;
+    recordingStartedAtRef.current = Date.now();
     setIsRecording(true);
     window.electronAPI?.meetingSetUserRecording?.(true);
     window.electronAPI?.setSleepBlocker?.(true);
@@ -975,10 +1101,15 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     return () => {
       // Don't reset isRecordingRef here — StrictMode double-mount would abort in-flight setup
       if (isRecordingRef.current) {
-        void cleanup();
+        // Run the full stop flow, not bare cleanup(): it releases the sleep
+        // blocker and the detection engine's user-recording flag, and it
+        // transcribes + persists what was recorded (all via refs/IPC, so it
+        // completes safely after unmount). Bare cleanup() silently destroyed
+        // the recording and left both main-process flags stuck on.
+        void stopTranscription();
       }
     };
-  }, [cleanup]);
+  }, [stopTranscription]);
 
   return {
     isRecording,
@@ -990,6 +1121,8 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     partialTranscript,
     error,
     diarizationNoteIdRef,
+    diarizationAttendeesRef,
+    overrideDiarizedTranscript: setDiarizedTranscript,
     prepareTranscription,
     startTranscription,
     stopTranscription,

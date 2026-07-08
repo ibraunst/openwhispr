@@ -331,6 +331,11 @@ class ParakeetManager {
             error: extractError.message,
           });
           if (attempt >= MAX_EXTRACT_RETRIES) {
+            // The archive itself is almost certainly corrupt (truncated or
+            // spliced download). Delete it — the "reuse existing archive"
+            // path above would otherwise re-extract the same bad file on
+            // every retry, making the install permanently unrecoverable.
+            await fsPromises.unlink(archivePath).catch(() => {});
             const err = new Error(`Model installation failed: ${extractError.message}`);
             err.code = "EXTRACTION_FAILED";
             throw err;

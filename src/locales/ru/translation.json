@@ -1905,5 +1905,22 @@
     "saved": "Meeting note template saved",
     "reset": "Meeting note template reset to default",
     "resetToDefault": "Reset"
+  },
+  "voicebank": {
+    "renameTitle": "Переименовать «{{name}}»",
+    "renameDescription": "Новое имя применяется к этой расшифровке и будущим встречам, где будет распознан этот голос.",
+    "renamePlaceholder": "Имя говорящего",
+    "suggestions": "Из участников календаря",
+    "save": "Сохранить",
+    "renamed": "Говорящий переименован в {{name}}",
+    "renameFailed": "Не удалось переименовать говорящего",
+    "renameTooltip": "Переименовать говорящего",
+    "knownVoices": "Известные голоса",
+    "noVoices": "Голоса ещё не изучены — запишите встречу, чтобы начать распознавать говорящих.",
+    "meetings": "Встречи: {{count}}",
+    "renameVoice": "Переименовать",
+    "deleteVoice": "Забыть голос",
+    "deleteConfirmTitle": "Забыть «{{name}}»?",
+    "deleteConfirmDescription": "На будущих встречах этот человек будет считаться новым гостем."
   }
 }

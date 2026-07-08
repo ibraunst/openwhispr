@@ -107,6 +107,7 @@ class AudioManager {
     this.workletBlobUrl = null;
     this.streamingStartInProgress = false;
     this.stopRequestedDuringStreamingStart = false;
+    this._stopRequestedDuringBatchStart = false;
     this.streamingFallbackRecorder = null;
     this.streamingFallbackChunks = [];
     this.skipReasoning = false;
@@ -530,6 +531,14 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         this._peakRms = 1; // assume speech if detection fails
       }
 
+      // A stop that arrived while getUserMedia was in flight (quick
+      // push-to-talk release) would otherwise be lost — apply it now.
+      if (this._stopRequestedDuringBatchStart) {
+        this._stopRequestedDuringBatchStart = false;
+        logger.info("Applying stop requested during recording setup", {}, "audio");
+        this.mediaRecorder.stop();
+      }
+
       return true;
     } catch (error) {
       let errorTitle = "Recording Error";
@@ -554,6 +563,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       });
       // Roll back the optimistic recording state
       this.isRecording = false;
+      this._stopRequestedDuringBatchStart = false;
       this.onStateChange?.({ isRecording: false, isProcessing: false });
       return false;
     }
@@ -562,6 +572,15 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
   stopRecording() {
     if (this.mediaRecorder?.state === "recording") {
       this.mediaRecorder.stop();
+      return true;
+    }
+    // Setup still in flight (mic acquisition / system-audio mixing): defer the
+    // stop so it is applied as soon as the recorder starts, instead of
+    // silently dropping it and leaving the recording stuck on. Streaming
+    // sessions have their own deferral (stopRequestedDuringStreamingStart).
+    if (this.isRecording && !this.isStreaming && !this.streamingStartInProgress) {
+      this._stopRequestedDuringBatchStart = true;
+      logger.debug("Stop requested during recording setup — deferring", {}, "audio");
       return true;
     }
     return false;
@@ -2412,13 +2431,22 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         });
         if (this.isStreaming) {
           logger.warn("Connection lost during streaming, auto-stopping", {}, "streaming");
-          this.stopStreamingRecording().catch((e) => {
-            logger.error(
-              "Auto-stop after connection loss failed",
-              { error: e.message },
-              "streaming"
-            );
-          });
+          this.stopStreamingRecording()
+            .catch((e) => {
+              logger.error(
+                "Auto-stop after connection loss failed",
+                { error: e.message },
+                "streaming"
+              );
+            })
+            .finally(() => {
+              // This internal stop bypasses the hook's performStopRecording,
+              // which normally resumes media — do it here or music stays
+              // paused forever after a connection drop.
+              if (getSettings().pauseMediaOnDictation) {
+                window.electronAPI?.resumeMediaPlayback?.();
+              }
+            });
         }
       });
 
@@ -2462,6 +2490,11 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       if (result.needsFallback) {
         this.isRecording = false;
         this.recordingStartTime = null;
+        // Carry a stop requested during the streaming attempt into the batch
+        // fallback so a released push-to-talk key still ends the recording.
+        if (this.stopRequestedDuringStreamingStart) {
+          this._stopRequestedDuringBatchStart = true;
+        }
         this.stopRequestedDuringStreamingStart = false;
         await this.cleanupStreaming();
         this.onStateChange?.({ isRecording: false, isProcessing: false, isStreaming: false });
@@ -2813,6 +2846,21 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         },
         "streaming"
       );
+    } else {
+      // Nothing transcribed and the batch fallback (if any) produced nothing.
+      // Surface it — a silent no-op after real speech violates the
+      // "never silent" rule. Sub-2s recordings are treated as accidental taps.
+      logger.warn(
+        "Streaming stop produced no transcript",
+        { durationSeconds, usedBatchFallback },
+        "streaming"
+      );
+      if ((durationSeconds || 0) > 2) {
+        this.onError?.({
+          title: "Nothing transcribed",
+          description: "No speech was recognized in that recording. Please try again.",
+        });
+      }
     }
 
     return true;

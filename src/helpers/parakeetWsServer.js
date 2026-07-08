@@ -71,15 +71,21 @@ class ParakeetWsServer {
   }
 
   async start(modelName, modelDir) {
-    if (this.startupPromise) return this.startupPromise;
+    // Join an in-flight startup only for the SAME model — see whisperServer
+    while (this.startupPromise) {
+      if (this.startingModelName === modelName) return this.startupPromise;
+      await this.startupPromise.catch(() => {});
+    }
     if (this.ready && this.modelName === modelName) return;
     if (this.process) await this.stop();
 
+    this.startingModelName = modelName;
     this.startupPromise = this._doStart(modelName, modelDir);
     try {
       await this.startupPromise;
     } finally {
       this.startupPromise = null;
+      this.startingModelName = null;
     }
   }
 
@@ -180,14 +186,22 @@ class ParakeetWsServer {
   async _waitForReady(readySignal, getProcessInfo) {
     const startTime = Date.now();
 
+    // Keep a handle on the timer: without clearing it, every SUCCESSFUL start
+    // fires an unhandled rejection 60s later.
+    let timeoutHandle = null;
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(
+      timeoutHandle = setTimeout(
         () => reject(new Error(`parakeet-ws failed to start within ${STARTUP_TIMEOUT_MS}ms`)),
         STARTUP_TIMEOUT_MS
       );
     });
 
-    const ready = await Promise.race([readySignal, timeoutPromise]);
+    let ready;
+    try {
+      ready = await Promise.race([readySignal, timeoutPromise]);
+    } finally {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+    }
 
     if (!ready) {
       const info = getProcessInfo ? getProcessInfo() : {};

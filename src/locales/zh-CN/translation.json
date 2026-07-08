@@ -1905,5 +1905,22 @@
     "saved": "Meeting note template saved",
     "reset": "Meeting note template reset to default",
     "resetToDefault": "Reset"
+  },
+  "voicebank": {
+    "renameTitle": "重命名“{{name}}”",
+    "renameDescription": "新名称将应用于此转录以及未来识别到该声音的会议。",
+    "renamePlaceholder": "发言人姓名",
+    "suggestions": "来自日历参会者",
+    "save": "保存",
+    "renamed": "发言人已重命名为 {{name}}",
+    "renameFailed": "无法重命名发言人",
+    "renameTooltip": "重命名发言人",
+    "knownVoices": "已知声音",
+    "noVoices": "尚未学习任何声音——录制会议即可开始识别发言人。",
+    "meetings": "会议：{{count}}",
+    "renameVoice": "重命名",
+    "deleteVoice": "忘记声音",
+    "deleteConfirmTitle": "忘记“{{name}}”？",
+    "deleteConfirmDescription": "之后的会议将把此人视为新访客。"
   }
 }

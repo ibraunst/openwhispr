@@ -323,6 +323,78 @@ function clearCache() {
   cachedFFmpegPath = null;
 }
 
+/**
+ * Compute the RMS of a PCM WAV file by sampling windows spread across the
+ * data chunk. Async positioned reads with bounded memory — safe to call from
+ * the main process even for multi-hour recordings (a full read of a 2h WAV
+ * is ~230 MB and would block the event loop for seconds).
+ *
+ * Returns RMS normalized to [0, 1] (int16 samples divided by 32768).
+ */
+async function sampleWavRMS(filePath, { maxWindows = 200, windowBytes = 65536 } = {}) {
+  const fsp = fs.promises;
+  const handle = await fsp.open(filePath, "r");
+  try {
+    const { size: fileSize } = await handle.stat();
+    const headSize = Math.min(fileSize, 1024 * 1024);
+    const head = Buffer.alloc(headSize);
+    await handle.read(head, 0, headSize, 0);
+
+    if (!isWavFormat(head)) {
+      throw new Error("Not a valid WAV file");
+    }
+
+    // Walk chunks to find fmt + data (same layout convertToWav produces)
+    let offset = 12;
+    let dataOffset = -1;
+    let dataSize = 0;
+    let bitsPerSample = 16;
+    while (offset < headSize - 8) {
+      const chunkId = head.toString("ascii", offset, offset + 4);
+      const chunkSize = head.readUInt32LE(offset + 4);
+      if (chunkId === "fmt ") {
+        bitsPerSample = head.readUInt16LE(offset + 22);
+      } else if (chunkId === "data") {
+        dataOffset = offset + 8;
+        dataSize = Math.min(chunkSize, fileSize - dataOffset);
+        break;
+      }
+      offset += 8 + chunkSize + (chunkSize % 2); // chunks are word-aligned
+    }
+    if (dataOffset < 0) throw new Error("WAV data chunk not found");
+    if (bitsPerSample !== 16 && bitsPerSample !== 8) {
+      throw new Error(`Unsupported WAV bit depth: ${bitsPerSample}`);
+    }
+
+    const bytesPerSample = bitsPerSample / 8;
+    const window = Buffer.alloc(windowBytes);
+    const windowCount = Math.max(1, Math.min(maxWindows, Math.ceil(dataSize / windowBytes)));
+    const stride = Math.max(windowBytes, Math.floor(dataSize / windowCount));
+
+    let sumSquares = 0;
+    let sampleCount = 0;
+    for (let i = 0; i < windowCount; i++) {
+      const pos = dataOffset + i * stride;
+      const toRead = Math.min(windowBytes, dataOffset + dataSize - pos);
+      if (toRead < bytesPerSample) break;
+      const { bytesRead } = await handle.read(window, 0, toRead, pos);
+      const samples = Math.floor(bytesRead / bytesPerSample);
+      for (let s = 0; s < samples; s++) {
+        const val =
+          bitsPerSample === 16
+            ? window.readInt16LE(s * 2) / 32768
+            : (window.readUInt8(s) - 128) / 128;
+        sumSquares += val * val;
+      }
+      sampleCount += samples;
+    }
+
+    return sampleCount > 0 ? Math.sqrt(sumSquares / sampleCount) : 0;
+  } finally {
+    await handle.close();
+  }
+}
+
 module.exports = {
   getFFmpegPath,
   isWavFormat,
@@ -330,5 +402,6 @@ module.exports = {
   splitAudioFile,
   wavToFloat32Samples,
   computeFloat32RMS,
+  sampleWavRMS,
   clearCache,
 };

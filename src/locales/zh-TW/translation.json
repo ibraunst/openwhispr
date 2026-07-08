@@ -1905,5 +1905,22 @@
     "saved": "Meeting note template saved",
     "reset": "Meeting note template reset to default",
     "resetToDefault": "Reset"
+  },
+  "voicebank": {
+    "renameTitle": "重新命名「{{name}}」",
+    "renameDescription": "新名稱將套用於此逐字稿以及未來辨識到該聲音的會議。",
+    "renamePlaceholder": "發言者姓名",
+    "suggestions": "來自行事曆與會者",
+    "save": "儲存",
+    "renamed": "發言者已重新命名為 {{name}}",
+    "renameFailed": "無法重新命名發言者",
+    "renameTooltip": "重新命名發言者",
+    "knownVoices": "已知聲音",
+    "noVoices": "尚未學習任何聲音——錄製會議即可開始辨識發言者。",
+    "meetings": "會議：{{count}}",
+    "renameVoice": "重新命名",
+    "deleteVoice": "忘記聲音",
+    "deleteConfirmTitle": "忘記「{{name}}」？",
+    "deleteConfirmDescription": "之後的會議將把此人視為新的訪客。"
   }
 }

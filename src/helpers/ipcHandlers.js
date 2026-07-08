@@ -147,29 +147,32 @@ class IPCHandlers {
     }
   }
 
-  _setupAudioCleanup() {
+  _getAudioRetentionDays() {
     const DEFAULT_RETENTION_DAYS = 30;
-    const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
-
-    // Run initial cleanup with default retention
     try {
-      this.audioStorageManager.cleanupExpiredAudio(DEFAULT_RETENTION_DAYS, this.databaseManager);
-    } catch (error) {
-      debugLogger.error("Initial audio cleanup failed", { error: error.message }, "audio-storage");
+      const stored = this.databaseManager.getSetting("audioRetentionDays", null);
+      const days = parseInt(stored, 10);
+      return Number.isFinite(days) && days > 0 ? days : DEFAULT_RETENTION_DAYS;
+    } catch {
+      return DEFAULT_RETENTION_DAYS;
     }
+  }
 
-    // Set up periodic cleanup every 6 hours
-    this._audioCleanupInterval = setInterval(() => {
-      try {
-        this.audioStorageManager.cleanupExpiredAudio(DEFAULT_RETENTION_DAYS, this.databaseManager);
-      } catch (error) {
-        debugLogger.error(
-          "Periodic audio cleanup failed",
-          { error: error.message },
-          "audio-storage"
-        );
-      }
-    }, SIX_HOURS_MS);
+  _runAudioCleanup() {
+    try {
+      this.audioStorageManager.cleanupExpiredAudio(
+        this._getAudioRetentionDays(),
+        this.databaseManager
+      );
+    } catch (error) {
+      debugLogger.error("Audio cleanup failed", { error: error.message }, "audio-storage");
+    }
+  }
+
+  _setupAudioCleanup() {
+    const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+    this._runAudioCleanup();
+    this._audioCleanupInterval = setInterval(() => this._runAudioCleanup(), SIX_HOURS_MS);
   }
 
   _setupTextEditMonitor() {
@@ -567,6 +570,21 @@ class IPCHandlers {
 
     ipcMain.handle("get-audio-storage-usage", async () => {
       return this.audioStorageManager.getStorageUsage();
+    });
+
+    ipcMain.handle("set-audio-retention-days", async (_event, days) => {
+      try {
+        const parsed = parseInt(days, 10);
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+          return { success: false, error: "Invalid retention days" };
+        }
+        this.databaseManager.setSetting("audioRetentionDays", String(parsed));
+        this._runAudioCleanup();
+        return { success: true };
+      } catch (error) {
+        debugLogger.error("Failed to set audio retention", { error: error.message }, "audio-storage");
+        return { success: false, error: error.message };
+      }
     });
 
     ipcMain.handle("delete-all-audio", async () => {
@@ -1862,7 +1880,7 @@ class IPCHandlers {
             messages: [{ role: "user", content: userPrompt }],
             system: systemPrompt,
             max_tokens: config?.maxTokens || Math.max(100, Math.min(text.length * 2, 4096)),
-            temperature: config?.temperature || 0.3,
+            temperature: config?.temperature ?? 0.3,
           };
 
           const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -2600,6 +2618,9 @@ class IPCHandlers {
         // If already prepared (warm connection from prepare), just re-attach handlers
         if (this.openaiRealtimeStreaming?.isConnected) {
           debugLogger.debug("Meeting transcription start: reusing warm connection");
+          // Recording starts NOW, not at warm-up: reset timestamps/segments or
+          // every segment is offset by the idle time and diarization mislabels.
+          this.openaiRealtimeStreaming.resetSession();
           const win = BrowserWindow.fromWebContents(event.sender);
           attachMeetingStreamingHandlers(this.openaiRealtimeStreaming, win);
           return { success: true };
@@ -2715,8 +2736,20 @@ class IPCHandlers {
 
         const voiceDbPath = path.join(app.getPath("userData"), "voicebank.db");
 
+        // Packaged GUI apps get a minimal PATH — resolve an interpreter that
+        // actually has torch/pyannote installed instead of trusting "python3".
+        const { resolveDiarizationPython } = require("./pythonResolver");
+        const pythonBin = await resolveDiarizationPython();
+        if (!pythonBin) {
+          return {
+            success: false,
+            error:
+              "No Python 3 with the diarization dependencies (torch, pyannote.audio) was found. Install them with: pip3 install -r requirements.txt",
+          };
+        }
+
         // Convert WebM/Opus files to WAV — torchaudio can't read WebM without duration headers
-        const { convertToWav } = require("./ffmpegUtils");
+        const { convertToWav, sampleWavRMS } = require("./ffmpegUtils");
         const systemWavPath = path.join(meetingDir, "system_record.wav");
         const micWavPath = path.join(meetingDir, "mic_record.wav");
 
@@ -2727,18 +2760,15 @@ class IPCHandlers {
 
         // If system audio is silent (e.g. solo recording, no meeting app audio),
         // fall back to using the mic recording as the primary diarization source.
-        const { wavToFloat32Samples } = require("./ffmpegUtils");
         let primaryAudioPath = systemWavPath;
         try {
-          const wavBuf = fs.readFileSync(systemWavPath);
-          const samples = wavToFloat32Samples(wavBuf);
-          const rms = Math.sqrt(samples.reduce((s, x) => s + x * x, 0) / samples.length);
+          const rms = await sampleWavRMS(systemWavPath);
           if (rms < 0.001) {
-            debugLogger.info("System audio silent, using mic for diarization", { meetingId }, "meeting");
+            debugLogger.info("System audio silent, using mic for diarization", { meetingId, rms }, "meeting");
             primaryAudioPath = micWavPath;
           }
-        } catch {
-          // if check fails, proceed with system audio
+        } catch (rmsError) {
+          debugLogger.warn("System-audio silence check failed, keeping system audio", { error: rmsError.message }, "meeting");
         }
 
         const args = [
@@ -2751,23 +2781,83 @@ class IPCHandlers {
         ];
         if (numSpeakers) args.push("--num-speakers", String(numSpeakers));
 
+        // The engine writes the labeled transcript (with the speakers array) to
+        // transcript.json — read the result from the file rather than parsing
+        // stdout, which any stray library print would corrupt. The timeout
+        // covers first-run model downloads; without it a hung python process
+        // would leave the renderer stuck in "diarizing" forever.
         const { execFile } = require("child_process");
-        const result = await new Promise((resolve, reject) => {
-          execFile("python3", args, { maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
-            if (error) {
-              debugLogger.error("Speaker diarization failed", { error: error.message, stderr }, "meeting");
-              reject(new Error(stderr || error.message));
-            } else {
-              resolve(JSON.parse(stdout));
+        await new Promise((resolve, reject) => {
+          execFile(
+            pythonBin,
+            args,
+            { maxBuffer: 4 * 1024 * 1024, timeout: 15 * 60 * 1000, killSignal: "SIGKILL" },
+            (error, stdout, stderr) => {
+              if (error) {
+                debugLogger.error("Speaker diarization failed", { error: error.message, stderr: (stderr || "").slice(-4000) }, "meeting");
+                const stderrTail = (stderr || "").trim().split("\n").slice(-6).join("\n");
+                reject(new Error(stderrTail || error.message));
+              } else {
+                resolve();
+              }
             }
-          });
+          );
         });
+
+        const result = JSON.parse(fs.readFileSync(transcriptPath, "utf8"));
 
         debugLogger.info("Speaker diarization complete", { meetingId, segmentCount: result?.segments?.length, firstSpeaker: result?.segments?.[0]?.speaker }, "meeting");
         return { success: true, transcript: result };
       } catch (error) {
         debugLogger.error("Speaker diarization error", { error: error.message }, "meeting");
         return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle("voicebank-list", async () => {
+      try {
+        const { listVoicePrints } = require("./voicebank");
+        return { success: true, voices: listVoicePrints(app) };
+      } catch (error) {
+        debugLogger.error("Voicebank list failed", { error: error.message }, "meeting");
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle("voicebank-rename", async (_event, { id, oldLabel, newLabel } = {}) => {
+      try {
+        const { renameVoicePrint } = require("./voicebank");
+        const result = renameVoicePrint(app, { id, oldLabel, newLabel });
+        debugLogger.info(
+          "Voicebank rename",
+          { id: id || null, oldLabel: oldLabel || null, changes: result.changes },
+          "meeting"
+        );
+        return { success: true, changes: result.changes };
+      } catch (error) {
+        debugLogger.error("Voicebank rename failed", { error: error.message }, "meeting");
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle("voicebank-delete", async (_event, id) => {
+      try {
+        const { deleteVoicePrint } = require("./voicebank");
+        const result = deleteVoicePrint(app, id);
+        return { success: true, changes: result.changes };
+      } catch (error) {
+        debugLogger.error("Voicebank delete failed", { error: error.message }, "meeting");
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle("get-calendar-event-by-id", async (_event, eventId) => {
+      try {
+        if (!eventId) return { event: null };
+        return { event: this.databaseManager.getCalendarEventById(eventId) };
+      } catch (error) {
+        debugLogger.error("get-calendar-event-by-id failed", { error: error.message }, "calendar");
+        return { event: null };
       }
     });
 
@@ -2794,6 +2884,9 @@ class IPCHandlers {
             model: options.whisperModel || process.env.WHISPER_MODEL || "base",
             language: options.language || null,
             initialPrompt: options.initialPrompt || null,
+            // Per-segment timestamps let diarization assign speakers per
+            // utterance instead of one label for the whole meeting
+            withSegments: true,
           });
         } else {
           return {
@@ -2811,11 +2904,11 @@ class IPCHandlers {
 
         debugLogger.info(
           "Local meeting transcription complete",
-          { textLength: result.text.length },
+          { textLength: result.text.length, segmentCount: result.segments?.length || 0 },
           "meeting"
         );
 
-        return { success: true, transcript: result.text };
+        return { success: true, transcript: result.text, segments: result.segments };
       } catch (error) {
         debugLogger.error("Local meeting transcription error", { error: error.message }, "meeting");
         return { success: false, error: error.message };

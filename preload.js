@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getAudioBuffer: (id) => ipcRenderer.invoke("get-audio-buffer", id),
   deleteTranscriptionAudio: (id) => ipcRenderer.invoke("delete-transcription-audio", id),
   getAudioStorageUsage: () => ipcRenderer.invoke("get-audio-storage-usage"),
+  setAudioRetentionDays: (days) => ipcRenderer.invoke("set-audio-retention-days", days),
   deleteAllAudio: () => ipcRenderer.invoke("delete-all-audio"),
   retryTranscription: (id) => ipcRenderer.invoke("retry-transcription", id),
   updateTranscriptionText: (id, text, rawText) =>
@@ -479,6 +480,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   meetingSaveSplitAudio: (data) => ipcRenderer.invoke("meeting-save-split-audio", data),
   meetingSaveTranscript: (data) => ipcRenderer.invoke("meeting-save-transcript", data),
   meetingRunDiarization: (data) => ipcRenderer.invoke("meeting-run-diarization", data),
+  voicebankList: () => ipcRenderer.invoke("voicebank-list"),
+  voicebankRename: (data) => ipcRenderer.invoke("voicebank-rename", data),
+  voicebankDelete: (id) => ipcRenderer.invoke("voicebank-delete", id),
+  getCalendarEventById: (eventId) => ipcRenderer.invoke("get-calendar-event-by-id", eventId),
   meetingTranscribeLocal: (audioBuffer, options) =>
     ipcRenderer.invoke("meeting-transcribe-local", audioBuffer, options),
   meetingSetUserRecording: (active) =>

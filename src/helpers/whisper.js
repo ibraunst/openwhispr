@@ -254,6 +254,7 @@ class WhisperManager {
     const model = options.model || "base";
     const language = options.language || null;
     const initialPrompt = options.initialPrompt || null;
+    const withSegments = !!options.withSegments;
     const modelPath = this.getModelPath(model);
 
     // Check if model exists
@@ -261,10 +262,10 @@ class WhisperManager {
       throw new Error(`Whisper model "${model}" not downloaded. Please download it from Settings.`);
     }
 
-    return await this.transcribeViaServer(audioBlob, model, language, initialPrompt);
+    return await this.transcribeViaServer(audioBlob, model, language, initialPrompt, withSegments);
   }
 
-  async transcribeViaServer(audioBlob, model, language, initialPrompt = null) {
+  async transcribeViaServer(audioBlob, model, language, initialPrompt = null, withSegments = false) {
     debugLogger.info("Transcription mode: SERVER", { model, language: language || "auto" });
     const modelPath = this.getModelPath(model);
 
@@ -303,9 +304,11 @@ class WhisperManager {
     });
 
     const startTime = Date.now();
+    // verbose_json includes per-segment timestamps (needed for diarization)
+    const responseFormat = withSegments ? "verbose_json" : "json";
     let result;
     try {
-      result = await this.serverManager.transcribe(audioBuffer, { language, initialPrompt });
+      result = await this.serverManager.transcribe(audioBuffer, { language, initialPrompt, responseFormat });
     } catch (err) {
       // Server may be in a stuck state — restart and retry once
       debugLogger.warn("Transcription failed, restarting server and retrying", {
@@ -313,7 +316,7 @@ class WhisperManager {
       });
       await this.serverManager.stop();
       await this.serverManager.start(modelPath, { useCuda: this.serverManager.useCuda });
-      result = await this.serverManager.transcribe(audioBuffer, { language, initialPrompt });
+      result = await this.serverManager.transcribe(audioBuffer, { language, initialPrompt, responseFormat });
     }
     const elapsed = Date.now() - startTime;
 
@@ -368,7 +371,18 @@ class WhisperManager {
       if (!text || this.isBlankAudioMarker(text)) {
         return { success: false, message: "No audio detected" };
       }
-      return { success: true, text };
+      const response = { success: true, text };
+      // verbose_json responses carry per-segment timestamps (float seconds)
+      if (Array.isArray(result.segments)) {
+        response.segments = result.segments
+          .map((seg) => ({
+            start: Number(seg.start) || 0,
+            end: Number(seg.end) || 0,
+            text: this.normalizeWhitespace(String(seg.text || "")),
+          }))
+          .filter((seg) => seg.text && !this.isBlankAudioMarker(seg.text));
+      }
+      return response;
     }
 
     return { success: false, message: "No audio detected" };

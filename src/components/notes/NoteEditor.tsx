@@ -8,7 +8,9 @@ import {
   AlignLeft,
   Radio,
   MessageSquareText,
+  Pencil,
 } from "lucide-react";
+import SpeakerRenameDialog from "./SpeakerRenameDialog";
 import { MarkdownTextarea } from "../ui/MarkdownTextarea";
 import {
   DropdownMenu,
@@ -71,6 +73,8 @@ interface NoteEditorProps {
   onStopMeetingRecording?: () => void;
   onGenerateNotes?: () => void;
   liveTranscript?: string;
+  onRenameSpeaker?: (oldLabel: string, newLabel: string) => Promise<void>;
+  speakerSuggestions?: string[];
 }
 
 interface DictationRange {
@@ -171,6 +175,8 @@ export default function NoteEditor({
   onStopMeetingRecording,
   onGenerateNotes,
   liveTranscript,
+  onRenameSpeaker,
+  speakerSuggestions,
 }: NoteEditorProps) {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<MeetingViewMode>("enhanced");
@@ -376,6 +382,23 @@ export default function NoteEditor({
   const effectiveTranscript = liveTranscript || meetingTranscript || note.transcript || "";
   const hasMeetingTranscript = !isMeetingRecording && !!effectiveTranscript;
 
+  const [renameSpeakerTarget, setRenameSpeakerTarget] = useState<string | null>(null);
+  const transcriptSpeakers = useMemo(() => {
+    if (!hasMeetingTranscript) return [];
+    const speakers: string[] = [];
+    const seen = new Set<string>();
+    const speakerLine = /^\*\*(.+?):\*\*\s/gm;
+    let match: RegExpExecArray | null;
+    while ((match = speakerLine.exec(effectiveTranscript)) !== null) {
+      const label = match[1].trim();
+      if (label && !seen.has(label)) {
+        seen.add(label);
+        speakers.push(label);
+      }
+    }
+    return speakers;
+  }, [effectiveTranscript, hasMeetingTranscript]);
+
   const updateSegmentIndicator = useCallback(() => {
     const container = segmentContainerRef.current;
     if (!container) return;
@@ -425,6 +448,7 @@ export default function NoteEditor({
     if (note.id !== prevNoteIdRef.current) {
       prevNoteIdRef.current = note.id;
       setViewMode(enhancement ? "enhanced" : "raw");
+      setRenameSpeakerTarget(null);
       if (titleRef.current && titleRef.current.textContent !== note.title) {
         titleRef.current.textContent = note.title || "";
       }
@@ -824,7 +848,33 @@ export default function NoteEditor({
       <div className="flex-1 relative min-h-0">
         <div className="h-full overflow-y-auto">
           {viewMode === "transcript" && hasMeetingTranscript ? (
-            <MarkdownTextarea value={effectiveTranscript} disabled />
+            <>
+              {onRenameSpeaker && transcriptSpeakers.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap px-5 pt-3">
+                  {transcriptSpeakers.map((speaker) => (
+                    <button
+                      key={speaker}
+                      onClick={() => setRenameSpeakerTarget(speaker)}
+                      title={t("voicebank.renameTooltip")}
+                      className={cn(
+                        "group flex items-center gap-1.5 h-6 px-2.5 rounded-full text-xs font-medium",
+                        "bg-foreground/4 dark:bg-white/4 border border-foreground/8 dark:border-white/8",
+                        "text-foreground/60 hover:text-foreground/80",
+                        "hover:bg-foreground/8 dark:hover:bg-white/8 hover:border-foreground/15",
+                        "transition-colors duration-150"
+                      )}
+                    >
+                      {speaker}
+                      <Pencil
+                        size={9}
+                        className="text-foreground/25 group-hover:text-foreground/50 transition-colors"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+              <MarkdownTextarea value={effectiveTranscript} disabled />
+            </>
           ) : viewMode === "enhanced" && enhancement ? (
             <MarkdownTextarea value={enhancement.content} onChange={handleEnhancedChange} />
           ) : (
@@ -846,6 +896,16 @@ export default function NoteEditor({
           className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
           style={{ background: "linear-gradient(to bottom, transparent, var(--color-background))" }}
         />
+        {onRenameSpeaker && (
+          <SpeakerRenameDialog
+            speaker={renameSpeakerTarget}
+            suggestions={speakerSuggestions ?? []}
+            onOpenChange={(open) => {
+              if (!open) setRenameSpeakerTarget(null);
+            }}
+            onRename={onRenameSpeaker}
+          />
+        )}
         <DictationWidget
           isRecording={isRecording || !!isMeetingRecording}
           isProcessing={isProcessing || !!isMeetingLocalProcessing || !!isMeetingDiarizing}

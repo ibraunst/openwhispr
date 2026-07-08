@@ -46,6 +46,36 @@ function makeContentHash(content: string): string {
   return String(content.length) + "-" + content.slice(0, 50);
 }
 
+/** Attendee display names from a calendar event's attendees JSON, excluding the user's own accounts. */
+function parseAttendeeNames(attendeesJson: string | null): string[] {
+  if (!attendeesJson) return [];
+  try {
+    const attendees: { name?: string | null; email?: string | null }[] = JSON.parse(attendeesJson);
+    if (!Array.isArray(attendees)) return [];
+    const ownEmails = new Set(
+      (getSettings().gcalAccounts || [])
+        .map((a) => a.email?.toLowerCase())
+        .filter((e): e is string => !!e)
+    );
+    const names: string[] = [];
+    const seen = new Set<string>();
+    for (const attendee of attendees) {
+      const entry =
+        typeof attendee === "string" ? { name: attendee, email: null } : attendee;
+      if (!entry) continue;
+      if (entry.email && ownEmails.has(entry.email.toLowerCase())) continue;
+      const name = (entry.name || entry.email || "").trim();
+      if (name && !seen.has(name)) {
+        seen.add(name);
+        names.push(name);
+      }
+    }
+    return names;
+  } catch {
+    return [];
+  }
+}
+
 interface PersonalNotesViewProps {
   onOpenSettings?: (section: string) => void;
   meetingRecordingRequest?: { noteId: number; folderId: number; event: any } | null;
@@ -94,12 +124,18 @@ export default function PersonalNotesView({
     transcript: meetingTranscript,
     diarizedTranscript: meetingDiarizedTranscript,
     diarizationError: meetingDiarizationError,
+    error: meetingError,
     diarizationNoteIdRef,
+    diarizationAttendeesRef,
+    overrideDiarizedTranscript,
     prepareTranscription: prepareMeetingTranscription,
     startTranscription: startMeetingTranscription,
     stopTranscription: stopMeetingTranscription,
   } = useMeetingTranscription();
   const meetingNoteIdRef = useRef<number | null>(null);
+  // Which note the current/most-recent meeting belongs to. The hook's
+  // transcript state must never render on (or be written into) other notes.
+  const [meetingNoteId, setMeetingNoteId] = useState<number | null>(null);
   const calendarTitleRef = useRef<string | null>(null);
   const calendarStartTimeRef = useRef<string | null>(null);
   const calendarAttendeesRef = useRef<string | null>(null);
@@ -129,6 +165,15 @@ export default function PersonalNotesView({
   } = useFolderManagement();
 
   const activeNote = notes.find((n) => n.id === activeNoteId) ?? null;
+
+  // Gate the meeting hook's transcript state to the note it was recorded for —
+  // rendering it on other notes shows the wrong transcript, and a speaker
+  // rename there would copy the meeting transcript into that note's DB row.
+  const isMeetingNoteActive = activeNoteId !== null && activeNoteId === meetingNoteId;
+  const activeMeetingDiarized = isMeetingNoteActive ? meetingDiarizedTranscript : "";
+  const activeMeetingTranscript = isMeetingNoteActive
+    ? meetingDiarizedTranscript || meetingTranscript
+    : "";
 
   const {
     isRecording,
@@ -197,12 +242,27 @@ export default function PersonalNotesView({
     prevIsRecordingRef.current = isRecording;
   }, [isRecording, systemAudioEnabled]);
 
+  // Pending payloads are kept in refs so a save scheduled for note A is
+  // flushed — not cancelled — when the user switches to note B within the
+  // debounce window or unmounts the view. Cancelling loses the edits.
+  const pendingSaveRef = useRef<{ noteId: number; title: string; content: string } | null>(null);
+  const pendingEnhancedSaveRef = useRef<{ noteId: number; content: string } | null>(null);
+
   useEffect(() => {
     if (activeNote && activeNote.id !== activeNoteRef.current) {
       activeNoteRef.current = activeNote.id;
-      setLocalTitle(activeNote.title);
-      setLocalContent(activeNote.content);
-      setLocalEnhancedContent(activeNote.enhanced_content ?? null);
+      // If this note has unflushed edits (rapid switch away and back within
+      // the debounce window), seed from the pending payload — the store copy
+      // is older than what the user last typed.
+      const pending =
+        pendingSaveRef.current?.noteId === activeNote.id ? pendingSaveRef.current : null;
+      const pendingEnhanced =
+        pendingEnhancedSaveRef.current?.noteId === activeNote.id
+          ? pendingEnhancedSaveRef.current
+          : null;
+      setLocalTitle(pending?.title ?? activeNote.title);
+      setLocalContent(pending?.content ?? activeNote.content);
+      setLocalEnhancedContent(pendingEnhanced?.content ?? activeNote.enhanced_content ?? null);
       setLiveTranscript("");
       liveTranscriptRef.current = "";
     }
@@ -211,26 +271,66 @@ export default function PersonalNotesView({
     }
   }, [activeNote]);
 
-  const debouncedSave = useCallback((noteId: number, title: string, content: string) => {
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(async () => {
-      setIsSaving(true);
-      try {
-        await window.electronAPI.updateNote(noteId, { title, content });
-      } catch (err) {
-        logger.warn("Failed to save note", { error: (err as Error).message }, "notes");
-      } finally {
-        setIsSaving(false);
-      }
-    }, 1000);
+  const writePendingSave = useCallback(async () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    const pending = pendingSaveRef.current;
+    pendingSaveRef.current = null;
+    if (!pending) return;
+    setIsSaving(true);
+    try {
+      await window.electronAPI.updateNote(pending.noteId, {
+        title: pending.title,
+        content: pending.content,
+      });
+    } catch (err) {
+      logger.warn("Failed to save note", { error: (err as Error).message }, "notes");
+    } finally {
+      setIsSaving(false);
+    }
   }, []);
+
+  const writePendingEnhancedSave = useCallback(async () => {
+    if (enhancedSaveTimeoutRef.current) {
+      clearTimeout(enhancedSaveTimeoutRef.current);
+      enhancedSaveTimeoutRef.current = null;
+    }
+    const pending = pendingEnhancedSaveRef.current;
+    pendingEnhancedSaveRef.current = null;
+    if (!pending) return;
+    setIsSaving(true);
+    try {
+      await window.electronAPI.updateNote(pending.noteId, { enhanced_content: pending.content });
+    } catch (err) {
+      logger.warn("Failed to save enhanced content", { error: (err as Error).message }, "notes");
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
+
+  const debouncedSave = useCallback(
+    (noteId: number, title: string, content: string) => {
+      if (pendingSaveRef.current && pendingSaveRef.current.noteId !== noteId) {
+        void writePendingSave();
+      } else if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      pendingSaveRef.current = { noteId, title, content };
+      saveTimeoutRef.current = setTimeout(() => {
+        void writePendingSave();
+      }, 1000);
+    },
+    [writePendingSave]
+  );
 
   useEffect(() => {
     return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      if (enhancedSaveTimeoutRef.current) clearTimeout(enhancedSaveTimeoutRef.current);
+      void writePendingSave();
+      void writePendingEnhancedSave();
     };
-  }, []);
+  }, [writePendingSave, writePendingEnhancedSave]);
 
   const handleTitleChange = useCallback(
     (title: string) => {
@@ -252,17 +352,20 @@ export default function PersonalNotesView({
     (content: string) => {
       setLocalEnhancedContent(content);
       if (!activeNoteId) return;
-      if (enhancedSaveTimeoutRef.current) clearTimeout(enhancedSaveTimeoutRef.current);
-      enhancedSaveTimeoutRef.current = setTimeout(async () => {
-        setIsSaving(true);
-        try {
-          await window.electronAPI.updateNote(activeNoteId, { enhanced_content: content });
-        } finally {
-          setIsSaving(false);
-        }
+      if (
+        pendingEnhancedSaveRef.current &&
+        pendingEnhancedSaveRef.current.noteId !== activeNoteId
+      ) {
+        void writePendingEnhancedSave();
+      } else if (enhancedSaveTimeoutRef.current) {
+        clearTimeout(enhancedSaveTimeoutRef.current);
+      }
+      pendingEnhancedSaveRef.current = { noteId: activeNoteId, content };
+      enhancedSaveTimeoutRef.current = setTimeout(() => {
+        void writePendingEnhancedSave();
       }, 1000);
     },
-    [activeNoteId]
+    [activeNoteId, writePendingEnhancedSave]
   );
 
   const handleNewNote = useCallback(async () => {
@@ -383,7 +486,7 @@ export default function PersonalNotesView({
   }, [activeNoteId, cancelAction]);
 
   const handleGenerateNotes = useCallback(() => {
-    const transcript = meetingTranscript || activeNote?.transcript;
+    const transcript = activeMeetingTranscript || activeNote?.transcript;
     if (!transcript) return;
 
     const combinedContent = [
@@ -410,7 +513,7 @@ export default function PersonalNotesView({
       isCloudMode,
       modelId: effectiveModelId,
     });
-  }, [meetingTranscript, activeNote?.transcript, runAction, isCloudMode, effectiveModelId]);
+  }, [activeMeetingTranscript, activeNote?.transcript, runAction, isCloudMode, effectiveModelId]);
 
   const isEnhancementStale = useMemo(() => {
     if (!activeNote?.enhanced_content || !activeNote?.enhanced_at_content_hash) return false;
@@ -426,22 +529,94 @@ export default function PersonalNotesView({
     [activeNoteId]
   );
 
+  // Attendees captured at recording start, kept per note so the rename dialog can
+  // suggest names even after the AI-completion flow clears calendarAttendeesRef.
+  const suggestionAttendeesRef = useRef<{ noteId: number | null; attendees: string | null }>({
+    noteId: null,
+    attendees: null,
+  });
+  const [speakerSuggestions, setSpeakerSuggestions] = useState<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let attendeesJson: string | null = null;
+      if (activeNote?.calendar_event_id) {
+        const result = await window.electronAPI?.getCalendarEventById?.(activeNote.calendar_event_id);
+        attendeesJson = result?.event?.attendees || null;
+      }
+      if (!attendeesJson && suggestionAttendeesRef.current.noteId === activeNoteId) {
+        attendeesJson = suggestionAttendeesRef.current.attendees;
+      }
+      const names = parseAttendeeNames(attendeesJson);
+      if (!cancelled) setSpeakerSuggestions(names);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeNoteId, activeNote?.calendar_event_id, meetingDiarizedTranscript]);
+
+  const handleRenameSpeaker = useCallback(
+    async (oldLabel: string, newLabel: string) => {
+      const noteId = activeNoteId;
+      const currentTranscript = activeMeetingDiarized || activeNote?.transcript || "";
+      try {
+        // Rename the stored voiceprint so future meetings use the new name.
+        // 0 changes is fine — "Me" and manually relabeled speakers aren't in the bank.
+        const vbResult = await window.electronAPI?.voicebankRename?.({ oldLabel, newLabel });
+        if (!vbResult?.success) {
+          throw new Error(vbResult?.error || "Voicebank update failed");
+        }
+
+        const marker = `**${oldLabel}:**`;
+        if (noteId && currentTranscript.includes(marker)) {
+          const updated = currentTranscript.split(marker).join(`**${newLabel}:**`);
+          await window.electronAPI.updateNote(noteId, { transcript: updated });
+          if (activeMeetingDiarized) overrideDiarizedTranscript(updated);
+          await initializeNotes(null, 50, activeFolderId);
+        }
+
+        toast({ title: t("voicebank.renamed", { name: newLabel }) });
+      } catch (err) {
+        logger.error("Speaker rename failed", { error: (err as Error).message }, "notes");
+        toast({
+          title: t("voicebank.renameFailed"),
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+      }
+    },
+    [
+      activeNoteId,
+      activeNote?.transcript,
+      activeFolderId,
+      activeMeetingDiarized,
+      overrideDiarizedTranscript,
+      toast,
+      t,
+    ]
+  );
+
   // When manually starting a recording, auto-title the note from the nearest calendar event
   const handleStartMeetingRecording = useCallback(async () => {
     calendarTitleRef.current = null;
     calendarStartTimeRef.current = null;
     calendarAttendeesRef.current = null;
+    diarizationAttendeesRef.current = null;
     meetingNoteIdRef.current = activeNoteId;
     diarizationNoteIdRef.current = activeNoteId;
+    setMeetingNoteId(activeNoteId);
     const result = await window.electronAPI?.getImminentCalendarEvent?.();
     if (result?.event?.summary) {
       calendarTitleRef.current = result.event.summary;
       calendarStartTimeRef.current = result.event.start_time || null;
       calendarAttendeesRef.current = result.event.attendees || null;
+      diarizationAttendeesRef.current = result.event.attendees || null;
+      suggestionAttendeesRef.current = { noteId: activeNoteId, attendees: result.event.attendees || null };
       handleTitleChange(result.event.summary);
     }
     startMeetingTranscription();
-  }, [startMeetingTranscription, handleTitleChange, activeNoteId]);
+  }, [startMeetingTranscription, handleTitleChange, activeNoteId, diarizationNoteIdRef, diarizationAttendeesRef]);
 
   // Pre-warm WebSocket when entering meeting mode (before user hits record)
   useEffect(() => {
@@ -454,6 +629,7 @@ export default function PersonalNotesView({
     if (!meetingRecordingRequest || activeNoteId !== meetingRecordingRequest.noteId) return;
     meetingNoteIdRef.current = meetingRecordingRequest.noteId;
     diarizationNoteIdRef.current = meetingRecordingRequest.noteId;
+    setMeetingNoteId(meetingRecordingRequest.noteId);
     // Only use event title if it's a real calendar event — synthetic process-detected
     // events use calendar_id "__detected__" and their title (e.g. "Zoom Meeting")
     // should be replaced by the AI-generated subject after transcription.
@@ -461,6 +637,11 @@ export default function PersonalNotesView({
     calendarTitleRef.current = isRealCalendarEvent ? (meetingRecordingRequest.event?.summary || null) : null;
     calendarStartTimeRef.current = meetingRecordingRequest.event?.start_time || null;
     calendarAttendeesRef.current = meetingRecordingRequest.event?.attendees || null;
+    diarizationAttendeesRef.current = meetingRecordingRequest.event?.attendees || null;
+    suggestionAttendeesRef.current = {
+      noteId: meetingRecordingRequest.noteId,
+      attendees: meetingRecordingRequest.event?.attendees || null,
+    };
     startMeetingTranscription();
     onMeetingRecordingRequestHandled?.();
   }, [
@@ -468,6 +649,8 @@ export default function PersonalNotesView({
     activeNoteId,
     startMeetingTranscription,
     onMeetingRecordingRequestHandled,
+    diarizationNoteIdRef,
+    diarizationAttendeesRef,
   ]);
 
   const prevMeetingRecordingRef = useRef(false);
@@ -489,10 +672,15 @@ export default function PersonalNotesView({
   }, [isMeetingRecording, meetingTranscript]);
 
   // When speaker diarization completes, refresh from DB, re-export file, and show toast
-  // (the hook already persisted the transcript to the DB via updateNote)
+  // (the hook already persisted the transcript to the DB via updateNote).
+  // Fires only on the empty→set transition — manual speaker renames update the
+  // same state and must not re-toast or re-export.
+  const prevDiarizedRef = useRef("");
   useEffect(() => {
-    if (!meetingDiarizedTranscript) return;
-    initializeNotes();
+    const prev = prevDiarizedRef.current;
+    prevDiarizedRef.current = meetingDiarizedTranscript;
+    if (!meetingDiarizedTranscript || prev) return;
+    initializeNotes(null, 50, activeFolderId);
     // Overwrite the exported file with speaker-labeled transcript
     if (lastExportRef.current) {
       const { filename, directory, headerLines } = lastExportRef.current;
@@ -501,12 +689,19 @@ export default function PersonalNotesView({
       lastExportRef.current = null;
     }
     toast({ title: "Speaker labels added to transcript" });
-  }, [meetingDiarizedTranscript, toast]);
+  }, [meetingDiarizedTranscript, activeFolderId, toast]);
 
   useEffect(() => {
     if (!meetingDiarizationError) return;
     toast({ title: "Speaker identification failed", description: meetingDiarizationError ?? undefined, variant: "destructive" });
   }, [meetingDiarizationError, toast]);
+
+  // Surface meeting recording/transcription errors — previously set into hook
+  // state that nothing read, so failures were completely silent.
+  useEffect(() => {
+    if (!meetingError) return;
+    toast({ title: "Meeting transcription error", description: meetingError, variant: "destructive" });
+  }, [meetingError, toast]);
 
   // Auto-generate notes when the meeting transcript is ready
   const autoGeneratedRef = useRef(false);
@@ -961,19 +1156,21 @@ export default function PersonalNotesView({
                   : undefined
               }
               isMeetingRecording={isMeetingRecording}
-              isMeetingLocalProcessing={isMeetingLocalProcessing}
-              isMeetingDiarizing={isMeetingDiarizing}
-              meetingTranscript={meetingDiarizedTranscript || meetingTranscript}
+              isMeetingLocalProcessing={isMeetingNoteActive && isMeetingLocalProcessing}
+              isMeetingDiarizing={isMeetingNoteActive && isMeetingDiarizing}
+              meetingTranscript={activeMeetingTranscript}
               onStartMeetingRecording={isMeetingMode ? handleStartMeetingRecording : undefined}
               onStopMeetingRecording={stopMeetingTranscription}
               onGenerateNotes={handleGenerateNotes}
               liveTranscript={liveTranscript}
+              onRenameSpeaker={handleRenameSpeaker}
+              speakerSuggestions={speakerSuggestions}
               actionProcessingState={actionProcessingState}
               actionName={actionName}
               actionPicker={
                 <ActionPicker
                   onRunAction={(action) => {
-                    const transcript = meetingDiarizedTranscript || meetingTranscript || activeNote?.transcript;
+                    const transcript = activeMeetingTranscript || activeNote?.transcript;
                     const hasNotes = !!localContent.trim();
                     if (!hasNotes && !transcript) return;
                     const parts = [
@@ -986,7 +1183,7 @@ export default function PersonalNotesView({
                   }}
                   onManageActions={() => setShowActionManager(true)}
                   disabled={
-                    (!localContent.trim() && !meetingTranscript && !activeNote?.transcript) ||
+                    (!localContent.trim() && !activeMeetingTranscript && !activeNote?.transcript) ||
                     actionProcessingState === "processing"
                   }
                 />

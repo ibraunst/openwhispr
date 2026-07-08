@@ -418,3 +418,38 @@ npm run lint             # ESLint
 npm run quality-check    # format + typecheck
 npm run i18n:check       # Translation coverage
 ```
+
+### Dev Workflow in Git Worktrees (IMPORTANT)
+
+When working from a Claude-created worktree (`.claude/worktrees/<name>/`):
+
+1. **Symlink node_modules** from the main project so the same Electron binary is used — this keeps macOS TCC permissions intact:
+   ```bash
+   ln -s /path/to/openwhispr/node_modules .claude/worktrees/<name>/node_modules
+   ```
+   Also symlink any downloaded binaries (e.g. `whisper-server-darwin-arm64`) from `resources/bin/`.
+
+2. **Always run `npm run dev` from the worktree** (not the main project) so HMR picks up worktree changes.
+
+3. **Always build (`npm run pack`) from the main project directory**, not the worktree — electron-builder cannot resolve the electron version through a symlinked `node_modules`.
+   - Copy changed files to main project first, then build there.
+
+4. **Install with `cp -R` only — never `rm -rf` first.** Overwriting in place preserves all TCC permissions (accessibility, mic, calendar) keyed to `/Applications/customWhispr.app` + bundle ID `com.herotools.customwhispr`.
+
+### macOS Accessibility Permission Troubleshooting (dev Electron binary)
+
+The dev Electron binary (`com.github.Electron` in `node_modules/electron/dist/Electron.app`) requires a one-time accessibility grant that should persist. If it stops working:
+
+1. **Never launch Electron from a different path** (e.g. a worktree path with its own node_modules) — macOS creates a new TCC entry for each unique binary path, which can conflict.
+2. If permissions are stuck (switch ON but app still reports not trusted):
+   ```bash
+   # Kill Electron
+   pkill -f Electron
+   # Reinstall fresh binary (removes any ad-hoc signature that may have changed identity)
+   rm -rf node_modules/electron/dist && node node_modules/electron/install.js
+   # Clear stale TCC entry
+   tccutil reset Accessibility com.github.Electron
+   # Relaunch, then dictate something to trigger the system prompt → click Allow
+   npm run dev
+   ```
+3. After granting, the permission persists across `npm run dev` restarts as long as the binary isn't replaced or re-signed.

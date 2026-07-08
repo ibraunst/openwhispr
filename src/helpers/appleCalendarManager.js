@@ -162,12 +162,18 @@ class AppleCalendarManager {
   }
 
   _parseEvents(output) {
-    if (!output || !output.trim()) return [];
+    // A valid zero-event response is the JSON string "[]" — blank output means
+    // the sync binary failed. Throw (instead of returning []) so syncEvents
+    // aborts before clearFutureEventsByCalendarId; returning an empty list on
+    // failure wipes every stored future Apple event.
+    if (!output || !output.trim()) {
+      throw new Error("calendar-sync binary produced no output");
+    }
+    const parsed = JSON.parse(output); // throws on malformed output — intentional
+    if (parsed.error) {
+      throw new Error(parsed.error);
+    }
     try {
-      const parsed = JSON.parse(output);
-      if (parsed.error) {
-         throw new Error(parsed.error);
-      }
       
       // Auto-upsert discovered calendars from event data
       const calMap = new Map();
@@ -215,7 +221,8 @@ class AppleCalendarManager {
       }).filter(Boolean);
     } catch (err) {
       debugLogger.error("Failed to parse EventKit JSON array", { error: err.message, outputPrefix: output.substring(0, 100) }, "acal");
-      return [];
+      // Rethrow — an empty return here would wipe stored events in syncEvents
+      throw err;
     }
   }
 

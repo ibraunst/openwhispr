@@ -175,6 +175,13 @@ Speaker diarization engine:
   - Result persisted to `notes.transcript` column via `updateNote` IPC
   - NoteEditor auto-switches to Transcript tab when diarization completes
   - Exported .md file re-written with speaker labels when diarization finishes
+- [x] Speaker voice learning (VoiceBank)
+  - Persistent voiceprints in `{userData}/voicebank.db` — speakers recognized across meetings
+  - Guest numbering is globally unique (seeded from voicebank, never resets per meeting)
+  - Speaker chips in Transcript tab → rename dialog (with calendar-attendee suggestions); rename updates voiceprint + rewrites note transcript
+  - Auto-naming: 1 new guest + 1 non-user calendar attendee → guest auto-renamed to attendee
+  - Known voices managed (rename/forget) in Integrations view under HuggingFace panel
+  - Renaming to an existing name merges the two voiceprints (weighted embedding average)
 - [x] Calendar-aware notifications
 
 ### Infrastructure
@@ -230,6 +237,13 @@ Speaker diarization engine:
 - `PersonalNotesView` tracks `lastExportRef` — when diarization completes it overwrites the exported file with speaker-labeled transcript.
 - Auto-generate notes after meeting is skipped when `useReasoningModel` is `false`; export still runs immediately in that case.
 - HuggingFace token stored as `hfToken` in `settingsStore`, configurable in Integrations view.
+- **Python resolution**: diarization NEVER spawns bare `python3` — packaged GUI apps get a minimal PATH that resolves to Apple's torch-less interpreter. `src/helpers/pythonResolver.js` probes login-shell `python3` + known install paths, validates torch/torchaudio/pyannote via `find_spec`, and caches the winner. `CUSTOMWHISPR_PYTHON` env var overrides.
+- **Result transport**: Node reads the diarization result from `transcript.json` (the engine rewrites it with the `speakers` array), NOT from stdout — stray library prints to stdout must never break the pipeline. The engine prints only a compact summary. `execFile` has a 15-min timeout (`killSignal: SIGKILL`) so a hung run can't strand the renderer in "diarizing".
+- **Silence check**: the system-audio silence fallback uses `sampleWavRMS` in `ffmpegUtils.js` (async positioned reads, ~200 sampled windows, int16-normalized) — never full-file sync reads (blocks the main process) and never byte-wise RMS on a raw Buffer (mathematically wrong; only detects bit-exact silence).
+- **VoiceBank**: `python/speaker_engine.py` persists per-speaker embeddings to `{userData}/voicebank.db` and matches new meetings against them. Node reads the same SQLite file via `src/helpers/voicebank.js` (short-lived connections only — never hold a lock while Python writes). IPC: `voicebank-list` / `voicebank-rename` / `voicebank-delete`.
+- Engine output (`transcript.json` + stdout) includes a `speakers` array (`{label, voiceprint_id, is_new, is_me}`) so the app can map labels → voiceprints.
+- `diarizationAttendeesRef` lives inside `useMeetingTranscription` (like `diarizationNoteIdRef`) and feeds `autoNameLoneGuest`: exactly 1 new guest + exactly 1 non-user attendee → voiceprint renamed + segments relabeled before formatting. Any ambiguity skips auto-naming.
+- Speaker rename flow: `PersonalNotesView.handleRenameSpeaker` renames the voiceprint by label, rewrites `**Old:**` → `**New:**` in the note transcript, and syncs the hook state via `overrideDiarizedTranscript`.
 
 ### Build & Quality
 - Node 20/22 LTS (pinned in `.nvmrc`)
@@ -402,6 +416,28 @@ interface AppProfile {
 ### Exported transcript file missing speaker labels (fixed)
 - **Cause**: File export ran at AI-completion time, before diarization finished. Also didn't run when AI was disabled.
 - **Fix**: `PersonalNotesView` stores export metadata in `lastExportRef`; when diarization completes it overwrites the file. Export now also triggers on AI error state and when `useReasoningModel` is off.
+
+### Full-app bug-scan fixes (2026-07-07) — do not regress
+- **Note saves flush, never cancel**: `PersonalNotesView` keeps pending save payloads in `pendingSaveRef`/`pendingEnhancedSaveRef` and flushes them when switching notes or unmounting. Clearing the debounce timer on note switch loses edits permanently.
+- **Meeting auto-stop grace period**: `meetingDetectionEngine._handleMeetingEndSignal` broadcasts `meeting-auto-stop-suggested` and arms a 15s `_autoStopTimer` before `meeting-auto-stop-execute`; `cancelAutoStop` clears it. Never execute immediately — the renderer's "Keep Recording" toast depends on the delay.
+- **Batch stop deferral**: `audioManager.stopRecording()` sets `_stopRequestedDuringBatchStart` when setup is in flight (mic acquisition), applied after `mediaRecorder.start()`. Without it a quick push-to-talk release leaves recording stuck on.
+- **FTS search quoting**: `database.searchNotes` wraps every token in FTS5 string-literal quotes (unicode-preserving, operator-neutralizing). The old `\w`-only sanitizer broke all non-Latin search; bare AND/OR/NOT crash FTS5.
+- **Apple calendar sync**: `_parseEvents` THROWS on binary failure/malformed output (returning `[]` wipes all stored future events via `clearFutureEventsByCalendarId`). That query must compare `datetime(start_time)`, not the raw ISO string (lexical compare classifies all of today as "future").
+- **Updater is hard-disabled** (`FEED_SHIPS_THIS_APP = false` in `src/updater.js`): the GitHub feed points at upstream OpenWhispr; installing an upstream release would replace this fork. Flip only after repointing the feed.
+- **Audio retention**: renderer pushes `audioRetentionDays` to main via `set-audio-retention-days` (stored in SQLite settings); `_setupAudioCleanup` reads it per run. It was previously hard-coded to 30 days.
+- **BYOK agent streaming**: anthropic/gemini route to their OpenAI-compatible endpoints; the provider switch must never fall through to another provider's host (key exfiltration).
+- **DB timestamps are UTC**: always parse via `normalizeDbDate` (appends "Z" only when no timezone marker present) — `new Date("YYYY-MM-DD HH:MM:SS")` parses as local time.
+- **Meeting context is captured at stop**: `stopTranscription` copies `diarizationNoteIdRef`/`diarizationAttendeesRef`/`meetingIdRef` into locals and clears the refs before the async diarization IIFE. Reading the shared refs inside the IIFE writes meeting A's transcript into meeting B's note when meetings run back-to-back.
+- **Diarized state resets at start**: `startTranscription` clears `diarizedTranscript`/`diarizationError` — otherwise meeting B's note displays meeting A's speakers until B finishes.
+- **Transcript props are note-gated**: `PersonalNotesView` tracks `meetingNoteId` (state) and only passes the hook's transcripts to NoteEditor/ActionPicker/rename when `activeNoteId === meetingNoteId`. Ungated, the meeting transcript renders on every note and a speaker rename copies it into the wrong note's DB row.
+- **The hook persists raw transcripts** (both local and cloud paths) via `updateNote` with the captured note id — the component's transition effect misses the local path entirely (transcript state arrives after the recording flag flips).
+- **Unmount runs `stopTranscription`, never bare `cleanup()`**: bare cleanup destroys the recording silently and leaves `setSleepBlocker(true)` + `meetingSetUserRecording(true)` stuck on forever.
+- **Warm cloud connections call `resetSession()` at recording start** (`openaiRealtimeStreaming.js`): segment timestamps are measured from `recordingStartTime`, which connect() sets at pre-warm time — without the reset every segment is offset by the idle gap and diarization mislabels speakers.
+- **Diarization-complete effect fires on empty→set transition only** (`prevDiarizedRef`) — manual speaker renames update the same state and must not re-toast/re-export; `initializeNotes` there must pass `activeFolderId` or the sidebar resets to all folders.
+- **Local meeting transcripts carry per-segment timestamps**: `meeting-transcribe-local` requests `withSegments: true` → whisper-server `verbose_json` → `{start, end, text}` segments saved to transcript.json. A single whole-meeting segment can only ever receive ONE speaker label from `merge_transcript`. The no-segments fallback duration comes from `recordingStartedAtRef` elapsed time, never from `blob.size / (16000*2)` (Opus bytes aren't PCM — ~10× off).
+- **`.env` writes are serialized + atomic** (`environment.js`): all writers funnel through `saveAllKeysToEnvFile`'s promise queue and temp-file+rename. Never add a bare `writeFile` of the .env — concurrent fire-and-forget callers corrupt the file holding every API key.
+- **Model-server `start(modelPath)` joins an in-flight startup only for the SAME model** (whisper/llama/parakeet-ws): returning it unconditionally serves the wrong model while `currentServerModel` records the requested one. Startup timeouts must kill the spawned process (still loading = holds port + GBs of RAM).
+- **Parakeet deletes the archive on EXTRACTION_FAILED** — the reuse-existing-archive path would otherwise re-extract the same corrupt file on every retry forever.
 
 ---
 

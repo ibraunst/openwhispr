@@ -1905,5 +1905,22 @@
     "saved": "Meeting note template saved",
     "reset": "Meeting note template reset to default",
     "resetToDefault": "Reset"
+  },
+  "voicebank": {
+    "renameTitle": "Renomear “{{name}}”",
+    "renameDescription": "O novo nome se aplica a esta transcrição e a futuras reuniões em que esta voz for reconhecida.",
+    "renamePlaceholder": "Nome do falante",
+    "suggestions": "Dos participantes do calendário",
+    "save": "Salvar",
+    "renamed": "Falante renomeado para {{name}}",
+    "renameFailed": "Não foi possível renomear o falante",
+    "renameTooltip": "Renomear falante",
+    "knownVoices": "Vozes conhecidas",
+    "noVoices": "Nenhuma voz aprendida ainda — grave uma reunião para começar a reconhecer falantes.",
+    "meetings": "Reuniões: {{count}}",
+    "renameVoice": "Renomear",
+    "deleteVoice": "Esquecer voz",
+    "deleteConfirmTitle": "Esquecer “{{name}}”?",
+    "deleteConfirmDescription": "Reuniões futuras tratarão esta pessoa como um novo convidado."
   }
 }

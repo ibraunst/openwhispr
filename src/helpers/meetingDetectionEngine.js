@@ -2,6 +2,9 @@ const { BrowserWindow, shell } = require("electron");
 const debugLogger = require("./debugLogger");
 
 const IMMINENT_THRESHOLD_MS = 5 * 60 * 1000;
+// Grace period between a meeting-end signal and the actual auto-stop, giving
+// the user time to hit "Keep Recording" (renderer shows a countdown toast).
+const AUTO_STOP_GRACE_MS = 15 * 1000;
 
 function extractMeetingUrl(event) {
   if (event?.hangout_link) return event.hangout_link;
@@ -430,8 +433,21 @@ class MeetingDetectionEngine {
     if (!this._userRecording) return;
     if (this._autoStopTimer) return;
 
-    debugLogger.info("Auto-stopping meeting recording immediately", { reason }, "meeting");
-    this.broadcastToWindows("meeting-auto-stop-execute", { reason });
+    debugLogger.info(
+      "Meeting end signal — auto-stop scheduled",
+      { reason, autoStopInMs: AUTO_STOP_GRACE_MS },
+      "meeting"
+    );
+    this.broadcastToWindows("meeting-auto-stop-suggested", {
+      reason,
+      autoStopInMs: AUTO_STOP_GRACE_MS,
+    });
+    this._autoStopTimer = setTimeout(() => {
+      this._autoStopTimer = null;
+      if (!this._userRecording) return;
+      debugLogger.info("Auto-stopping meeting recording", { reason }, "meeting");
+      this.broadcastToWindows("meeting-auto-stop-execute", { reason });
+    }, AUTO_STOP_GRACE_MS);
   }
 
   cancelAutoStop() {
