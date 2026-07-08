@@ -1,6 +1,6 @@
 # customWhispr — AI Source of Truth
 
-> **Version**: 1.6.2 | **Last scanned**: 2026-03-31
+> **Version**: 1.6.2 | **Last scanned**: 2026-07-08
 
 ---
 
@@ -29,7 +29,7 @@ Renderer Process (React + Vite)
         │ IPC (contextBridge / preload.js)
         ▼
 Main Process (Electron)
-  ├─ ipcHandlers.js (252 IPC channels: ~244 handle + 8 on)
+  ├─ ipcHandlers.js (258 IPC channels: 251 handle + 7 on)
   ├─ database.js (SQLite via better-sqlite3)
   ├─ Helper modules (audio, whisper, streaming, calendar, meeting, clipboard, etc.)
   └─ Native Swift/C binaries (resources/bin/)
@@ -58,9 +58,9 @@ External Services
 | File | Purpose |
 |------|---------|
 | `main.js` | App entry, initializes all managers |
-| `preload.js` | Secure IPC bridge (contextBridge) — ~335 exposed APIs |
+| `preload.js` | Secure IPC bridge (contextBridge) — ~341 exposed APIs |
 
-### Helpers (`src/helpers/`) — 47 modules
+### Helpers (`src/helpers/`) — 49 modules
 | Category | Files |
 |----------|-------|
 | **Audio** | `audioManager.js`, `audioStorage.js`, `audioActivityDetector.js`, `ffmpegUtils.js` |
@@ -72,6 +72,7 @@ External Services
 | **Input** | `hotkeyManager.js`, `globeKeyManager.js`, `windowsKeyManager.js`, `gnomeShortcut.js`, `textEditMonitor.js` |
 | **Calendar** | `googleCalendarManager.js`, `googleCalendarOAuth.js`, `appleCalendarManager.js` |
 | **Meeting** | `meetingDetectionEngine.js`, `meetingProcessDetector.js`, `processListCache.js` |
+| **Speaker ID** | `voicebank.js` (voiceprint store), `pythonResolver.js` (diarization interpreter) |
 | **Database** | `database.js` |
 | **IPC** | `ipcHandlers.js` (252 channels) |
 | **System** | `environment.js`, `debugLogger.js`, `devServerManager.js`, `tray.js`, `menuManager.js`, `i18nMain.js`, `safeTempDir.js`, `downloadUtils.js`, `modelDirUtils.js`, `modelManagerBridge.js`, `ModelManager.ts`, `ensureYdotool.js` |
@@ -81,7 +82,7 @@ External Services
 |------|---------------|
 | **Core** | `ControlPanel.tsx`, `ControlPanelSidebar.tsx`, `SettingsPage.tsx`, `SettingsModal.tsx`, `OnboardingFlow.tsx` |
 | **Transcription** | `HistoryView.tsx`, `TranscriptionModelPicker.tsx`, `LocalWhisperPicker.tsx`, `LocalModelPicker.tsx`, `ReasoningModelSelector.tsx` |
-| **Notes** | `NotesView.tsx`, `NoteEditor.tsx`, `notes/PersonalNotesView.tsx`, `notes/UploadAudioView.tsx`, `notes/ActionManagerDialog.tsx`, `notes/ActionPicker.tsx`, `notes/DictationWidget.tsx`, `notes/RealtimeTranscriptionBanner.tsx`, `notes/NoteListItem.tsx`, `notes/ActionProcessingOverlay.tsx`, `notes/NotesOnboarding.tsx` |
+| **Notes** | `NotesView.tsx`, `NoteEditor.tsx`, `notes/PersonalNotesView.tsx`, `notes/UploadAudioView.tsx`, `notes/ActionManagerDialog.tsx`, `notes/ActionPicker.tsx`, `notes/DictationWidget.tsx`, `notes/RealtimeTranscriptionBanner.tsx`, `notes/NoteListItem.tsx`, `notes/ActionProcessingOverlay.tsx`, `notes/NotesOnboarding.tsx`, `notes/SpeakerRenameDialog.tsx` |
 | **Agent** | `AgentOverlay.tsx`, `agent/AgentChat.tsx`, `agent/AgentInput.tsx`, `agent/AgentMessage.tsx`, `agent/AgentTitleBar.tsx` |
 | **Calendar** | `CalendarView.tsx`, `IntegrationsView.tsx`, `UpcomingMeetings.tsx` |
 | **Meeting** | `MeetingNotificationOverlay.tsx` |
@@ -185,7 +186,7 @@ Speaker diarization engine:
 - [x] Calendar-aware notifications
 
 ### Infrastructure
-- [x] Auto-update (electron-updater)
+- [ ] Auto-update — HARD-DISABLED (`FEED_SHIPS_THIS_APP = false` in `src/updater.js`; feed points at upstream OpenWhispr and would replace this fork — see §6)
 - [x] Authentication (Neon Auth)
 - [x] BYOK + customWhispr Cloud modes (transcription, reasoning, agent)
 - [x] Referral system
