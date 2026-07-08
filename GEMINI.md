@@ -29,7 +29,7 @@ Renderer Process (React + Vite)
         │ IPC (contextBridge / preload.js)
         ▼
 Main Process (Electron)
-  ├─ ipcHandlers.js (258 IPC channels: 251 handle + 7 on)
+  ├─ ipcHandlers.js (260 IPC channels: 253 handle + 7 on)
   ├─ database.js (SQLite via better-sqlite3)
   ├─ Helper modules (audio, whisper, streaming, calendar, meeting, clipboard, etc.)
   └─ Native Swift/C binaries (resources/bin/)
@@ -58,7 +58,7 @@ External Services
 | File | Purpose |
 |------|---------|
 | `main.js` | App entry, initializes all managers |
-| `preload.js` | Secure IPC bridge (contextBridge) — ~341 exposed APIs |
+| `preload.js` | Secure IPC bridge (contextBridge) — ~344 exposed APIs |
 
 ### Helpers (`src/helpers/`) — 49 modules
 | Category | Files |
@@ -166,7 +166,10 @@ Speaker diarization engine:
   - Local path: MediaRecorder → `meeting-transcribe-local` IPC → whisper/parakeet
   - Cloud path: WebSocket streaming → OpenAI Realtime
 - [x] Manual meeting recording: "Record meetings" label in CalendarView becomes a clickable blue mic button when toggle is on
-- [x] Meeting auto-stop on process close or sustained silence
+- [x] Persistent recording indicator on the floating pill while a meeting records (Granola-style capsule: red dot + pulsing bars; survives auto-hide; click opens control panel)
+- [x] Meeting recording survives sidebar navigation (PersonalNotesView stays mounted while recording/processing/diarizing)
+- [x] Calendar refresh button performs a real Google+Apple provider sync (not just a local-cache re-read)
+- [x] Meeting auto-stop on process close or sustained silence (15s "Keep Recording" grace toast)
 - [x] Speaker diarization (Python + pyannote.audio, requires HuggingFace token set in Integrations)
   - Runs automatically after every meeting recording
   - System + mic audio recorded separately (split recorders) for diarization input
@@ -179,7 +182,7 @@ Speaker diarization engine:
 - [x] Speaker voice learning (VoiceBank)
   - Persistent voiceprints in `{userData}/voicebank.db` — speakers recognized across meetings
   - Guest numbering is globally unique (seeded from voicebank, never resets per meeting)
-  - Speaker chips in Transcript tab → rename dialog (with calendar-attendee suggestions); rename updates voiceprint + rewrites note transcript
+  - Speaker chips in Transcript tab are dropdowns: one-click assignment from the meeting's calendar attendees (own accounts excluded, already-assigned names filtered) + "Custom name…" free-text dialog; rename updates voiceprint + rewrites note transcript
   - Auto-naming: 1 new guest + 1 non-user calendar attendee → guest auto-renamed to attendee
   - Known voices managed (rename/forget) in Integrations view under HuggingFace panel
   - Renaming to an existing name merges the two voiceprints (weighted embedding average)
@@ -444,6 +447,7 @@ interface AppProfile {
 - **gcal scheduleNextMeeting skips `__apple__` events** — Apple manager notifies for its own events; without the filter both fire.
 - **OAuth deep links queue** (`pendingOAuthVerifier` in main.js) when the control panel isn't live; flushed after window creation. Dropping the verifier silently fails sign-in.
 - **Export files**: `lastExportRef` is cleared at every recording start (stale ref rewrites the previous meeting's file with the new meeting's transcript); export content prefers the diarized transcript when already available; filename separator is platform-aware ("|" is invalid on Windows).
+- **Pill meeting indicator**: driven solely by the `meeting-set-user-recording` IPC (main broadcasts `meeting-recording-indicator` to the pill) so every stop path — manual, auto-stop, navigation — clears it; the pill's auto-hide is suppressed while it's active.
 
 ---
 
