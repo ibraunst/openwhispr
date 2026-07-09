@@ -195,7 +195,9 @@ export default function NoteEditor({
   speakerSuggestions,
 }: NoteEditorProps) {
   const { t } = useTranslation();
-  const [viewMode, setViewMode] = useState<MeetingViewMode>("enhanced");
+  const [viewMode, setViewMode] = useState<MeetingViewMode>(
+    note.transcript ? "transcript" : enhancement ? "enhanced" : "raw"
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
   const prevNoteIdRef = useRef<number>(note.id);
@@ -466,7 +468,9 @@ export default function NoteEditor({
   useEffect(() => {
     if (note.id !== prevNoteIdRef.current) {
       prevNoteIdRef.current = note.id;
-      setViewMode(enhancement ? "enhanced" : "raw");
+      // Meeting notes open straight to the transcript — that's the content
+      // people actually want when revisiting a meeting.
+      setViewMode(note.transcript ? "transcript" : enhancement ? "enhanced" : "raw");
       setRenameSpeakerTarget(null);
       if (titleRef.current && titleRef.current.textContent !== note.title) {
         titleRef.current.textContent = note.title || "";

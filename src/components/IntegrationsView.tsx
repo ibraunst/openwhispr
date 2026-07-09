@@ -7,6 +7,7 @@ import { SettingsPanel, SettingsPanelRow } from "./ui/SettingsSection";
 import { ConfirmDialog } from "./ui/dialog";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useScreenRecordingPermission } from "../hooks/useScreenRecordingPermission";
+import { formatSpeakerName } from "../utils/speakerNameFormatter";
 import type { VoiceBankEntry } from "../types/electron";
 import googleCalendarIcon from "../assets/icons/google-calendar.svg";
 
@@ -442,7 +443,9 @@ export default function IntegrationsView() {
                       />
                     ) : (
                       <>
-                        <span className="text-xs text-foreground/80 truncate">{voice.label}</span>
+                        <span className="text-xs text-foreground/80 truncate">
+                          {formatSpeakerName(voice.label)}
+                        </span>
                         <span className="text-xs text-muted-foreground/40 shrink-0">
                           {t("voicebank.meetings", { count: voice.meeting_count })}
                         </span>
