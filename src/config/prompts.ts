@@ -92,6 +92,40 @@ function detectAgentName(transcript: string, agentName: string): boolean {
   return false;
 }
 
+function getCustomPromptTemplate(): string | null {
+  // Per-app custom prompt takes priority over global prompt
+  const appPrompt = getActiveAppCustomPrompt();
+  if (appPrompt) return appPrompt;
+  if (typeof window !== "undefined" && window.localStorage) {
+    const customPrompt = window.localStorage.getItem("customUnifiedPrompt");
+    if (customPrompt) {
+      try {
+        return JSON.parse(customPrompt);
+      } catch {}
+    }
+  }
+  return null;
+}
+
+// True when getSystemPrompt will resolve to the plain, non-agent cleanup
+// prompt for this transcript — i.e. no custom prompt override is active and
+// the agent name wasn't addressed. Callers use this to decide whether it's
+// safe to wrap the transcript in <transcript> tags and force temperature 0
+// (a custom prompt's contract is unknown, and agent-mode output isn't "the
+// cleaned transcript").
+export function isPlainCleanupPrompt(agentName: string | null, transcript: string): boolean {
+  if (getCustomPromptTemplate()) return false;
+  const name = agentName?.trim() || "Assistant";
+  return !detectAgentName(transcript, name);
+}
+
+// The cleanup prompt tells the model its input arrives between <transcript>
+// tags; the trailing line re-anchors the output contract right after the
+// transcript, where models weight instructions most.
+export function wrapCleanupTranscript(text: string): string {
+  return `<transcript>\n${text}\n</transcript>\n\nOutput only the cleaned transcript.`;
+}
+
 export function getSystemPrompt(
   agentName: string | null,
   customDictionary?: string[],
@@ -102,19 +136,7 @@ export function getSystemPrompt(
   const name = agentName?.trim() || "Assistant";
   const prompts = getPromptBundle(uiLanguage);
 
-  let promptTemplate: string | null = null;
-  // Per-app custom prompt takes priority over global prompt
-  const appPrompt = getActiveAppCustomPrompt();
-  if (appPrompt) {
-    promptTemplate = appPrompt;
-  } else if (typeof window !== "undefined" && window.localStorage) {
-    const customPrompt = window.localStorage.getItem("customUnifiedPrompt");
-    if (customPrompt) {
-      try {
-        promptTemplate = JSON.parse(customPrompt);
-      } catch {}
-    }
-  }
+  const promptTemplate = getCustomPromptTemplate();
 
   let prompt: string;
   if (promptTemplate) {

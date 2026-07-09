@@ -7,6 +7,7 @@ import logger from "../utils/logger";
 import { isSecureEndpoint } from "../utils/urlUtils";
 import { withSessionRefresh } from "../lib/neonAuth";
 import { getSettings, isCloudReasoningMode, getActiveAppCustomPrompt } from "../stores/settingsStore";
+import { isPlainCleanupPrompt, wrapCleanupTranscript } from "../config/prompts";
 
 class ReasoningService extends BaseReasoningService {
   private apiKeyCache: SecureCache<string>;
@@ -422,27 +423,42 @@ class ReasoningService extends BaseReasoningService {
         model,
       });
 
+      // When this call will resolve to the plain cleanup prompt (no custom
+      // prompt override, agent name not addressed), frame the transcript in
+      // <transcript> tags with a trailing output anchor and force
+      // deterministic temperature 0 — a transform, not a chat reply. Only for
+      // BYOK providers we own both ends of; customwhispr cloud constructs its
+      // own prompt server-side from the raw transcript and must not see tags.
+      const cleanupMode = !config.systemPrompt && isPlainCleanupPrompt(agentName, text);
+      const promptText = cleanupMode ? wrapCleanupTranscript(text) : text;
+      const promptConfig = cleanupMode ? { ...config, temperature: config.temperature ?? 0 } : config;
+
       switch (provider) {
         case "openai":
-          result = await this.processWithOpenAI(text, trimmedModel, agentName, config);
+          result = await this.processWithOpenAI(promptText, trimmedModel, agentName, promptConfig);
           break;
         case "anthropic":
-          result = await this.processWithAnthropic(text, trimmedModel, agentName, config);
+          result = await this.processWithAnthropic(
+            promptText,
+            trimmedModel,
+            agentName,
+            promptConfig
+          );
           break;
         case "local":
-          result = await this.processWithLocal(text, trimmedModel, agentName, config);
+          result = await this.processWithLocal(promptText, trimmedModel, agentName, promptConfig);
           break;
         case "gemini":
-          result = await this.processWithGemini(text, trimmedModel, agentName, config);
+          result = await this.processWithGemini(promptText, trimmedModel, agentName, promptConfig);
           break;
         case "groq":
-          result = await this.processWithGroq(text, model, agentName, config);
+          result = await this.processWithGroq(promptText, model, agentName, promptConfig);
           break;
         case "customwhispr":
           result = await this.processWithcustomWhispr(text, model, agentName, config);
           break;
         case "custom":
-          result = await this.processWithOpenAI(text, trimmedModel, agentName, config);
+          result = await this.processWithOpenAI(promptText, trimmedModel, agentName, promptConfig);
           break;
         default:
           throw new Error(`Unsupported reasoning provider: ${provider}`);
