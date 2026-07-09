@@ -1501,7 +1501,9 @@
       "live": "En vivo",
       "transcript": "Transcripción",
       "notes": "Notas",
-      "generateNotes": "Generar notas"
+      "generateNotes": "Generar notas",
+      "pause": "Pausar",
+      "resume": "Reanudar"
     },
     "upload": {
       "title": "Subir audio",

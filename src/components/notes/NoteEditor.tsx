@@ -70,6 +70,9 @@ interface NoteEditorProps {
   actionProcessingState?: ActionProcessingState;
   actionName?: string | null;
   isMeetingRecording?: boolean;
+  isMeetingPaused?: boolean;
+  onPauseMeetingRecording?: () => void;
+  onResumeMeetingRecording?: () => void;
   isMeetingLocalProcessing?: boolean;
   isMeetingDiarizing?: boolean;
   meetingTranscript?: string;
@@ -177,6 +180,9 @@ export default function NoteEditor({
   meetingTranscript,
   onStartMeetingRecording,
   onStopMeetingRecording,
+  isMeetingPaused,
+  onPauseMeetingRecording,
+  onResumeMeetingRecording,
   onGenerateNotes,
   liveTranscript,
   onRenameSpeaker,
@@ -947,6 +953,9 @@ export default function NoteEditor({
           processingLabel={isMeetingDiarizing ? "Identifying speakers…" : undefined}
           onStart={onStartMeetingRecording && !isMeetingRecording ? onStartMeetingRecording : handleStartRecording}
           onStop={isMeetingRecording ? onStopMeetingRecording! : onStopRecording}
+          isPaused={!!isMeetingPaused}
+          onPause={isMeetingRecording ? onPauseMeetingRecording : undefined}
+          onResume={isMeetingRecording ? onResumeMeetingRecording : undefined}
           actionPicker={
             isMeetingRecording
               ? undefined

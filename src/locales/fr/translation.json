@@ -1539,7 +1539,9 @@
       "live": "En direct",
       "transcript": "Transcription",
       "notes": "Notes",
-      "generateNotes": "Générer des notes"
+      "generateNotes": "Générer des notes",
+      "pause": "Pause",
+      "resume": "Reprendre"
     },
     "upload": {
       "title": "Téléverser un fichier audio",

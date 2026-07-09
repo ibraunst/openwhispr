@@ -1501,7 +1501,9 @@
       "live": "Live",
       "transcript": "Transkript",
       "notes": "Notizen",
-      "generateNotes": "Notizen generieren"
+      "generateNotes": "Notizen generieren",
+      "pause": "Pausieren",
+      "resume": "Fortsetzen"
     },
     "upload": {
       "title": "Audio hochladen",

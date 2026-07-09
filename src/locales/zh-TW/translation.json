@@ -1501,7 +1501,9 @@
       "live": "即時",
       "transcript": "轉錄",
       "notes": "筆記",
-      "generateNotes": "生成筆記"
+      "generateNotes": "生成筆記",
+      "pause": "暫停",
+      "resume": "繼續"
     },
     "upload": {
       "title": "上傳音訊",

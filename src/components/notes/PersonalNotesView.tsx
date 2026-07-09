@@ -126,6 +126,8 @@ export default function PersonalNotesView({
 
   const {
     isRecording: isMeetingRecording,
+    isPaused: isMeetingPaused,
+    canPause: canPauseMeeting,
     isLocalProcessing: isMeetingLocalProcessing,
     isDiarizing: isMeetingDiarizing,
     transcript: meetingTranscript,
@@ -138,6 +140,8 @@ export default function PersonalNotesView({
     prepareTranscription: prepareMeetingTranscription,
     startTranscription: startMeetingTranscription,
     stopTranscription: stopMeetingTranscription,
+    pauseTranscription: pauseMeetingTranscription,
+    resumeTranscription: resumeMeetingTranscription,
   } = useMeetingTranscription();
   const meetingNoteIdRef = useRef<number | null>(null);
   // Which note the current/most-recent meeting belongs to. The hook's
@@ -1318,6 +1322,9 @@ export default function PersonalNotesView({
               meetingTranscript={activeMeetingTranscript}
               onStartMeetingRecording={isMeetingMode ? handleStartMeetingRecording : undefined}
               onStopMeetingRecording={stopMeetingTranscription}
+              isMeetingPaused={isMeetingNoteActive && isMeetingPaused}
+              onPauseMeetingRecording={canPauseMeeting ? pauseMeetingTranscription : undefined}
+              onResumeMeetingRecording={canPauseMeeting ? resumeMeetingTranscription : undefined}
               onGenerateNotes={handleGenerateNotes}
               liveTranscript={liveTranscript}
               onRenameSpeaker={handleRenameSpeaker}

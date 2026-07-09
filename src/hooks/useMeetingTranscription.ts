@@ -7,6 +7,8 @@ import logger from "../utils/logger";
 
 interface UseMeetingTranscriptionReturn {
   isRecording: boolean;
+  isPaused: boolean;
+  canPause: boolean;
   isLocalProcessing: boolean;
   isDiarizing: boolean;
   transcript: string;
@@ -20,6 +22,8 @@ interface UseMeetingTranscriptionReturn {
   prepareTranscription: () => Promise<void>;
   startTranscription: () => Promise<void>;
   stopTranscription: () => Promise<void>;
+  pauseTranscription: () => void;
+  resumeTranscription: () => void;
 }
 
 const MEETING_AUDIO_BUFFER_SIZE = 800;
@@ -375,6 +379,11 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
   const [diarizationError, setDiarizationError] = useState<string | null>(null);
   const [partialTranscript, setPartialTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Pause/resume — local recordings only (cloud realtime timestamps would
+  // drift out of alignment with the split diarization audio)
+  const [isPaused, setIsPaused] = useState(false);
+  const [canPause, setCanPause] = useState(false);
+  const isPausedRef = useRef(false);
 
   // Ref for the note ID to receive the diarized transcript — set by the consumer component
   const diarizationNoteIdRef = useRef<number | null>(null);
@@ -568,6 +577,9 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     isRecordingRef.current = false;
     isStartingRef.current = false;
     setIsRecording(false);
+    isPausedRef.current = false;
+    setIsPaused(false);
+    setCanPause(false);
     if (localModeRef.current) {
       // Clear the live preview text in the same render that flips recording
       // off — otherwise the component's auto-generate effect sees a non-empty
@@ -807,6 +819,46 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     return () => cleanup?.();
   }, [stopTranscription]);
 
+  // Pause/resume — local recordings only. MediaRecorder.pause() keeps writing
+  // into the same blob (no gap in the file), so the final transcription and
+  // diarization timestamps stay aligned with the recorded audio.
+  const pauseTranscription = useCallback(() => {
+    if (!isRecordingRef.current || !localModeRef.current || isPausedRef.current) return;
+    try {
+      if (localMediaRecorderRef.current?.state === "recording") {
+        localMediaRecorderRef.current.pause();
+      }
+    } catch {}
+    for (const ref of [systemRecorderRef, micRecorderRef]) {
+      try {
+        if (ref.current?.state === "recording") ref.current.pause();
+      } catch {}
+    }
+    // Halt the live-transcript tap so paused air never reaches Parakeet
+    liveContextRef.current?.suspend().catch(() => {});
+    isPausedRef.current = true;
+    setIsPaused(true);
+    logger.info("Meeting recording paused", {}, "meeting");
+  }, []);
+
+  const resumeTranscription = useCallback(() => {
+    if (!isRecordingRef.current || !isPausedRef.current) return;
+    try {
+      if (localMediaRecorderRef.current?.state === "paused") {
+        localMediaRecorderRef.current.resume();
+      }
+    } catch {}
+    for (const ref of [systemRecorderRef, micRecorderRef]) {
+      try {
+        if (ref.current?.state === "paused") ref.current.resume();
+      } catch {}
+    }
+    liveContextRef.current?.resume().catch(() => {});
+    isPausedRef.current = false;
+    setIsPaused(false);
+    logger.info("Meeting recording resumed", {}, "meeting");
+  }, []);
+
   const prepareTranscription = useCallback(async () => {
     if (isPreparedRef.current || isRecordingRef.current || isStartingRef.current) return;
     if (preparePromiseRef.current) return;
@@ -871,6 +923,9 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     isRecordingRef.current = true;
     recordingStartedAtRef.current = Date.now();
     setIsRecording(true);
+    isPausedRef.current = false;
+    setIsPaused(false);
+    setCanPause(false);
     window.electronAPI?.meetingSetUserRecording?.(true);
     window.electronAPI?.setSleepBlocker?.(true);
 
@@ -942,6 +997,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
 
         recorder.start();
         isStartingRef.current = false;
+        setCanPause(true);
 
         // Start split recorders for speaker diarization
         meetingIdRef.current = `meeting-${Date.now()}`;
@@ -1303,6 +1359,8 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
 
   return {
     isRecording,
+    isPaused,
+    canPause,
     isLocalProcessing,
     isDiarizing,
     transcript,
@@ -1316,5 +1374,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     prepareTranscription,
     startTranscription,
     stopTranscription,
+    pauseTranscription,
+    resumeTranscription,
   };
 }

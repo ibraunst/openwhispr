@@ -1501,7 +1501,9 @@
       "live": "实时",
       "transcript": "转录",
       "notes": "笔记",
-      "generateNotes": "生成笔记"
+      "generateNotes": "生成笔记",
+      "pause": "暂停",
+      "resume": "继续"
     },
     "upload": {
       "title": "上传音频",

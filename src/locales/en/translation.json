@@ -1621,7 +1621,9 @@
       "live": "Live",
       "transcript": "Transcript",
       "notes": "Notes",
-      "generateNotes": "Generate notes"
+      "generateNotes": "Generate notes",
+      "pause": "Pause",
+      "resume": "Resume"
     },
     "upload": {
       "title": "Upload Audio",

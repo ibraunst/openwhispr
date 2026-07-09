@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Mic, Square, Loader2 } from "lucide-react";
+import { Mic, Square, Loader2, Pause, Play } from "lucide-react";
 import { cn } from "../lib/utils";
 
 interface DictationWidgetProps {
@@ -9,6 +9,10 @@ interface DictationWidgetProps {
   processingLabel?: string;
   onStart: () => void;
   onStop: () => void;
+  // Pause/resume (meeting recordings only) — button hidden when not provided
+  isPaused?: boolean;
+  onPause?: () => void;
+  onResume?: () => void;
   actionPicker?: React.ReactNode;
 }
 
@@ -20,6 +24,9 @@ export default function DictationWidget({
   processingLabel,
   onStart,
   onStop,
+  isPaused,
+  onPause,
+  onResume,
   actionPicker,
 }: DictationWidgetProps) {
   const { t } = useTranslation();
@@ -30,9 +37,10 @@ export default function DictationWidget({
       setElapsed(0);
       return;
     }
+    if (isPaused) return; // freeze the timer while paused
     const id = setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(id);
-  }, [isRecording]);
+  }, [isRecording, isPaused]);
 
   const minutes = String(Math.floor(elapsed / 60)).padStart(2, "0");
   const seconds = String(elapsed % 60).padStart(2, "0");
@@ -61,11 +69,15 @@ export default function DictationWidget({
             {Array.from({ length: BAR_COUNT }, (_, i) => (
               <div
                 key={i}
-                className="w-0.75 rounded-full bg-primary/60 dark:bg-primary/70 origin-bottom"
+                className={cn(
+                  "w-0.75 rounded-full origin-bottom",
+                  isPaused ? "bg-primary/30 dark:bg-primary/35" : "bg-primary/60 dark:bg-primary/70"
+                )}
                 style={{
                   height: "100%",
                   animation: `waveform-bar ${0.6 + i * 0.08}s ease-in-out infinite`,
                   animationDelay: `${0.35 + i * 0.05}s`,
+                  animationPlayState: isPaused ? "paused" : "running",
                 }}
               />
             ))}
@@ -80,6 +92,28 @@ export default function DictationWidget({
             {minutes}:{seconds}
           </span>
 
+          {onPause && onResume && (
+            <button
+              onClick={isPaused ? onResume : onPause}
+              className={cn(
+                "flex items-center justify-center w-7 h-7 rounded-lg",
+                "bg-primary/10 hover:bg-primary/18 active:bg-primary/25",
+                "text-primary",
+                "transition-colors duration-150"
+              )}
+              style={{
+                animation: "fade-in-content 0.3s ease-out 0.28s both",
+              }}
+              aria-label={isPaused ? t("notes.editor.resume") : t("notes.editor.pause")}
+              title={isPaused ? t("notes.editor.resume") : t("notes.editor.pause")}
+            >
+              {isPaused ? (
+                <Play size={12} fill="currentColor" />
+              ) : (
+                <Pause size={12} fill="currentColor" />
+              )}
+            </button>
+          )}
           <button
             onClick={onStop}
             className={cn(

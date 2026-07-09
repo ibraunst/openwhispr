@@ -1411,7 +1411,9 @@
       "enhanced": "強化済み",
       "saving": "保存中",
       "wordsCount": "{{count}} 語",
-      "startWriting": "書き始める..."
+      "startWriting": "書き始める...",
+      "pause": "一時停止",
+      "resume": "再開"
     },
     "context": {
       "moveToFolder": "フォルダに移動",

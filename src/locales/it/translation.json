@@ -1501,7 +1501,9 @@
       "live": "Dal vivo",
       "transcript": "Trascrizione",
       "notes": "Note",
-      "generateNotes": "Genera note"
+      "generateNotes": "Genera note",
+      "pause": "Pausa",
+      "resume": "Riprendi"
     },
     "upload": {
       "title": "Carica audio",
