@@ -1074,7 +1074,9 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
         }
 
         if (!stream) {
-          setError("Could not capture system audio. Check Screen Recording permission.");
+          setError(
+            "Could not capture system audio. Check the System Audio Recording permission in System Settings > Privacy & Security."
+          );
           micResult?.getTracks().forEach((t) => t.stop());
           isRecordingRef.current = false;
           isStartingRef.current = false;

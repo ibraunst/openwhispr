@@ -45,7 +45,7 @@ import { useDialogs } from "../hooks/useDialogs";
 import { useAgentName } from "../utils/agentName";
 import { useWhisper } from "../hooks/useWhisper";
 import { usePermissions } from "../hooks/usePermissions";
-import { useScreenRecordingPermission } from "../hooks/useScreenRecordingPermission";
+import { useSystemAudioPermission } from "../hooks/useSystemAudioPermission";
 import { useClipboard } from "../hooks/useClipboard";
 import { useUpdater } from "../hooks/useUpdater";
 
@@ -909,7 +909,7 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
 
   const whisperHook = useWhisper();
   const permissionsHook = usePermissions(showAlertDialog);
-  const screenRecording = useScreenRecordingPermission();
+  const systemAudio = useSystemAudioPermission();
   useClipboard(showAlertDialog);
   const { agentName, setAgentName } = useAgentName();
   const [agentNameInput, setAgentNameInput] = useState(agentName);
@@ -2488,12 +2488,12 @@ EOF`,
                     />
                     <PermissionCard
                       icon={Monitor}
-                      title={t("settingsPage.permissions.screenRecordingTitle")}
-                      description={t("settingsPage.permissions.screenRecordingDescription")}
-                      granted={screenRecording.granted}
-                      onRequest={screenRecording.request}
+                      title={t("settingsPage.permissions.systemAudioTitle")}
+                      description={t("settingsPage.permissions.systemAudioDescription")}
+                      granted={systemAudio.granted}
+                      onRequest={systemAudio.request}
                       buttonText={t("settingsPage.permissions.test")}
-                      onOpenSettings={screenRecording.openSettings}
+                      onOpenSettings={systemAudio.openSettings}
                       badge={t("settingsPage.permissions.optional")}
                     />
                   </>

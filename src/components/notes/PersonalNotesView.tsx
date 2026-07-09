@@ -35,7 +35,7 @@ import {
   updateNoteInStore,
 } from "../../stores/noteStore";
 import { useMeetingTranscription, formatDiarizedTranscript } from "../../hooks/useMeetingTranscription";
-import { useScreenRecordingPermission } from "../../hooks/useScreenRecordingPermission";
+import { useSystemAudioPermission } from "../../hooks/useSystemAudioPermission";
 import { useNotesOnboarding } from "../../hooks/useNotesOnboarding";
 import NotesOnboarding from "./NotesOnboarding";
 import { formatTranscriptForExport } from "../../utils/speakerNameFormatter";
@@ -126,9 +126,9 @@ export default function PersonalNotesView({
 
   const [liveTranscript, setLiveTranscript] = useState("");
   const liveTranscriptRef = useRef("");
-  const { granted: screenRecordingGranted } = useScreenRecordingPermission();
+  const { granted: systemAudioGranted } = useSystemAudioPermission();
 
-  const systemAudioEnabled = screenRecordingGranted;
+  const systemAudioEnabled = systemAudioGranted;
 
   const {
     isRecording: isMeetingRecording,

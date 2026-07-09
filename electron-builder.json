@@ -132,6 +132,7 @@
     "extendInfo": {
       "LSUIElement": false,
       "NSMicrophoneUsageDescription": "customWhispr needs microphone access for speech-to-text transcription.",
+      "NSAudioCaptureUsageDescription": "customWhispr uses system audio to capture other participants' audio from calls and meetings.",
       "NSAccessibilityUsageDescription": "customWhispr needs accessibility permissions to paste transcribed text into other applications."
     }
   },

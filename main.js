@@ -683,7 +683,15 @@ async function startApp() {
     if (!systemPreferences.isTrustedAccessibilityClient(false)) {
       revokedPerms.push("accessibility");
     }
-    if (systemPreferences.getMediaAccessStatus("screen") !== "granted") {
+    // System-audio capture: when the native CoreAudio tap is available, the
+    // relevant grant is System Audio Recording (tracked by AudioTapManager's
+    // cached probe status — kTCCServiceScreenCapture is the wrong TCC class
+    // for it). The screen TCC check only matters for the loopback fallback.
+    if (audioTapManager?.isSupported() && audioTapManager.isAvailable()) {
+      if (audioTapManager.getPermissionStatus() === "denied") {
+        revokedPerms.push("systemAudio");
+      }
+    } else if (systemPreferences.getMediaAccessStatus("screen") !== "granted") {
       revokedPerms.push("screenRecording");
     }
     if (revokedPerms.length > 0) {
