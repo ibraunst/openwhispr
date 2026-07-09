@@ -1,6 +1,7 @@
 const { spawn } = require("child_process");
 const EventEmitter = require("events");
 const fs = require("fs");
+const os = require("os");
 const net = require("net");
 const path = require("path");
 const http = require("http");
@@ -29,6 +30,53 @@ const VAD_TUNING = {
   "--vad-samples-overlap": "0.5",
 };
 
+// Thread auto-tuning: whisper.cpp defaults to 4 threads regardless of the
+// machine. Use ~75% of the available cores (leave headroom for the app and
+// the OS), floored at whisper's own default and capped at 12 — beyond that,
+// memory bandwidth dominates and extra threads stop helping.
+const DEFAULT_WHISPER_THREADS = 4;
+const MAX_AUTO_WHISPER_THREADS = 12;
+const MAX_MANUAL_WHISPER_THREADS = 64;
+const AUTO_THREAD_RATIO = 0.75;
+
+const clampInt = (value, min, max) => Math.min(max, Math.max(min, Math.floor(value)));
+
+// Precedence: explicit options.threads > WHISPER_THREADS env > auto-tune.
+// Returns threads:null when whisper.cpp's own default is the right answer
+// (no --threads flag emitted at all).
+function resolveWhisperThreads(options = {}) {
+  const explicit = Number(options.threads);
+  if (Number.isFinite(explicit) && explicit > 0) {
+    return { threads: clampInt(explicit, 1, MAX_MANUAL_WHISPER_THREADS), source: "options" };
+  }
+
+  const envRaw = (process.env.WHISPER_THREADS || "").trim();
+  if (envRaw && envRaw.toLowerCase() !== "auto") {
+    const parsed = Number(envRaw);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return { threads: clampInt(parsed, 1, MAX_MANUAL_WHISPER_THREADS), source: "env" };
+    }
+  }
+
+  const parallelism =
+    typeof os.availableParallelism === "function"
+      ? os.availableParallelism()
+      : os.cpus()?.length || DEFAULT_WHISPER_THREADS;
+  const auto = clampInt(
+    parallelism * AUTO_THREAD_RATIO,
+    DEFAULT_WHISPER_THREADS,
+    MAX_AUTO_WHISPER_THREADS
+  );
+  if (auto <= DEFAULT_WHISPER_THREADS) {
+    return { threads: null, source: "default", parallelism };
+  }
+  return { threads: auto, source: "auto", parallelism };
+}
+
+function getThreadSignature(threadResolution) {
+  return `threads:${threadResolution.threads ?? "default"}`;
+}
+
 // VAD is active only when the caller enabled it AND the Silero model file
 // actually exists — a missing model silently runs without VAD, never crashes.
 function resolveVadState(options = {}) {
@@ -56,6 +104,7 @@ class WhisperServerManager extends EventEmitter {
     this.canConvert = false;
     this.useCuda = false;
     this.vadSignature = "vad:off";
+    this.threadSignature = "threads:default";
     this.startingKey = null;
   }
 
@@ -223,10 +272,13 @@ class WhisperServerManager extends EventEmitter {
   async start(modelPath, options = {}) {
     const vadState = resolveVadState(options);
     const nextVadSignature = getVadSignature(vadState);
+    const threadResolution = resolveWhisperThreads(options);
+    const nextThreadSignature = getThreadSignature(threadResolution);
     // The startup key covers everything that changes the spawned process —
-    // model AND VAD state — so toggling VAD restarts the server and takes
-    // effect immediately instead of silently keeping the old flags.
-    const startKey = `${modelPath}|${nextVadSignature}`;
+    // model, VAD state, thread count — so a config change restarts the
+    // server and takes effect immediately instead of silently keeping the
+    // old flags.
+    const startKey = `${modelPath}|${nextVadSignature}|${nextThreadSignature}`;
 
     // Join an in-flight startup only if it is loading the SAME configuration —
     // returning it unconditionally serves the wrong model while callers
@@ -237,7 +289,12 @@ class WhisperServerManager extends EventEmitter {
       await this.startupPromise.catch(() => {});
     }
 
-    if (this.ready && this.modelPath === modelPath && this.vadSignature === nextVadSignature) {
+    if (
+      this.ready &&
+      this.modelPath === modelPath &&
+      this.vadSignature === nextVadSignature &&
+      this.threadSignature === nextThreadSignature
+    ) {
       return;
     }
 
@@ -246,7 +303,7 @@ class WhisperServerManager extends EventEmitter {
     }
 
     this.startingKey = startKey;
-    this.startupPromise = this._doStart(modelPath, { ...options, vadState });
+    this.startupPromise = this._doStart(modelPath, { ...options, vadState, threadResolution });
     try {
       await this.startupPromise;
     } finally {
@@ -291,7 +348,9 @@ class WhisperServerManager extends EventEmitter {
       debugLogger.warn("FFmpeg not found - whisper-server will only accept 16kHz mono WAV");
     }
 
-    if (options.threads) args.push("--threads", String(options.threads));
+    const threadResolution = options.threadResolution || resolveWhisperThreads(options);
+    this.threadSignature = getThreadSignature(threadResolution);
+    if (threadResolution.threads) args.push("--threads", String(threadResolution.threads));
     // whisper.cpp defaults to English when --language is omitted;
     // explicitly pass "auto" to enable language auto-detection
     args.push("--language", options.language || "auto");
@@ -367,6 +426,19 @@ class WhisperServerManager extends EventEmitter {
         this.emit("cuda-fallback");
         return this._doStart(modelPath, { ...options, useCuda: false });
       }
+      // Auto-derived thread counts get one retry without the flag; explicit
+      // options/env values are the user's call and fail as-is.
+      if (earlyExit && threadResolution.threads && threadResolution.source === "auto") {
+        debugLogger.warn("Auto whisper thread count failed, falling back to default", {
+          selectedThreads: threadResolution.threads,
+          parallelism: threadResolution.parallelism,
+          stderr: stderrBuffer.slice(0, 200),
+        });
+        return this._doStart(modelPath, {
+          ...options,
+          threadResolution: { threads: null, source: "auto-fallback" },
+        });
+      }
       // Startup timed out but the process may still be loading — kill it or
       // it keeps the model in RAM and holds the port with no health check.
       if (this.process && !this.process.killed) {
@@ -386,6 +458,8 @@ class WhisperServerManager extends EventEmitter {
       model: path.basename(modelPath),
       cuda: this.useCuda,
       vad: vadState.active,
+      threads: threadResolution.threads,
+      threadSource: threadResolution.source,
     });
   }
 
