@@ -68,6 +68,7 @@ export default function ControlPanel() {
     noteId: number;
     folderId: number;
     event: any;
+    existingTranscript?: string | null;
   } | null>(null);
   const [gpuAccelAvailable, setGpuAccelAvailable] = useState<{ cuda: boolean; vulkan: boolean }>({
     cuda: false,

@@ -72,6 +72,9 @@ interface NoteEditorProps {
   actionProcessingState?: ActionProcessingState;
   actionName?: string | null;
   isMeetingRecording?: boolean;
+  /** True only when THIS note is the one being recorded — the global
+   *  isMeetingRecording flag must not hide other notes' transcript tabs. */
+  isMeetingRecordingThisNote?: boolean;
   isMeetingPaused?: boolean;
   onPauseMeetingRecording?: () => void;
   onResumeMeetingRecording?: () => void;
@@ -177,6 +180,7 @@ export default function NoteEditor({
   actionProcessingState,
   actionName,
   isMeetingRecording,
+  isMeetingRecordingThisNote,
   isMeetingLocalProcessing,
   isMeetingDiarizing,
   meetingTranscript,
@@ -392,7 +396,10 @@ export default function NoteEditor({
   const [indicatorStyle, setIndicatorStyle] = useState<React.CSSProperties>({ opacity: 0 });
 
   const effectiveTranscript = liveTranscript || meetingTranscript || note.transcript || "";
-  const hasMeetingTranscript = !isMeetingRecording && !!effectiveTranscript;
+  // Hide the transcript tab only while THIS note is being recorded (the live
+  // panel covers that) — a recording on some other note must not blank out
+  // this note's existing transcript.
+  const hasMeetingTranscript = !isMeetingRecordingThisNote && !!effectiveTranscript;
 
   const [renameSpeakerTarget, setRenameSpeakerTarget] = useState<string | null>(null);
   const transcriptSpeakers = useMemo(() => {

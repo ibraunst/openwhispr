@@ -83,7 +83,12 @@ function parseAttendeeNames(attendeesJson: string | null): string[] {
 
 interface PersonalNotesViewProps {
   onOpenSettings?: (section: string) => void;
-  meetingRecordingRequest?: { noteId: number; folderId: number; event: any } | null;
+  meetingRecordingRequest?: {
+    noteId: number;
+    folderId: number;
+    event: any;
+    existingTranscript?: string | null;
+  } | null;
   onMeetingRecordingRequestHandled?: () => void;
   isMeetingMode?: boolean;
   onMeetingActivityChange?: (active: boolean) => void;
@@ -807,8 +812,10 @@ export default function PersonalNotesView({
     diarizationNoteIdRef.current = meetingRecordingRequest.noteId;
     setMeetingNoteId(meetingRecordingRequest.noteId);
     lastExportRef.current = null;
-    // Detection always creates a fresh, empty note — nothing to append after
-    baseTranscriptRef.current = null;
+    // Re-detection of the same calendar event resumes into the existing note:
+    // the main process sends its current transcript so the new session's
+    // transcript is appended after it instead of overwriting it.
+    baseTranscriptRef.current = meetingRecordingRequest.existingTranscript || null;
     // Only use event title if it's a real calendar event — synthetic process-detected
     // events use calendar_id "__detected__" and their title (e.g. "Zoom Meeting")
     // should be replaced by the AI-generated subject after transcription.
@@ -1370,6 +1377,7 @@ export default function PersonalNotesView({
                   : undefined
               }
               isMeetingRecording={isMeetingRecording}
+              isMeetingRecordingThisNote={isMeetingNoteActive && isMeetingRecording}
               isMeetingLocalProcessing={isMeetingNoteActive && isMeetingLocalProcessing}
               isMeetingDiarizing={isMeetingNoteActive && isMeetingDiarizing}
               meetingTranscript={activeMeetingTranscript}

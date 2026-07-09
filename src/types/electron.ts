@@ -1292,7 +1292,12 @@ declare global {
         action: string
       ) => Promise<{ success: boolean }>;
       onNavigateToMeetingNote?: (
-        callback: (data: { noteId: number; folderId: number; event: any }) => void
+        callback: (data: {
+          noteId: number;
+          folderId: number;
+          event: any;
+          existingTranscript?: string | null;
+        }) => void
       ) => () => void;
     };
 

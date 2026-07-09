@@ -226,16 +226,40 @@ class MeetingDetectionEngine {
           });
         }
 
-        const noteResult = this.databaseManager.saveNote(eventSummary, "", "meeting", null, null, null, detection.event?.id || null);
+        // Re-detection of the SAME calendar event (interrupted recording, app
+        // restart mid-meeting) resumes into the existing note instead of
+        // creating a duplicate. Its transcript rides along so the renderer
+        // appends the new session after it rather than overwriting.
+        const eventId = detection.event?.id || null;
+        const isRealCalendarEvent = eventId && detection.event?.calendar_id !== "__detected__";
+        let noteId = null;
+        let existingTranscript = null;
+        if (isRealCalendarEvent) {
+          try {
+            const existing = this.databaseManager.getNoteByCalendarEventId(eventId);
+            if (existing?.id) {
+              noteId = existing.id;
+              existingTranscript = existing.transcript || null;
+              debugLogger.info("Resuming meeting into existing note", { noteId, eventId }, "meeting");
+            }
+          } catch (err) {
+            debugLogger.error("Existing-note lookup failed, creating new note", { error: err.message }, "meeting");
+          }
+        }
+        if (!noteId) {
+          const noteResult = this.databaseManager.saveNote(eventSummary, "", "meeting", null, null, null, eventId);
+          noteId = noteResult?.note?.id || null;
+        }
         const meetingsFolder = this.databaseManager.getMeetingsFolder();
 
-        if (noteResult?.note?.id && meetingsFolder?.id) {
+        if (noteId && meetingsFolder?.id) {
           await this.windowManager.createControlPanelWindow();
           this.windowManager.snapControlPanelToMeetingMode();
           this.windowManager.sendToControlPanel("navigate-to-meeting-note", {
-            noteId: noteResult.note.id,
+            noteId,
             folderId: meetingsFolder.id,
             event: detection.event,
+            existingTranscript,
           });
 
           // Suppress new meeting prompts while recording.

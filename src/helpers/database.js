@@ -599,7 +599,12 @@ class DatabaseManager {
   getNoteByCalendarEventId(calendarEventId) {
     try {
       if (!this.db) throw new Error("Database not initialized");
-      const stmt = this.db.prepare("SELECT * FROM notes WHERE calendar_event_id = ? ORDER BY updated_at DESC LIMIT 1");
+      // Prefer a note that already has a transcript — when duplicates exist
+      // for one event, resuming should target the one holding the recording.
+      const stmt = this.db.prepare(
+        `SELECT * FROM notes WHERE calendar_event_id = ?
+         ORDER BY (transcript IS NOT NULL AND transcript != '') DESC, updated_at DESC LIMIT 1`
+      );
       return stmt.get(calendarEventId) || null;
     } catch (error) {
       debugLogger.error("Error getting note by calendar event id", { error: error.message }, "notes");
