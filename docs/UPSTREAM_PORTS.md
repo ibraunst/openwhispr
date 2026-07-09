@@ -42,14 +42,20 @@ Produced 2026-07-09 from the upstream CHANGELOG + verification against this code
 
 | Status | Item | Upstream ref | Our files (likely) |
 |--------|------|-------------|--------------------|
-| [ ] | `navigate-to-meeting-note` store-and-drain handshake — IPC fired after `did-finish-load` but before React listener mounts is silently lost on a fresh control panel. The notification window already uses the store-and-drain pattern; mirror it. | 1.7.1 "Meeting-detected Start Recording no longer races" | `meetingDetectionEngine.js`, `windowManager.js`, `ControlPanel.tsx` |
-| [ ] | Cleanup-prompt hardening: transform-don't-reply — `<transcript>` tag framing, trailing output anchor, temperature 0 for cleanup calls | 1.7.4 #1073 (prompt part only; skip agent-routing part — we have no wake-word agent routing) | `src/config/prompts.ts`, ReasoningService |
-| [ ] | Empty/zero-length recording doesn't crash transcription | 1.7.4 #891 | `audioManager.js` |
-| [ ] | Mic falls back to default device when pinned `deviceId` no longer resolves | 1.7.4 #978 | `audioManager.js`, `useAudioRecording` |
-| [ ] | Mic re-acquired when it goes silent after idle | 1.7.3 #922 | `audioManager.js` |
-| [ ] | Settings stops grabbing the mic for device labels — `enumerateDevices()` first, `getUserMedia` only if labels missing | 1.7.3 "Settings no longer grabs the microphone" | settings/mic-picker component |
-| [ ] | Local sidecars shut down cleanly on Quit + stale processes cleaned on next launch | 1.7.0 "Local helpers shut down cleanly" | `whisperServer.js`, `parakeetServer.js`, `llamaServer.js`, `main.js` |
-| [ ] | Investigate `optimizeAudio` >90s crash reachability; remove if dead | 1.6.7 #524 | `audioManager.js:997` |
+| [x] | `navigate-to-meeting-note` store-and-drain handshake — IPC fired after `did-finish-load` but before React listener mounts is silently lost on a fresh control panel. The notification window already uses the store-and-drain pattern; mirror it. | 1.7.1 "Meeting-detected Start Recording no longer races" | `meetingDetectionEngine.js`, `windowManager.js`, `ControlPanel.tsx` |
+| [x] | Cleanup-prompt hardening: transform-don't-reply — `<transcript>` tag framing, trailing output anchor, temperature 0 for cleanup calls | 1.7.4 #1073 (prompt part only; skip agent-routing part — we have no wake-word agent routing) | `src/config/prompts.ts`, ReasoningService |
+| [x] | Empty/zero-length recording doesn't crash transcription | 1.7.4 #891 | `audioManager.js` |
+| [x] | Mic falls back to default device when pinned `deviceId` no longer resolves | 1.7.4 #978 | `audioManager.js`, `useAudioRecording` |
+| [x] | Mic re-acquired when it goes silent after idle | 1.7.3 #922 | `audioManager.js` |
+| [x] | Settings stops grabbing the mic for device labels — `enumerateDevices()` first, `getUserMedia` only if labels missing | 1.7.3 "Settings no longer grabs the microphone" | settings/mic-picker component |
+| [x] | Local sidecars shut down cleanly on Quit + stale processes cleaned on next launch | 1.7.0 "Local helpers shut down cleanly" | `whisperServer.js`, `parakeetServer.js`, `llamaServer.js`, `main.js` |
+| [x] | Investigate `optimizeAudio` >90s crash reachability; remove if dead | 1.6.7 #524 | `audioManager.js:997` |
+
+Done 2026-07-09 (commits `b870cb5a`, `d1a59c57`, `ff05cb3c`, `31dbf83c`, `998005e6`). Notes:
+- Cleanup-prompt hardening shipped English only — the other 9 locale cleanup prompts are independent hand-written prompts (not literal translations), each needs its own careful rewrite; left for a follow-up pass. `<transcript>` wrapping + temp-0 applies only to BYOK providers we own both ends of, not customwhispr cloud (server builds its own prompt server-side).
+- `optimizeAudio` removal: confirmed reachable (BYOK cloud transcription, non-4o model, blob >1MB) — matched upstream's decision to remove rather than fix.
+- Sidecar reaper covers whisper/parakeet/llama only — skipped qdrant/onnx (not in this fork) and diarization (per-request via execFile with its own timeout, not a persistent server).
+- Typecheck baseline improved 12→10 as a side effect (added the missing `setSleepBlocker` type, exposed by Tier 2 work touching the same call site twice more).
 
 Verify after: dictate short + long (>90s), open Settings while music plays (no interruption), quit app → `pgrep -f whisper-server` empty.
 
@@ -57,7 +63,9 @@ Verify after: dictate short + long (>90s), open Settings while music plays (no i
 
 | Status | Item | Notes |
 |--------|------|-------|
-| [ ] | **Decision made 2026-07-09: retire, don't port.** Remove/disable the OpenAI Realtime cloud-streaming meeting path as a silent fallback; surface a clear error if it's ever selected. Local is the only supported meeting path. | If ever revisited: GA migration is 1.7.1 #805 (+ 24kHz upsample 1.7.4 #1044) |
+| [x] | **Decision made 2026-07-09: retire, don't port.** Remove/disable the OpenAI Realtime cloud-streaming meeting path as a silent fallback; surface a clear error if it's ever selected. Local is the only supported meeting path. | If ever revisited: GA migration is 1.7.1 #805 (+ 24kHz upsample 1.7.4 #1044) |
+
+Done 2026-07-09 (commit `2aa62d40`): `startTranscription`/`prepareTranscription` in `useMeetingTranscription.ts` short-circuit on `provider === "openai-realtime"` with a clear `setError()` message instead of attempting the dead IPC round-trip. `openaiRealtimeStreaming.js` itself (and its dictation-streaming callers, including `resetSession()`) was left untouched, per the caution below.
 
 Caution: `resetSession()` at recording start (CLAUDE.md §6) lives in this file — if code is deleted rather than gated, keep AssemblyAI/Deepgram dictation streaming intact.
 
