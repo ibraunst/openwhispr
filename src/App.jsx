@@ -427,7 +427,10 @@ export default function App() {
         >
           <button
             onClick={() => {
-              if (!hasDragged) window.electronAPI?.showControlPanel?.();
+              if (!hasDragged) {
+                window.electronAPI?.meetingRequestStop?.();
+                window.electronAPI?.showControlPanel?.();
+              }
             }}
             onMouseDown={(e) => {
               setDragStartPos({ x: e.clientX, y: e.clientY });
@@ -447,17 +450,19 @@ export default function App() {
               handleMouseUp(e);
               setDragStartPos(null);
             }}
-            title={t("app.meetingRecordingIndicator")}
+            title={t("app.stopMeetingRecording")}
             className="liquid-pill flex flex-col items-center justify-center gap-1.5 rounded-full cursor-pointer"
             style={{ width: 44, height: 64 }}
           >
+            {/* Hover swaps the live dot for a stop square — click stops */}
             <div
-              className="rounded-full"
+              className={isHovered ? "rounded-[2px]" : "rounded-full"}
               style={{
-                width: 6,
-                height: 6,
+                width: isHovered ? 9 : 6,
+                height: isHovered ? 9 : 6,
                 background: "#ef4444",
                 boxShadow: "0 0 6px rgba(239, 68, 68, 0.7)",
+                transition: "border-radius 150ms ease, width 150ms ease, height 150ms ease",
               }}
             />
             <MeetingRecordingBars />

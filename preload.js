@@ -493,6 +493,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("meeting-transcribe-live-chunk", audioBuffer, options),
   meetingSetUserRecording: (active) =>
     ipcRenderer.invoke("meeting-set-user-recording", active),
+  meetingRequestStop: () => ipcRenderer.invoke("meeting-request-stop"),
+  onMeetingStopRequested: registerListener(
+    "meeting-stop-requested",
+    (callback) => () => callback()
+  ),
   onMeetingRecordingIndicator: registerListener(
     "meeting-recording-indicator",
     (callback) => (_event, data) => callback(data)

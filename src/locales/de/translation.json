@@ -1633,7 +1633,12 @@
     "enhance": {
       "title": "Verbesserungsfehler"
     },
-    "liveTranscript": "Live-Transkript"
+    "liveTranscript": "Live-Transkript",
+    "meetingAlreadyRecording": "Es läuft bereits eine Meeting-Aufnahme – stoppen Sie sie, bevor Sie eine neue starten",
+    "deleteBlockedRecording": {
+      "title": "Diese Notiz nimmt gerade auf",
+      "description": "Stoppen Sie die Meeting-Aufnahme, bevor Sie diese Notiz löschen."
+    }
   },
   "dictionary": {
     "addWord": "Wort hinzufügen",
@@ -1757,7 +1762,8 @@
       "redirectTitle": "Weiterleitung zur App...",
       "closeTab": "Du kannst diesen Tab schließen."
     },
-    "meetingRecordingIndicator": "Meeting wird aufgezeichnet — zum Öffnen klicken"
+    "meetingRecordingIndicator": "Meeting wird aufgezeichnet — zum Öffnen klicken",
+    "stopMeetingRecording": "Meeting-Aufnahme stoppen"
   },
   "agentMode": {
     "settings": {

@@ -799,6 +799,14 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     logger.info("Meeting transcription stopped", { wasLocalMode }, "meeting");
   }, [cleanup, startSplitRecorder]);
 
+  // Stop requests from the pill's meeting indicator (main-process broadcast)
+  useEffect(() => {
+    const cleanup = window.electronAPI?.onMeetingStopRequested?.(() => {
+      stopTranscription();
+    });
+    return () => cleanup?.();
+  }, [stopTranscription]);
+
   const prepareTranscription = useCallback(async () => {
     if (isPreparedRef.current || isRecordingRef.current || isStartingRef.current) return;
     if (preparePromiseRef.current) return;

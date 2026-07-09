@@ -449,6 +449,19 @@ export default function PersonalNotesView({
 
   const handleDelete = useCallback(
     async (id: number) => {
+      // Deleting the note a meeting is recording into orphans the recording:
+      // it keeps running with no visible editor and nowhere to persist.
+      if (
+        id === meetingNoteId &&
+        (isMeetingRecording || isMeetingLocalProcessing || isMeetingDiarizing)
+      ) {
+        toast({
+          title: t("notes.deleteBlockedRecording.title"),
+          description: t("notes.deleteBlockedRecording.description"),
+          variant: "destructive",
+        });
+        return;
+      }
       await window.electronAPI.deleteNote(id);
       if (activeNoteId === id) {
         const remaining = notes.filter((n) => n.id !== id);
@@ -456,7 +469,17 @@ export default function PersonalNotesView({
       }
       loadFolders();
     },
-    [activeNoteId, notes, loadFolders]
+    [
+      activeNoteId,
+      notes,
+      loadFolders,
+      meetingNoteId,
+      isMeetingRecording,
+      isMeetingLocalProcessing,
+      isMeetingDiarizing,
+      toast,
+      t,
+    ]
   );
 
   const handleMoveToFolder = useCallback(
@@ -712,6 +735,20 @@ export default function PersonalNotesView({
 
   useEffect(() => {
     if (!meetingRecordingRequest || activeNoteId !== meetingRecordingRequest.noteId) return;
+    // The note was just created in the MAIN process — this store doesn't have
+    // it yet. Without a refetch the editor renders blank (no record widget,
+    // no live transcript, no stop control) while the recording runs headless.
+    initializeNotes(null, 50, meetingRecordingRequest.folderId ?? activeFolderId);
+    if (isMeetingRecording) {
+      // A recording is already running — re-pointing the meeting refs now
+      // would silently write the in-flight meeting into this new note.
+      toast({
+        title: t("notes.meetingAlreadyRecording"),
+        variant: "destructive",
+      });
+      onMeetingRecordingRequestHandled?.();
+      return;
+    }
     meetingNoteIdRef.current = meetingRecordingRequest.noteId;
     diarizationNoteIdRef.current = meetingRecordingRequest.noteId;
     setMeetingNoteId(meetingRecordingRequest.noteId);
@@ -733,10 +770,14 @@ export default function PersonalNotesView({
   }, [
     meetingRecordingRequest,
     activeNoteId,
+    activeFolderId,
+    isMeetingRecording,
     startMeetingTranscription,
     onMeetingRecordingRequestHandled,
     diarizationNoteIdRef,
     diarizationAttendeesRef,
+    toast,
+    t,
   ]);
 
   const prevMeetingRecordingRef = useRef(false);

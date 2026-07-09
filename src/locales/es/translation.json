@@ -1633,7 +1633,12 @@
     "enhance": {
       "title": "Error de mejora"
     },
-    "liveTranscript": "Transcripción en vivo"
+    "liveTranscript": "Transcripción en vivo",
+    "meetingAlreadyRecording": "Ya se está grabando una reunión: deténla antes de iniciar otra",
+    "deleteBlockedRecording": {
+      "title": "Esta nota está grabando",
+      "description": "Detén la grabación de la reunión antes de eliminar esta nota."
+    }
   },
   "dictionary": {
     "addWord": "Añadir palabra",
@@ -1757,7 +1762,8 @@
       "redirectTitle": "Redirigiendo a la app...",
       "closeTab": "Puedes cerrar esta pestaña."
     },
-    "meetingRecordingIndicator": "Se está grabando la reunión — haz clic para abrir"
+    "meetingRecordingIndicator": "Se está grabando la reunión — haz clic para abrir",
+    "stopMeetingRecording": "Detener grabación de la reunión"
   },
   "agentMode": {
     "settings": {

@@ -1633,7 +1633,12 @@
     "enhance": {
       "title": "增強錯誤"
     },
-    "liveTranscript": "即時轉錄"
+    "liveTranscript": "即時轉錄",
+    "meetingAlreadyRecording": "已有會議正在錄製——請先停止後再開始新的錄製",
+    "deleteBlockedRecording": {
+      "title": "此筆記正在錄製",
+      "description": "請先停止會議錄製，再刪除此筆記。"
+    }
   },
   "dictionary": {
     "addWord": "新增詞語",
@@ -1757,7 +1762,8 @@
       "redirectTitle": "正在跳轉到應用程式...",
       "closeTab": "您可以關閉此分頁。"
     },
-    "meetingRecordingIndicator": "會議錄製中——點擊開啟"
+    "meetingRecordingIndicator": "會議錄製中——點擊開啟",
+    "stopMeetingRecording": "停止會議錄製"
   },
   "agentMode": {
     "settings": {

@@ -1754,7 +1754,12 @@
     "enhance": {
       "title": "Enhancement error"
     },
-    "liveTranscript": "Live transcript"
+    "liveTranscript": "Live transcript",
+    "meetingAlreadyRecording": "A meeting is already recording — stop it before starting another",
+    "deleteBlockedRecording": {
+      "title": "This note is recording",
+      "description": "Stop the meeting recording before deleting this note."
+    }
   },
   "dictionary": {
     "title": "Custom Dictionary",
@@ -1840,7 +1845,8 @@
       "redirectTitle": "Redirecting to app...",
       "closeTab": "You can close this tab."
     },
-    "meetingRecordingIndicator": "Meeting is being recorded — click to open"
+    "meetingRecordingIndicator": "Meeting is being recorded — click to open",
+    "stopMeetingRecording": "Stop meeting recording"
   },
   "agentMode": {
     "settings": {

@@ -1671,7 +1671,12 @@
     "enhance": {
       "title": "Erreur d'amélioration"
     },
-    "liveTranscript": "Transcription en direct"
+    "liveTranscript": "Transcription en direct",
+    "meetingAlreadyRecording": "Une réunion est déjà en cours d'enregistrement — arrêtez-la avant d'en démarrer une autre",
+    "deleteBlockedRecording": {
+      "title": "Cette note est en cours d'enregistrement",
+      "description": "Arrêtez l'enregistrement de la réunion avant de supprimer cette note."
+    }
   },
   "dictionary": {
     "title": "Dictionnaire personnalisé",
@@ -1757,7 +1762,8 @@
       "redirectTitle": "Redirection vers l'app...",
       "closeTab": "Vous pouvez fermer cet onglet."
     },
-    "meetingRecordingIndicator": "La réunion est en cours d'enregistrement — cliquez pour ouvrir"
+    "meetingRecordingIndicator": "La réunion est en cours d'enregistrement — cliquez pour ouvrir",
+    "stopMeetingRecording": "Arrêter l'enregistrement de la réunion"
   },
   "agentMode": {
     "settings": {

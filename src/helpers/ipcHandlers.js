@@ -2964,6 +2964,13 @@ class IPCHandlers {
       }
     });
 
+    // Stop request from the pill's meeting indicator — broadcast to the
+    // control panel, where useMeetingTranscription owns the recording.
+    ipcMain.handle("meeting-request-stop", async () => {
+      this.windowManager?.sendToControlPanel?.("meeting-stop-requested", {});
+      return { success: true };
+    });
+
     ipcMain.handle("meeting-set-user-recording", async (_event, active) => {
       this.meetingDetectionEngine?.setUserRecording(!!active);
       // Drive the pill's persistent meeting-recording indicator

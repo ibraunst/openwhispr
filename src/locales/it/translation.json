@@ -1633,7 +1633,12 @@
     "enhance": {
       "title": "Errore di miglioramento"
     },
-    "liveTranscript": "Trascrizione in diretta"
+    "liveTranscript": "Trascrizione in diretta",
+    "meetingAlreadyRecording": "Una riunione è già in registrazione: interrompila prima di avviarne un'altra",
+    "deleteBlockedRecording": {
+      "title": "Questa nota sta registrando",
+      "description": "Interrompi la registrazione della riunione prima di eliminare questa nota."
+    }
   },
   "dictionary": {
     "addWord": "Aggiungi parola",
@@ -1757,7 +1762,8 @@
       "redirectTitle": "Reindirizzamento all'app...",
       "closeTab": "Puoi chiudere questa scheda."
     },
-    "meetingRecordingIndicator": "La riunione è in fase di registrazione — clicca per aprire"
+    "meetingRecordingIndicator": "La riunione è in fase di registrazione — clicca per aprire",
+    "stopMeetingRecording": "Interrompi registrazione riunione"
   },
   "agentMode": {
     "settings": {

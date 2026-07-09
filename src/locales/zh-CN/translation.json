@@ -1633,7 +1633,12 @@
     "enhance": {
       "title": "增强错误"
     },
-    "liveTranscript": "实时转录"
+    "liveTranscript": "实时转录",
+    "meetingAlreadyRecording": "已有会议正在录制——请先停止后再开始新的录制",
+    "deleteBlockedRecording": {
+      "title": "此笔记正在录制",
+      "description": "请先停止会议录制，再删除此笔记。"
+    }
   },
   "dictionary": {
     "addWord": "添加词语",
@@ -1757,7 +1762,8 @@
       "redirectTitle": "正在跳转到应用...",
       "closeTab": "您可以关闭此标签页。"
     },
-    "meetingRecordingIndicator": "会议录制中——点击打开"
+    "meetingRecordingIndicator": "会议录制中——点击打开",
+    "stopMeetingRecording": "停止会议录制"
   },
   "agentMode": {
     "settings": {

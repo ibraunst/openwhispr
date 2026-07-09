@@ -1633,7 +1633,12 @@
     "enhance": {
       "title": "Ошибка улучшения"
     },
-    "liveTranscript": "Живая транскрипция"
+    "liveTranscript": "Живая транскрипция",
+    "meetingAlreadyRecording": "Запись встречи уже идёт — остановите её, прежде чем начинать новую",
+    "deleteBlockedRecording": {
+      "title": "В эту заметку идёт запись",
+      "description": "Остановите запись встречи, прежде чем удалять эту заметку."
+    }
   },
   "dictionary": {
     "addWord": "Добавить слово",
@@ -1757,7 +1762,8 @@
       "redirectTitle": "Перенаправление в приложение...",
       "closeTab": "Можете закрыть эту вкладку."
     },
-    "meetingRecordingIndicator": "Идёт запись встречи — нажмите, чтобы открыть"
+    "meetingRecordingIndicator": "Идёт запись встречи — нажмите, чтобы открыть",
+    "stopMeetingRecording": "Остановить запись встречи"
   },
   "agentMode": {
     "settings": {

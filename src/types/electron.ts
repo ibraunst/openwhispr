@@ -1231,6 +1231,8 @@ declare global {
       ) => Promise<{ success: boolean; text?: string; unavailable?: boolean; error?: string }>;
       onMeetingProcessEnded?: (callback: (data: { processKey: string; appName: string }) => void) => () => void;
       meetingSetUserRecording?: (active: boolean) => Promise<{ success: boolean }>;
+      meetingRequestStop?: () => Promise<{ success: boolean }>;
+      onMeetingStopRequested?: (callback: () => void) => () => void;
       onMeetingAutoStopExecute?: (callback: (data: { reason: string }) => void) => () => void;
       onMeetingAutoStopSuggested?: (callback: (data: { autoStopInMs: number; reason: string }) => void) => () => void;
 

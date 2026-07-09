@@ -1561,7 +1561,12 @@
     "enhance": {
       "title": "強化エラー"
     },
-    "liveTranscript": "ライブ文字起こし"
+    "liveTranscript": "ライブ文字起こし",
+    "meetingAlreadyRecording": "すでに会議を録音中です。新しい録音を開始する前に停止してください",
+    "deleteBlockedRecording": {
+      "title": "このノートは録音中です",
+      "description": "このノートを削除する前に、会議の録音を停止してください。"
+    }
   },
   "dictionary": {
     "addWord": "単語を追加",
@@ -1757,7 +1762,8 @@
       "redirectTitle": "アプリにリダイレクト中...",
       "closeTab": "このタブを閉じてください。"
     },
-    "meetingRecordingIndicator": "会議を録音中 — クリックで開く"
+    "meetingRecordingIndicator": "会議を録音中 — クリックで開く",
+    "stopMeetingRecording": "会議の録音を停止"
   },
   "agentMode": {
     "settings": {
