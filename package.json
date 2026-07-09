@@ -5,7 +5,7 @@
   "main": "main.js",
   "private": true,
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
     "compile:globe": "node scripts/build-globe-listener.js",
@@ -90,7 +90,7 @@
     "autoprefixer": "^10.4.21",
     "concurrently": "^8.2.2",
     "cross-env": "^10.0.0",
-    "electron": "^36.9.5",
+    "electron": "^41.2.0",
     "electron-builder": "^26.4.0",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
@@ -115,7 +115,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.12",
     "@vercel/blob": "^2.3.0",
-    "better-sqlite3": "^11.10.0",
+    "better-sqlite3": "12.11.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dbus-next": "^0.10.2",
