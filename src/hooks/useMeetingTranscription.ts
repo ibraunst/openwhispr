@@ -3,6 +3,7 @@ import type React from "react";
 import { getSettings } from "../stores/settingsStore";
 import { isBuiltInMicrophone } from "../utils/audioDeviceUtils";
 import { getSystemAudioStream } from "../utils/systemAudio";
+import { EchoLeakGate, pcm16ToFloat32 } from "../utils/echoLeakGate";
 import logger from "../utils/logger";
 
 interface UseMeetingTranscriptionReturn {
@@ -435,6 +436,16 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
   const liveSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const localModeRef = useRef(false);
 
+  // Echo-leak gate (local mode): correlates the raw mic against recently
+  // played system audio and mutes render bleed on the mic split recording —
+  // diarization's identity channel. The mixed recording stays raw.
+  const echoGateRef = useRef<{
+    context: AudioContext;
+    sources: MediaStreamAudioSourceNode[];
+    processors: AudioWorkletNode[];
+    gate: EchoLeakGate;
+  } | null>(null);
+
   // Split audio recording refs (for speaker diarization)
   const systemRecorderRef = useRef<MediaRecorder | null>(null);
   const systemChunksRef = useRef<Blob[]>([]);
@@ -531,6 +542,26 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
         await liveContextRef.current.close();
       } catch {}
       liveContextRef.current = null;
+    }
+
+    if (echoGateRef.current) {
+      const { context, sources, processors, gate } = echoGateRef.current;
+      echoGateRef.current = null;
+      for (const processor of processors) {
+        await flushAndDisconnectProcessor(processor);
+      }
+      for (const source of sources) {
+        try {
+          source.disconnect();
+        } catch {}
+      }
+      try {
+        await context.close();
+      } catch {}
+      const summary = gate.getSummary();
+      if (summary.totalFrames > 0) {
+        logger.info("Echo gate summary", { ...summary }, "meeting");
+      }
     }
 
     if (localMixContextRef.current) {
@@ -906,6 +937,8 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     }
     // Halt the live-transcript tap so paused air never reaches Parakeet
     liveContextRef.current?.suspend().catch(() => {});
+    // The gated mic feed pauses with it (its recorder is paused anyway)
+    echoGateRef.current?.context.suspend().catch(() => {});
     isPausedRef.current = true;
     setIsPaused(true);
     logger.info("Meeting recording paused", {}, "meeting");
@@ -924,6 +957,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
       } catch {}
     }
     liveContextRef.current?.resume().catch(() => {});
+    echoGateRef.current?.context.resume().catch(() => {});
     isPausedRef.current = false;
     setIsPaused(false);
     logger.info("Meeting recording resumed", {}, "meeting");
@@ -1083,14 +1117,94 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
 
         // Start split recorders for speaker diarization
         meetingIdRef.current = `meeting-${Date.now()}`;
+        const startedMeetingId = meetingIdRef.current;
         systemRecorderRef.current = startSplitRecorder(stream, systemChunksRef);
+        let micGated = false;
         if (micResult) {
-          micRecorderRef.current = startSplitRecorder(micResult, micChunksRef);
+          // Echo-leak gate: without headphones the other participants'
+          // voices leak from the speakers into the mic, polluting the mic
+          // split recording that diarization uses to decide "who is Me".
+          // Route the mic through a detector-controlled gain and record the
+          // gated stream. Best-effort — any failure records the raw mic as
+          // before; the mixed recording (whole-meeting transcript) is never
+          // gated, so a misfire can't lose transcript content.
+          let micRecordStream: MediaStream = micResult;
+          let gateContext: AudioContext | null = null;
+          try {
+            gateContext = new AudioContext();
+            await detachFromOutputDevice(gateContext);
+            const gate = new EchoLeakGate(gateContext.sampleRate);
+
+            const micGain = gateContext.createGain();
+            const gateDest = gateContext.createMediaStreamDestination();
+            const gainSource = gateContext.createMediaStreamSource(micResult);
+            gainSource.connect(micGain);
+            micGain.connect(gateDest);
+
+            // Detector taps: the RAW mic (pre-gain — gating the detector's
+            // own input would erase the correlation it looks for) and the
+            // system reference.
+            let muteTarget = 1;
+            const micTap = await createAudioPipeline({
+              stream: micResult,
+              context: gateContext,
+              label: "Echo gate mic",
+              onChunk: (chunk) => {
+                const muted = gate.processMicChunk(pcm16ToFloat32(chunk));
+                const target = muted ? 0 : 1;
+                if (target !== muteTarget) {
+                  muteTarget = target;
+                  micGain.gain.setTargetAtTime(target, gateContext!.currentTime, 0.015);
+                }
+              },
+            });
+            const systemTap = await createAudioPipeline({
+              stream,
+              context: gateContext,
+              label: "Echo gate system",
+              onChunk: (chunk) => {
+                gate.recordSystemChunk(pcm16ToFloat32(chunk));
+              },
+            });
+
+            if (!isRecordingRef.current || meetingIdRef.current !== startedMeetingId) {
+              // Stop (or a new meeting) raced in during setup — discard
+              await flushAndDisconnectProcessor(micTap.processor);
+              await flushAndDisconnectProcessor(systemTap.processor);
+              try {
+                await gateContext.close();
+              } catch {}
+            } else {
+              echoGateRef.current = {
+                context: gateContext,
+                sources: [gainSource, micTap.source, systemTap.source],
+                processors: [micTap.processor, systemTap.processor],
+                gate,
+              };
+              micRecordStream = gateDest.stream;
+              micGated = true;
+            }
+          } catch (gateErr) {
+            logger.warn(
+              "Echo gate unavailable, recording raw mic",
+              { error: (gateErr as Error).message },
+              "meeting"
+            );
+            if (gateContext && echoGateRef.current?.context !== gateContext) {
+              try {
+                await gateContext.close();
+              } catch {}
+            }
+          }
+
+          if (isRecordingRef.current && meetingIdRef.current === startedMeetingId) {
+            micRecorderRef.current = startSplitRecorder(micRecordStream, micChunksRef);
+          }
         }
 
         logger.info(
           "Local meeting recording started",
-          { mimeType, hasMic: !!micResult },
+          { mimeType, hasMic: !!micResult, micGated },
           "meeting"
         );
 
