@@ -763,6 +763,17 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
             return;
           }
 
+          // Link the note to its recording so the transcript view can offer
+          // audio playback later (meeting-get-playback resolves the folder
+          // from this id).
+          if (targetNoteId) {
+            window.electronAPI
+              ?.updateNote?.(targetNoteId, { meeting_id: currentMeetingId })
+              .catch((err: Error) =>
+                logger.error("Failed to link recording to note", { error: err.message }, "meeting")
+              );
+          }
+
           logger.info("Split audio saved, running speaker diarization…", { meetingId: currentMeetingId }, "meeting");
 
           const { hfToken } = getSettings() as { hfToken?: string };
@@ -785,6 +796,16 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
               diarizeResult.transcript.speakers || [],
               attendeesJson
             );
+            // Sync the (possibly auto-renamed) labels back to transcript.json —
+            // the playback view renders speakers from that file, so a label
+            // that only changed in memory would resurface as "Guest N" there.
+            if (segments !== diarizeResult.transcript.segments) {
+              await window.electronAPI
+                ?.meetingSaveTranscript?.({ meetingId: currentMeetingId, segments })
+                .catch((err: Error) =>
+                  logger.error("Failed to sync renamed segments", { error: err.message }, "meeting")
+                );
+            }
             const formatted = formatDiarizedTranscript(segments);
             // Persist diarized transcript directly to the note via IPC — the
             // component may have unmounted, and targetNoteId was captured at

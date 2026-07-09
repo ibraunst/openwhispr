@@ -1503,7 +1503,9 @@
       "notes": "笔记",
       "generateNotes": "生成笔记",
       "pause": "暂停",
-      "resume": "继续"
+      "resume": "继续",
+      "playRecording": "播放录音",
+      "pauseRecording": "暂停播放"
     },
     "upload": {
       "title": "上传音频",

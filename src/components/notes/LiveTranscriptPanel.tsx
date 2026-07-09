@@ -23,7 +23,7 @@ export default function LiveTranscriptPanel({ text }: { text: string }) {
           {t("notes.liveTranscript")}
         </span>
       </div>
-      <div ref={scrollRef} className="px-3 pb-2.5 pt-1 max-h-48 overflow-y-auto">
+      <div ref={scrollRef} className="px-3 pb-2.5 pt-1 max-h-96 overflow-y-auto">
         <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-wrap">{text}</p>
       </div>
     </div>

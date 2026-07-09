@@ -2839,6 +2839,104 @@ class IPCHandlers {
       }
     });
 
+    // Playback bundle for a meeting note: mixed audio file + timestamped
+    // segments (for karaoke-style word highlighting in the transcript view).
+    // The mixed playback.m4a is built lazily from the split recordings on
+    // first request and cached in the meeting folder.
+    ipcMain.handle("meeting-get-playback", async (_event, noteId) => {
+      try {
+        const note = this.databaseManager.getNote(noteId);
+        const meetingId = note?.meeting_id;
+        if (!meetingId) {
+          return { success: false, error: "No recording linked to this note" };
+        }
+
+        const meetingDir = path.join(app.getPath("userData"), "meetings", String(meetingId));
+
+        let segments = [];
+        const transcriptPath = path.join(meetingDir, "transcript.json");
+        if (fs.existsSync(transcriptPath)) {
+          try {
+            const parsed = JSON.parse(fs.readFileSync(transcriptPath, "utf8"));
+            if (Array.isArray(parsed?.segments)) segments = parsed.segments;
+          } catch (parseError) {
+            debugLogger.warn(
+              "Unreadable meeting transcript.json, playback continues without segments",
+              { meetingId, error: parseError.message },
+              "meeting"
+            );
+          }
+        }
+
+        const playbackPath = path.join(meetingDir, "playback.m4a");
+        if (!fs.existsSync(playbackPath)) {
+          // Skip empty/near-empty recordings (e.g. mic permission denied → 0-byte file)
+          const inputs = ["system_record.webm", "mic_record.webm"]
+            .map((name) => path.join(meetingDir, name))
+            .filter((p) => {
+              try {
+                return fs.existsSync(p) && fs.statSync(p).size > 1000;
+              } catch {
+                return false;
+              }
+            });
+          if (!inputs.length) {
+            return { success: false, error: "Recording audio not found", segments };
+          }
+          const { mixToPlaybackFile } = require("./ffmpegUtils");
+          await mixToPlaybackFile(inputs, playbackPath);
+          debugLogger.info("Meeting playback file created", { meetingId, inputs: inputs.length }, "meeting");
+        }
+
+        return { success: true, audioPath: playbackPath, segments };
+      } catch (error) {
+        debugLogger.error("meeting-get-playback failed", { error: error.message }, "meeting");
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Keep transcript.json speaker labels in sync when the user renames a
+    // speaker from the note view — the karaoke transcript renders from these
+    // segments, so a stale label here would resurface the old name.
+    ipcMain.handle("meeting-update-speaker-label", async (_event, { meetingId, oldLabel, newLabel } = {}) => {
+      try {
+        if (!meetingId || !oldLabel || !newLabel) {
+          return { success: false, error: "meetingId, oldLabel and newLabel are required" };
+        }
+        const transcriptPath = path.join(
+          app.getPath("userData"),
+          "meetings",
+          String(meetingId),
+          "transcript.json"
+        );
+        if (!fs.existsSync(transcriptPath)) {
+          return { success: true, changes: 0 };
+        }
+        const parsed = JSON.parse(fs.readFileSync(transcriptPath, "utf8"));
+        let changes = 0;
+        if (Array.isArray(parsed?.segments)) {
+          for (const seg of parsed.segments) {
+            if (seg?.speaker === oldLabel) {
+              seg.speaker = newLabel;
+              changes++;
+            }
+          }
+        }
+        if (Array.isArray(parsed?.speakers)) {
+          for (const sp of parsed.speakers) {
+            if (sp?.label === oldLabel) sp.label = newLabel;
+          }
+        }
+        if (changes > 0 || Array.isArray(parsed?.speakers)) {
+          fs.writeFileSync(transcriptPath, JSON.stringify(parsed, null, 2));
+        }
+        return { success: true, changes };
+      } catch (error) {
+        debugLogger.error("meeting-update-speaker-label failed", { error: error.message }, "meeting");
+        return { success: false, error: error.message };
+      }
+    });
+
     ipcMain.handle("voicebank-list", async () => {
       try {
         const { listVoicePrints } = require("./voicebank");

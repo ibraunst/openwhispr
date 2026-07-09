@@ -656,6 +656,32 @@ export default function PersonalNotesView({
           const updated = currentTranscript.split(marker).join(`**${newLabel}:**`);
           await window.electronAPI.updateNote(noteId, { transcript: updated });
           if (activeMeetingDiarized) overrideDiarizedTranscript(updated);
+          // Keep the recording's transcript.json in sync — the playback view
+          // renders speaker labels from its segments, not the note markdown.
+          if (activeNote?.meeting_id) {
+            window.electronAPI
+              .meetingUpdateSpeakerLabel?.({
+                meetingId: activeNote.meeting_id,
+                oldLabel,
+                newLabel,
+              })
+              ?.then((res) => {
+                if (res && !res.success) {
+                  logger.error(
+                    "Failed to sync speaker rename to recording transcript",
+                    { error: res.error },
+                    "notes"
+                  );
+                }
+              })
+              .catch((err: Error) => {
+                logger.error(
+                  "Failed to sync speaker rename to recording transcript",
+                  { error: err.message },
+                  "notes"
+                );
+              });
+          }
           // Rewrite the exported file with the new speaker name. Prefer the
           // live in-session pointer (current meeting); fall back to what's
           // persisted on the note itself so renames on older meetings —
@@ -696,6 +722,7 @@ export default function PersonalNotesView({
       activeNote?.transcript,
       activeNote?.export_path,
       activeNote?.export_header,
+      activeNote?.meeting_id,
       activeFolderId,
       activeMeetingDiarized,
       overrideDiarizedTranscript,

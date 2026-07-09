@@ -319,6 +319,68 @@ function splitAudioFile(inputPath, outputDir, options = {}) {
   });
 }
 
+/**
+ * Mix one or more audio files into a single mono AAC (.m4a) file for playback.
+ * Used to combine the split system/mic meeting recordings into one listenable
+ * track. With a single input it just transcodes; with multiple it uses amix
+ * with duration=longest so neither track is cut short.
+ */
+function mixToPlaybackFile(inputPaths, outputPath) {
+  return new Promise((resolve, reject) => {
+    const ffmpegPath = getFFmpegPath();
+    if (!ffmpegPath) {
+      reject(new Error("FFmpeg not found - required for audio mixing"));
+      return;
+    }
+    if (!inputPaths.length) {
+      reject(new Error("No input audio files to mix"));
+      return;
+    }
+
+    const args = [];
+    for (const input of inputPaths) {
+      args.push("-i", input);
+    }
+    if (inputPaths.length > 1) {
+      args.push(
+        "-filter_complex",
+        `amix=inputs=${inputPaths.length}:duration=longest:normalize=0`
+      );
+    }
+    args.push("-ac", "1", "-c:a", "aac", "-b:a", "96k", "-y", outputPath);
+
+    debugLogger.debug("Mixing audio with FFmpeg", { inputs: inputPaths, output: outputPath });
+
+    const proc = spawn(ffmpegPath, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+
+    let stderr = "";
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+    proc.on("error", (error) => {
+      reject(new Error(`FFmpeg mix error: ${error.message}`));
+    });
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        const stderrPreview = stderr.slice(-500).trim();
+        debugLogger.debug("FFmpeg mix failed", { code, stderr: stderrPreview });
+        reject(
+          new Error(`FFmpeg mix exited with code ${code}${stderrPreview ? `: ${stderrPreview}` : ""}`)
+        );
+        return;
+      }
+      if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size === 0) {
+        reject(new Error("FFmpeg mix produced no output file"));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
 function clearCache() {
   cachedFFmpegPath = null;
 }
@@ -399,6 +461,7 @@ module.exports = {
   getFFmpegPath,
   isWavFormat,
   convertToWav,
+  mixToPlaybackFile,
   splitAudioFile,
   wavToFloat32Samples,
   computeFloat32RMS,

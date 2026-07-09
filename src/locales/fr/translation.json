@@ -1541,7 +1541,9 @@
       "notes": "Notes",
       "generateNotes": "Générer des notes",
       "pause": "Pause",
-      "resume": "Reprendre"
+      "resume": "Reprendre",
+      "playRecording": "Écouter l'enregistrement",
+      "pauseRecording": "Mettre en pause la lecture"
     },
     "upload": {
       "title": "Téléverser un fichier audio",

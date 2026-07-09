@@ -27,6 +27,7 @@ import type { ActionProcessingState } from "../../hooks/useActionProcessing";
 import ActionProcessingOverlay from "./ActionProcessingOverlay";
 import DictationWidget from "./DictationWidget";
 import LiveTranscriptPanel from "./LiveTranscriptPanel";
+import TranscriptPlayer from "./TranscriptPlayer";
 import { normalizeDbDate } from "../../utils/dateFormatting";
 import { useSettingsStore } from "../../stores/settingsStore";
 
@@ -911,7 +912,11 @@ export default function NoteEditor({
                   })}
                 </div>
               )}
-              <MarkdownTextarea value={effectiveTranscript} disabled />
+              <TranscriptPlayer
+                noteId={note.id}
+                hasRecording={!!note.meeting_id}
+                transcript={effectiveTranscript}
+              />
             </>
           ) : viewMode === "enhanced" && enhancement ? (
             <MarkdownTextarea value={enhancement.content} onChange={handleEnhancedChange} />

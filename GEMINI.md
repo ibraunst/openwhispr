@@ -1,6 +1,6 @@
 # customWhispr — AI Source of Truth
 
-> **Version**: 1.6.2 | **Last scanned**: 2026-07-08
+> **Version**: 1.6.2 | **Last scanned**: 2026-07-09
 
 ---
 
@@ -82,7 +82,7 @@ External Services
 |------|---------------|
 | **Core** | `ControlPanel.tsx`, `ControlPanelSidebar.tsx`, `SettingsPage.tsx`, `SettingsModal.tsx`, `OnboardingFlow.tsx` |
 | **Transcription** | `HistoryView.tsx`, `TranscriptionModelPicker.tsx`, `LocalWhisperPicker.tsx`, `LocalModelPicker.tsx`, `ReasoningModelSelector.tsx` |
-| **Notes** | `NotesView.tsx`, `NoteEditor.tsx`, `notes/PersonalNotesView.tsx`, `notes/UploadAudioView.tsx`, `notes/ActionManagerDialog.tsx`, `notes/ActionPicker.tsx`, `notes/DictationWidget.tsx`, `notes/RealtimeTranscriptionBanner.tsx`, `notes/NoteListItem.tsx`, `notes/ActionProcessingOverlay.tsx`, `notes/NotesOnboarding.tsx`, `notes/SpeakerRenameDialog.tsx` |
+| **Notes** | `NotesView.tsx`, `NoteEditor.tsx`, `notes/PersonalNotesView.tsx`, `notes/UploadAudioView.tsx`, `notes/ActionManagerDialog.tsx`, `notes/ActionPicker.tsx`, `notes/DictationWidget.tsx`, `notes/LiveTranscriptPanel.tsx`, `notes/RealtimeTranscriptionBanner.tsx`, `notes/NoteListItem.tsx`, `notes/ActionProcessingOverlay.tsx`, `notes/NotesOnboarding.tsx`, `notes/SpeakerRenameDialog.tsx` |
 | **Agent** | `AgentOverlay.tsx`, `agent/AgentChat.tsx`, `agent/AgentInput.tsx`, `agent/AgentMessage.tsx`, `agent/AgentTitleBar.tsx` |
 | **Calendar** | `CalendarView.tsx`, `IntegrationsView.tsx`, `UpcomingMeetings.tsx` |
 | **Meeting** | `MeetingNotificationOverlay.tsx` |
@@ -170,6 +170,8 @@ Speaker diarization engine:
 - [x] Meeting recording survives sidebar navigation (PersonalNotesView stays mounted while recording/processing/diarizing)
 - [x] Calendar refresh button performs a real Google+Apple provider sync (not just a local-cache re-read)
 - [x] Meeting auto-stop on process close or sustained silence (15s "Keep Recording" grace toast)
+- [x] Live transcript preview during local meeting recordings (`LiveTranscriptPanel`) — 16kHz tap on mixed stream, 4-10s silence-boundary chunks through Parakeet, cleared at stop so the final pass isn't polluted
+- [x] Pause/resume for local meeting recordings — `MediaRecorder.pause()`/`resume()` on both split recorders (no gap in the blob, timestamps stay aligned for diarization); live-transcript tap is suspended while paused. Cloud/streaming meetings cannot pause (timestamps would drift out of sync with diarization audio)
 - [x] Speaker diarization (Python + pyannote.audio, requires HuggingFace token set in Integrations)
   - Runs automatically after every meeting recording
   - System + mic audio recorded separately (split recorders) for diarization input
@@ -231,6 +233,10 @@ Speaker diarization engine:
 - `useMeetingTranscription` signals recording state to the main process via `meetingSetUserRecording` IPC.
 - The pill's `useAudioRecording` (dictation) must **not** run simultaneously with meeting transcription — doing so causes whisper-server conflicts.
 - `onMeetingAutoStopExecute` is handled by both `useAudioRecording` (shows toast only) and `useMeetingTranscription` (actual stop + transcription).
+- **Pause/resume (local only)**: `pauseTranscription`/`resumeTranscription` in `useMeetingTranscription` call `MediaRecorder.pause()`/`.resume()` on both split recorders and suspend/resume the live-transcript tap's `AudioContext` — keeps one continuous blob (no gap) so post-stop diarization timestamps stay aligned. `isPaused`/`canPause` reset at recording start/stop. Not offered for cloud/streaming meetings.
+- **Whisper timeout scales with audio length**: `whisperServer.js` computes `requestTimeoutMs = Math.max(300000, Math.ceil(audioSeconds * 2000))` before the `/inference` call — a flat 5-minute cap killed transcription on meetings past ~25-30 minutes (medium model runs slower than 2x realtime at the margin).
+- **Queued meeting-detected notifications are dropped, not flushed, at recording stop**: `meetingDetectionEngine.setUserRecording(false)` clears `_notificationQueue` for audio-sourced detections instead of flushing them after the cooldown — otherwise a detection that fired mid-meeting surfaces as a stale "Meeting Detected" popup right after hangup.
+- **Meeting notification auto-dismiss is 15s** (`windowManager.js` timer + `MeetingNotificationOverlay.tsx` countdown animation) — was 60s, too slow for a decision that's usually made in a few seconds.
 
 ### Speaker Diarization Architecture (critical — do not regress)
 - `useMeetingTranscription` runs two parallel `MediaRecorder` instances: one on the system audio stream, one on the mic stream (split recorders).

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Meeting Speaker Diarization**: Automatic speaker labeling (Python + pyannote.audio) after every meeting recording, with persistent voiceprints (VoiceBank) so speakers are recognized across meetings and guest numbering never resets
+- **Speaker Rename & Auto-Naming**: One-click speaker assignment from calendar attendees (dropdown on each speaker chip) or custom name; lone new guest auto-renamed when exactly one non-user attendee is present; renames rewrite both the note transcript and any exported file
+- **Persistent Meeting Recording Indicator**: Granola-style capsule on the floating pill (red dot + pulsing bars) that survives auto-hide and sidebar navigation; draggable far-right dock position with memory
+- **Live Transcript Preview**: Floating panel shows a rolling live transcript (via Parakeet) during local meeting recordings, built from silence-boundary chunks of a 16kHz tap on the mixed audio stream
+- **Pause/Resume for Local Meeting Recordings**: Pause and resume button in the recording widget for local (non-cloud) meetings — keeps a single continuous audio blob so diarization timestamps stay aligned
+- **Meeting Transcription Model Setting**: Choose whisper/nvidia/same-as-dictation for meeting transcription independently of the dictation model
+
+### Changed
+
+- **Liquid Glass UI**: New glass design tokens/utilities, macOS under-window vibrancy on the control panel, ambient backdrop, liquid pill styling
+- **Calendar Sync Overhaul**: Full-window fetch + pagination + reconciliation (no sync tokens, which pinned the sync horizon); per-calendar failures log without blocking other calendars, but a fully-failed sync engages interval backoff
+- **Meeting Notification Auto-Dismiss**: Reduced from 60s to 15s for faster decision-making
+
+### Fixed
+
+- **Long Meeting Transcription Timeout**: Local whisper `/inference` timeout now scales with audio length (~2x realtime, 5-minute floor) instead of a flat 5-minute cap that killed transcription on meetings past ~25-30 minutes
+- **Stale "Meeting Detected" Notification**: Detections queued during an active recording are now dropped instead of flushed after the meeting ends, so hanging up no longer triggers a stale popup
+- **Meeting Recording Survives Navigation**: Notes view stays mounted while a meeting is recording/processing/diarizing, so switching sidebar sections no longer interrupts recording
+- **Double-Recording on Auto-Detected Meetings**: Meeting detection no longer also starts a conflicting pill dictation, which previously caused whisper-server crashes at meeting end
+- **Exported Transcript Missing Speaker Labels**: Export now waits for (or is overwritten by) diarization results instead of running before diarization completes
+
 ## [1.6.2] - 2026-03-11
 
 ### Added

@@ -46,6 +46,7 @@ export interface NoteItem {
   cloud_id: string | null;
   export_path: string | null;
   export_header: string | null;
+  meeting_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -412,6 +413,7 @@ declare global {
           calendar_event_id?: string | null;
           export_path?: string | null;
           export_header?: string | null;
+          meeting_id?: string | null;
         }
       ) => Promise<{ success: boolean; note?: NoteItem }>;
       deleteNote: (id: number) => Promise<{ success: boolean }>;
@@ -1206,6 +1208,17 @@ declare global {
         };
         error?: string;
       }>;
+      meetingGetPlayback?: (noteId: number) => Promise<{
+        success: boolean;
+        audioPath?: string;
+        segments?: Array<{ start: number; end: number; text: string; speaker?: string }>;
+        error?: string;
+      }>;
+      meetingUpdateSpeakerLabel?: (data: {
+        meetingId: string;
+        oldLabel: string;
+        newLabel: string;
+      }) => Promise<{ success: boolean; changes?: number; error?: string }>;
       voicebankList?: () => Promise<{ success: boolean; voices?: VoiceBankEntry[]; error?: string }>;
       voicebankRename?: (data: {
         id?: string;

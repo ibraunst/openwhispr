@@ -1623,7 +1623,9 @@
       "notes": "Notes",
       "generateNotes": "Generate notes",
       "pause": "Pause",
-      "resume": "Resume"
+      "resume": "Resume",
+      "playRecording": "Play recording",
+      "pauseRecording": "Pause playback"
     },
     "upload": {
       "title": "Upload Audio",

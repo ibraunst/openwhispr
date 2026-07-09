@@ -1503,7 +1503,9 @@
       "notes": "Notizen",
       "generateNotes": "Notizen generieren",
       "pause": "Pausieren",
-      "resume": "Fortsetzen"
+      "resume": "Fortsetzen",
+      "playRecording": "Aufnahme abspielen",
+      "pauseRecording": "Wiedergabe pausieren"
     },
     "upload": {
       "title": "Audio hochladen",

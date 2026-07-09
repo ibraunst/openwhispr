@@ -1503,7 +1503,9 @@
       "notes": "Note",
       "generateNotes": "Genera note",
       "pause": "Pausa",
-      "resume": "Riprendi"
+      "resume": "Riprendi",
+      "playRecording": "Riproduci registrazione",
+      "pauseRecording": "Metti in pausa la riproduzione"
     },
     "upload": {
       "title": "Carica audio",
