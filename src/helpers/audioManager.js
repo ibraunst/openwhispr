@@ -13,8 +13,10 @@ import {
   getEffectiveCorrectionEnabled,
   getActiveAppCustomPrompt,
 } from "../stores/settingsStore";
+import { evaluateFinishedRecording } from "./recordingValidation.js";
+import { isStaleDeviceError } from "./staleMicDevice.js";
+import { waitForTrackReady, reacquireIfDead } from "./micTrackHealth.js";
 
-const SHORT_CLIP_DURATION_SECONDS = 2.5;
 const REASONING_CACHE_TTL = 30000; // 30 seconds
 const REALTIME_MODELS = new Set(["gpt-4o-mini-transcribe", "gpt-4o-transcribe"]);
 
@@ -85,6 +87,19 @@ class AudioManager {
       this.cachedApiKeyProvider = null;
     };
     window.addEventListener("api-key-changed", this._onApiKeyChanged);
+
+    // Invalidate the pinned mic device + warm stream when the OS adds/removes/suspends
+    // inputs. Otherwise wake-after-idle keeps requesting a stale deviceId that yields
+    // silence, or reuses a warm stream captured against a device that's now gone.
+    this._onDeviceChange = () => {
+      this.cachedMicDeviceId = null;
+      if (this._warmMicStream) {
+        this._warmMicStream.getTracks().forEach((t) => t.stop());
+        this._warmMicStream = null;
+      }
+      this._cachedConstraints = null;
+    };
+    navigator.mediaDevices?.addEventListener?.("devicechange", this._onDeviceChange);
     this.cachedTranscriptionEndpoint = null;
     this.cachedEndpointProvider = null;
     this.cachedEndpointBaseUrl = null;
@@ -183,25 +198,48 @@ class AudioManager {
 
   /**
    * Consume the warm mic stream if available, otherwise acquire a new one.
-   * Returns a mic MediaStream ready for recording.
+   * Returns a mic MediaStream ready for recording. When forceDefaultMic is set
+   * (pinned deviceId came back stale), any warm/cached state tied to the old
+   * device is dropped and the default mic is used instead.
    */
-  async _acquireMicStream() {
+  async _acquireMicStream(forceDefaultMic = false) {
+    if (forceDefaultMic) {
+      if (this._warmMicStream) {
+        this._warmMicStream.getTracks().forEach((t) => t.stop());
+        this._warmMicStream = null;
+      }
+      this._cachedConstraints = null;
+      const stream = await navigator.mediaDevices.getUserMedia(
+        await this.getAudioConstraints(true)
+      );
+      return reacquireIfDead(stream, () => this.getAudioConstraints(true), logger);
+    }
+
     // Try to reuse the pre-warmed stream
     if (this._warmMicStream) {
       const stream = this._warmMicStream;
       this._warmMicStream = null;
-      // Verify the track is still alive (could have been ended by OS)
+      // Verify the track is actually delivering audio (could have been ended,
+      // or left muted by the OS after an idle suspend).
       const track = stream.getAudioTracks()[0];
-      if (track && track.readyState === "live") {
+      if (track && (await waitForTrackReady(track, 600))) {
         logger.debug("Reusing pre-warmed mic stream", {}, "audio");
         return stream;
       }
-      // Track is dead, fall through to acquire a new one
+      // Track is dead/never became ready, fall through to acquire a new one
       stream.getTracks().forEach((t) => t.stop());
     }
     const constraints = this._cachedConstraints || (await this.getAudioConstraints());
     this._cachedConstraints = null;
-    return navigator.mediaDevices.getUserMedia(constraints);
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    return reacquireIfDead(
+      stream,
+      () => {
+        this.cachedMicDeviceId = null;
+        return this.getAudioConstraints();
+      },
+      logger
+    );
   }
 
   /**
@@ -337,7 +375,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     return STREAMING_PROVIDERS[providerName] || STREAMING_PROVIDERS.deepgram;
   }
 
-  async getAudioConstraints() {
+  async getAudioConstraints(forceDefaultMic = false) {
     const { preferBuiltInMic: preferBuiltIn, selectedMicDeviceId: selectedDeviceId } =
       getSettings();
 
@@ -347,6 +385,13 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       noiseSuppression: false,
       autoGainControl: false,
     };
+
+    // Pinned device was unavailable (Chromium rotates IDs / device unplugged); fall back to
+    // the system default for this capture without discarding the saved preference.
+    if (forceDefaultMic) {
+      logger.debug("Using default microphone (pinned device unavailable)", {}, "audio");
+      return { audio: noProcessing };
+    }
 
     if (preferBuiltIn) {
       if (this.cachedMicDeviceId) {
@@ -420,7 +465,21 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       this.onStateChange?.({ isRecording: true, isProcessing: false });
 
       // Use cached constraints from prewarm when available to skip enumerateDevices()
-      const micStream = await this._acquireMicStream();
+      let micStream;
+      try {
+        micStream = await this._acquireMicStream();
+      } catch (acquireError) {
+        // Pinned mic is gone (Chromium rotates IDs / device unplugged). Retry once on
+        // the default mic — inline rather than a recursive startRecording() call, since
+        // isRecording is already optimistically true and would trip the guard above.
+        if (isStaleDeviceError(acquireError)) {
+          logger.warn("Pinned microphone unavailable, retrying on default mic", {}, "audio");
+          this.cachedMicDeviceId = null;
+          micStream = await this._acquireMicStream(true);
+        } else {
+          throw acquireError;
+        }
+      }
 
       const audioTrack = micStream.getAudioTracks()[0];
       if (audioTrack) {
@@ -462,11 +521,15 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       // for silence, which is fine since speech hasn't started yet anyway.
       this.mediaRecorder = new MediaRecorder(recordingStream);
       this.audioChunks = [];
+      this._receivedAudioData = false;
       this.recordingStartTime = Date.now();
       this.recordingMimeType = this.mediaRecorder.mimeType || "audio/webm";
 
       this.mediaRecorder.ondataavailable = (event) => {
-        this.audioChunks.push(event.data);
+        if (event.data && event.data.size > 0) {
+          this._receivedAudioData = true;
+          this.audioChunks.push(event.data);
+        }
       };
 
       this.mediaRecorder.onstop = async () => {
@@ -498,6 +561,32 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
           ? (Date.now() - this.recordingStartTime) / 1000
           : null;
         this.recordingStartTime = null;
+
+        // Drop header-only / no-frame recordings (accidental double-tap) before
+        // they crash FFmpeg/whisper-server on a near-empty file.
+        const recordingCheck = evaluateFinishedRecording({
+          blobSize: audioBlob.size,
+          receivedAudioData: this._receivedAudioData,
+        });
+        if (!recordingCheck.usable) {
+          logger.info(
+            "Dropping degenerate recording before transcription",
+            {
+              blobSize: audioBlob.size,
+              reason: recordingCheck.reason,
+              receivedAudioData: this._receivedAudioData,
+            },
+            "audio"
+          );
+          this.isProcessing = false;
+          this._peakRms = null;
+          this.onStateChange?.({ isRecording: false, isProcessing: false });
+          this.onTranscriptionComplete?.({ success: true, text: "" });
+          micStream.getTracks().forEach((track) => track.stop());
+          this.cleanupSystemAudio();
+          return;
+        }
+
         await this.processAudio(audioBlob, { durationSeconds });
 
         micStream.getTracks().forEach((track) => track.stop());
@@ -992,78 +1081,6 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     this.cachedApiKey = apiKey;
     this.cachedApiKeyProvider = provider;
     return apiKey;
-  }
-
-  async optimizeAudio(audioBlob) {
-    return new Promise((resolve) => {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const reader = new FileReader();
-
-      reader.onload = async () => {
-        try {
-          const arrayBuffer = reader.result;
-          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-          // Convert to 16kHz mono for smaller size and faster upload
-          const sampleRate = 16000;
-          const channels = 1;
-          const length = Math.floor(audioBuffer.duration * sampleRate);
-          const offlineContext = new OfflineAudioContext(channels, length, sampleRate);
-
-          const source = offlineContext.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(offlineContext.destination);
-          source.start();
-
-          const renderedBuffer = await offlineContext.startRendering();
-          const wavBlob = this.audioBufferToWav(renderedBuffer);
-          resolve(wavBlob);
-        } catch (error) {
-          // If optimization fails, use original
-          resolve(audioBlob);
-        }
-      };
-
-      reader.onerror = () => resolve(audioBlob);
-      reader.readAsArrayBuffer(audioBlob);
-    });
-  }
-
-  audioBufferToWav(buffer) {
-    const length = buffer.length;
-    const arrayBuffer = new ArrayBuffer(44 + length * 2);
-    const view = new DataView(arrayBuffer);
-    const sampleRate = buffer.sampleRate;
-    const channelData = buffer.getChannelData(0);
-
-    const writeString = (offset, string) => {
-      for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
-      }
-    };
-
-    writeString(0, "RIFF");
-    view.setUint32(4, 36 + length * 2, true);
-    writeString(8, "WAVE");
-    writeString(12, "fmt ");
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeString(36, "data");
-    view.setUint32(40, length * 2, true);
-
-    let offset = 44;
-    for (let i = 0; i < length; i++) {
-      const sample = Math.max(-1, Math.min(1, channelData[i]));
-      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
-      offset += 2;
-    }
-
-    return new Blob([arrayBuffer], { type: "audio/wav" });
   }
 
   async processWithReasoningModel(text, model, agentName) {
@@ -1566,10 +1583,6 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
 
     try {
       const durationSeconds = metadata.durationSeconds ?? null;
-      const shouldSkipOptimizationForDuration =
-        typeof durationSeconds === "number" &&
-        durationSeconds > 0 &&
-        durationSeconds < SHORT_CLIP_DURATION_SECONDS;
 
       const model = this.getTranscriptionModel();
       const provider = apiSettings.cloudTranscriptionProvider || "openai";
@@ -1587,26 +1600,8 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         "transcription"
       );
 
-      // gpt-4o-transcribe models don't support WAV format - they need webm, mp3, mp4, etc.
-      // Only use WAV optimization for whisper-1 and groq models
-      const is4oModel = model.includes("gpt-4o");
-      const shouldOptimize =
-        !is4oModel && !shouldSkipOptimizationForDuration && audioBlob.size > 1024 * 1024;
-
-      logger.debug(
-        "Audio optimization decision",
-        {
-          is4oModel,
-          shouldOptimize,
-          shouldSkipOptimizationForDuration,
-        },
-        "transcription"
-      );
-
-      const [apiKey, optimizedAudio] = await Promise.all([
-        this.getAPIKey(),
-        shouldOptimize ? this.optimizeAudio(audioBlob) : Promise.resolve(audioBlob),
-      ]);
+      const apiKey = await this.getAPIKey();
+      const optimizedAudio = audioBlob;
 
       const formData = new FormData();
       // Determine the correct file extension based on the blob type
@@ -2328,7 +2323,26 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       const tConstraints = performance.now();
 
       // 1. Get mic stream — reuses the pre-warmed stream when available
-      const stream = await this._acquireMicStream();
+      let stream;
+      try {
+        stream = await this._acquireMicStream();
+      } catch (acquireError) {
+        // Pinned mic is gone (Chromium rotates IDs / device unplugged). Retry once on
+        // the default mic — inline rather than a recursive call, since
+        // streamingStartInProgress/isRecording are already set and would trip the
+        // guards above.
+        if (isStaleDeviceError(acquireError)) {
+          logger.warn(
+            "Pinned microphone unavailable, retrying streaming on default mic",
+            {},
+            "audio"
+          );
+          this.cachedMicDeviceId = null;
+          stream = await this._acquireMicStream(true);
+        } else {
+          throw acquireError;
+        }
+      }
       const tMedia = performance.now();
 
       const audioTrack = stream.getAudioTracks()[0];
@@ -2980,6 +2994,9 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     this.onStreamingCommit = null;
     if (this._onApiKeyChanged) {
       window.removeEventListener("api-key-changed", this._onApiKeyChanged);
+    }
+    if (this._onDeviceChange) {
+      navigator.mediaDevices?.removeEventListener?.("devicechange", this._onDeviceChange);
     }
   }
 }
