@@ -73,12 +73,17 @@ Caution: `resetSession()` at recording start (CLAUDE.md §6) lives in this file 
 
 | Status | Item | Upstream ref | Notes |
 |--------|------|-------------|-------|
-| [ ] | Acoustic gate: prevent system audio leaking into mic channel during meetings, with speech-onset protection so the user's voice isn't clipped | 1.7.0 "Cleaner mic capture" + 1.6.8 echo-leak detector (note 1.6.10 fix: detector must run on the RAW mic buffer, pre-AEC) | Our mic channel feeds diarization's "who is Me" — leak = misattribution. Test with a real recording where both sides talk over each other. |
+| [x] | Acoustic gate: prevent system audio leaking into mic channel during meetings, with speech-onset protection so the user's voice isn't clipped | 1.7.0 "Cleaner mic capture" + 1.6.8 echo-leak detector (note 1.6.10 fix: detector must run on the RAW mic buffer, pre-AEC) | Our mic channel feeds diarization's "who is Me" — leak = misattribution. Test with a real recording where both sides talk over each other. |
 | [ ] | (Optional phase 2 — only if phase 1 insufficient) Native WebRTC AEC3 sidecar | 1.6.8 "Meeting AEC Helper" (prebuilt binaries on their CI) | New binary to bundle; bigger lift. |
-| [ ] | Bluetooth: detach meeting AudioContexts from output device; fix system-audio loopback silence with BT output | 1.6.6 "Meeting Bluetooth Audio" | Likely explains silent system-audio recordings when wearing AirPods. |
-| [ ] | Wire calendar attendee count into diarization `--num-speakers` (engine + IPC already accept it; nothing passes it) | our own item; upstream analog: speaker cap to attendee count (1.6.10/1.7.0) | `useMeetingTranscription.ts` — only when attendee count is reliable; never for unscheduled meetings. |
+| [x] | Bluetooth: detach meeting AudioContexts from output device; fix system-audio loopback silence with BT output | 1.6.6 "Meeting Bluetooth Audio" | Likely explains silent system-audio recordings when wearing AirPods. |
+| [x] | Wire calendar attendee count into diarization `--num-speakers` (engine + IPC already accept it; nothing passes it) | our own item; upstream analog: speaker cap to attendee count (1.6.10/1.7.0) | `useMeetingTranscription.ts` — only when attendee count is reliable; never for unscheduled meetings. |
 
-Verify after: record a test meeting with system audio playing while speaking; diarization should not attribute system-audio speech to "Me".
+Done 2026-07-09 (commits `a7caf531`, `8494fa7d`, `cd5cd72e`). Notes:
+- Acoustic gate = new `src/utils/echoLeakGate.ts` (port of upstream MeetingEchoLeakDetector's correlation core, plus a fine lag-refinement pass upstream lacks). It gates ONLY the mic split recording via a parallel gain branch — the mixed recording (transcript) and live tap stay raw, so a misfire can't lose transcript content. Detector taps the raw mic pre-gain. Text-level dedupe skipped (needs streaming transcripts; our local path has none). Prod evidence for the leak: every meeting's transcript.json has `is_me: false` — the mic-embedding "Me" match never fires today.
+- Attendee count wired as `--max-speakers` (pyannote cap), NOT `--num-speakers` (exact count would force-split a real speaker when an attendee no-shows, and solo prep recordings on a meeting note would be forced into N clusters). Only passed when the meeting matched a calendar event with ≥2 attendees. Re-run speaker ID stays uncapped (escape hatch).
+- Bluetooth: loopback constraints (EC/NS/AGC off + applyConstraints), hidden muted `<video>` sink to keep ScreenCaptureKit pumping, macOS `enable-features` loopback flags, `detachFromOutputDevice` (`setSinkId {type:"none"}`) on mix + live-tap contexts, iPhone/iPad treated as external mics. Skipped: 48 kHz downsample (cloud-only, retired), StrictMode deferred-cleanup rework.
+
+Verify after: record a test meeting with system audio playing while speaking; diarization should not attribute system-audio speech to "Me". Check "Echo gate summary" in debug logs (mutedMs > 0 when recording speakerless) and that solo recordings still transcribe + diarize normally. With AirPods as output: system_record.wav should no longer be silent.
 
 ## Tier 4 — Whisper VAD + perf (can ride with Tier 1 or 3)
 
