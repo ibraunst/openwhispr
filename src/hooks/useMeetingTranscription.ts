@@ -815,10 +815,25 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
             return;
           }
 
+          // Calendar attendee count caps the diarization cluster count
+          // (max, never exact — no-shows are common). Only for scheduled
+          // meetings: attendeesJson exists only when a calendar event was
+          // matched, so unscheduled recordings stay uncapped.
+          let maxSpeakers: number | undefined;
+          if (attendeesJson) {
+            try {
+              const attendees = JSON.parse(attendeesJson);
+              if (Array.isArray(attendees) && attendees.length >= 2) {
+                maxSpeakers = attendees.length;
+              }
+            } catch {}
+          }
+
           setIsDiarizing(true);
           const diarizeResult = await window.electronAPI?.meetingRunDiarization?.({
             meetingId: currentMeetingId,
             hfToken,
+            maxSpeakers,
             meThreshold: diarizationMeThreshold,
             matchThreshold: diarizationMatchThreshold,
           });

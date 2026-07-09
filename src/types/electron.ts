@@ -1201,6 +1201,7 @@ declare global {
         meetingId: string;
         hfToken?: string;
         numSpeakers?: number;
+        maxSpeakers?: number;
         meThreshold?: number;
         matchThreshold?: number;
         readOnlyBank?: boolean;

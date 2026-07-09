@@ -303,13 +303,23 @@ class SpeakerEngine:
     # -- diarization -------------------------------------------------------
 
     def diarize(
-        self, system_audio: str | Path, num_speakers: Optional[int] = None
+        self,
+        system_audio: str | Path,
+        num_speakers: Optional[int] = None,
+        max_speakers: Optional[int] = None,
     ) -> list[DiarizedSegment]:
-        """Run pyannote diarization on the system/meeting audio."""
+        """Run pyannote diarization on the system/meeting audio.
+
+        num_speakers forces an exact cluster count; max_speakers only caps it
+        (safe when the expected count is an upper bound, e.g. calendar
+        attendees — a no-show must not force-split a real speaker in two).
+        """
         pipeline = self._get_diarization_pipeline()
         params = {}
         if num_speakers is not None:
             params["num_speakers"] = num_speakers
+        elif max_speakers is not None:
+            params["max_speakers"] = max_speakers
 
         logger.info("Running diarization on %s …", system_audio)
         # Load audio as waveform dict to avoid pyannote file-duration telemetry bug
@@ -475,6 +485,7 @@ class SpeakerEngine:
         mic_audio: str | Path,
         transcript_path: str | Path,
         num_speakers: Optional[int] = None,
+        max_speakers: Optional[int] = None,
     ) -> dict:
         """Full pipeline: diarize → identify → merge."""
         system_audio = Path(system_audio)
@@ -492,7 +503,7 @@ class SpeakerEngine:
         logger.info("Extracting mic embedding from %s …", mic_audio)
         mic_embedding = self.extract_embedding(mic_audio)
 
-        segments = self.diarize(system_audio, num_speakers=num_speakers)
+        segments = self.diarize(system_audio, num_speakers=num_speakers, max_speakers=max_speakers)
         if not segments:
             logger.warning("No speech segments detected in system audio")
             return json.loads(transcript_path.read_text(encoding="utf-8"))
@@ -536,6 +547,12 @@ def main() -> None:
     parser.add_argument("--hf-token", required=True, help="HuggingFace token")
     parser.add_argument("--voice-db", default="~/.customwhispr/voicebank.db")
     parser.add_argument("--num-speakers", type=int, default=None)
+    parser.add_argument(
+        "--max-speakers",
+        type=int,
+        default=None,
+        help="Upper bound on speaker clusters (ignored when --num-speakers is set)",
+    )
     parser.add_argument("--similarity", type=float, default=SIMILARITY_THRESHOLD)
     parser.add_argument("--voicebank-threshold", type=float, default=VOICEBANK_MATCH_THRESHOLD)
     parser.add_argument(
@@ -558,6 +575,7 @@ def main() -> None:
             mic_audio=args.mic_audio,
             transcript_path=args.transcript,
             num_speakers=args.num_speakers,
+            max_speakers=args.max_speakers,
         )
         # The full labeled transcript is written to --transcript; keep stdout
         # small — consumers read the file, and a huge stdout can overflow the

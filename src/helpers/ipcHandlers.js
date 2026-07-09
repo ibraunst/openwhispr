@@ -2782,7 +2782,7 @@ class IPCHandlers {
     });
 
     // Run speaker diarization engine (Python subprocess)
-    ipcMain.handle("meeting-run-diarization", async (_event, { meetingId, hfToken: providedToken, numSpeakers, meThreshold, matchThreshold, readOnlyBank }) => {
+    ipcMain.handle("meeting-run-diarization", async (_event, { meetingId, hfToken: providedToken, numSpeakers, maxSpeakers, meThreshold, matchThreshold, readOnlyBank }) => {
       const hfToken = providedToken || process.env.HF_TOKEN || "";
       if (!hfToken) {
         return { success: false, error: "HuggingFace token required. Set it in Settings → API Keys." };
@@ -2852,6 +2852,11 @@ class IPCHandlers {
           "--voice-db", voiceDbPath,
         ];
         if (numSpeakers) args.push("--num-speakers", String(numSpeakers));
+        // Cap (not exact count) — calendar attendee lists are an upper bound:
+        // a no-show attendee must never force-split a real speaker in two.
+        if (Number.isInteger(maxSpeakers) && maxSpeakers >= 2) {
+          args.push("--max-speakers", String(maxSpeakers));
+        }
         // Similarity thresholds ride in from the renderer's tuning sliders;
         // clamp to a sane band so a corrupt stored value can't break matching.
         const clamp01 = (v) => Math.min(0.99, Math.max(0.5, v));
