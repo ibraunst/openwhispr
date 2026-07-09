@@ -89,10 +89,16 @@ Verify after: record a test meeting with system audio playing while speaking; di
 
 | Status | Item | Upstream ref |
 |--------|------|-------------|
-| [ ] | Silero VAD end-to-end: bundle `ggml-silero-v5.1.2.bin` (~864KB, download script), pass `--vad` flags to whisper-server, restart keyed on VAD model path | 1.7.1 "Local Whisper: voice activity detection" + 1.7.4 #1000 (bundle in packaged builds) |
-| [ ] | whisper-server thread-count auto-tuning | 1.7.3 #994 |
+| [x] | Silero VAD end-to-end: bundle `ggml-silero-v5.1.2.bin` (~864KB, download script), pass `--vad` flags to whisper-server, restart keyed on VAD model path | 1.7.1 "Local Whisper: voice activity detection" + 1.7.4 #1000 (bundle in packaged builds) |
+| [x] | whisper-server thread-count auto-tuning | 1.7.3 #994 |
 
-Verify after: transcribe a long meeting recording; compare duration + quality vs. before.
+Done 2026-07-09 (commits `acf3e5cb`, `cd56da7d`). Notes:
+- No per-context toggles or tuning UI (upstream's 3 toggles + 6 sliders skipped) — VAD defaults ON; `WHISPER_VAD=off` in the .env is the kill switch, `WHISPER_THREADS=<n>` pins threads. Both keys persisted via `PERSISTED_KEYS`.
+- **Binary crash found in testing**: our whisper-server (March build) dies when VAD filters out ALL audio (`--language auto` on 0ms input). Mitigated: the transcribe failure-retry restarts WITHOUT VAD, so silent recordings degrade to the legacy [BLANK_AUDIO] flow; next transcription's signature restart restores VAD. A future whisper-server binary refresh may fix the root cause — retest with `resources/bin/whisper-server-darwin-arm64 --vad ... < silent wav` before removing the mitigation.
+- Timestamp safety verified live: VAD verbose_json segments stay mapped to the original timeline (18.5s last-end on an 18.6s file) — diarization merge unaffected.
+- This machine: 14 cores → 10 threads (was fixed default 4).
+
+Verify after: transcribe a long meeting recording; compare duration + quality vs. before. Check "whisper-server started successfully" log shows `vad: true, threads: 10`.
 
 ## Tier 5 — Electron 39+ / CoreAudio system-audio tap (OWN BRANCH, OWN SESSION, strongest model)
 
