@@ -6,6 +6,7 @@ const EXPECTED_BINARY_FRAGMENTS = {
   parakeet: "sherpa-onnx-ws",
   whisper: "whisper-server",
   llama: "llama-server",
+  audiotap: "macos-audio-tap",
 };
 
 function isProcessAlive(pid) {

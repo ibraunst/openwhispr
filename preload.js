@@ -389,6 +389,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openSoundInputSettings: () => ipcRenderer.invoke("open-sound-input-settings"),
   openAccessibilitySettings: () => ipcRenderer.invoke("open-accessibility-settings"),
   openScreenRecordingSettings: () => ipcRenderer.invoke("open-screen-recording-settings"),
+  checkSystemAudioAccess: () => ipcRenderer.invoke("check-system-audio-access"),
+  requestSystemAudioAccess: () => ipcRenderer.invoke("request-system-audio-access"),
   toggleMediaPlayback: () => ipcRenderer.invoke("toggle-media-playback"),
   pauseMediaPlayback: () => ipcRenderer.invoke("pause-media-playback"),
   resumeMediaPlayback: () => ipcRenderer.invoke("resume-media-playback"),
@@ -754,4 +756,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
     (callback) => (_event, data) => callback(data)
   ),
   meetingAutoStopCancel: () => ipcRenderer.invoke("meeting-auto-stop-cancel"),
+
+  // Native system-audio tap (CoreAudio, macOS 14.2+)
+  meetingTapStart: () => ipcRenderer.invoke("meeting-tap-start"),
+  meetingTapStop: () => ipcRenderer.invoke("meeting-tap-stop"),
+  onMeetingTapChunk: registerListener(
+    "meeting-tap-chunk",
+    (callback) => (_event, chunk) => callback(chunk)
+  ),
+  onMeetingTapError: registerListener(
+    "meeting-tap-error",
+    (callback) => (_event, message) => callback(message)
+  ),
 });

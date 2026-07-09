@@ -791,6 +791,20 @@ declare global {
       openSoundInputSettings?: () => Promise<{ success: boolean; error?: string }>;
       openAccessibilitySettings?: () => Promise<{ success: boolean; error?: string }>;
       openScreenRecordingSettings?: () => Promise<{ success: boolean; error?: string }>;
+      checkSystemAudioAccess?: () => Promise<{
+        granted: boolean;
+        status: "granted" | "denied" | "unknown" | "unsupported" | "unavailable";
+        supported: boolean;
+      }>;
+      requestSystemAudioAccess?: () => Promise<{
+        granted: boolean;
+        status: "granted" | "denied" | "unknown" | "unsupported";
+        error?: string;
+      }>;
+      meetingTapStart?: () => Promise<{ success: boolean; sampleRate?: number; error?: string }>;
+      meetingTapStop?: () => Promise<{ success: boolean; error?: string }>;
+      onMeetingTapChunk?: (callback: (chunk: Uint8Array | ArrayBuffer) => void) => () => void;
+      onMeetingTapError?: (callback: (message: string) => void) => () => void;
       toggleMediaPlayback?: () => Promise<boolean>;
       pauseMediaPlayback?: () => Promise<boolean>;
       resumeMediaPlayback?: () => Promise<boolean>;

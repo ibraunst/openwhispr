@@ -11,6 +11,7 @@ const { i18nMain, changeLanguage } = require("./i18nMain");
 const DeepgramStreaming = require("./deepgramStreaming");
 const OpenAIRealtimeStreaming = require("./openaiRealtimeStreaming");
 const AudioStorageManager = require("./audioStorage");
+const { TAP_SAMPLE_RATE } = require("./audioTapManager");
 
 const MISTRAL_TRANSCRIPTION_URL = "https://api.mistral.ai/v1/audio/transcriptions";
 
@@ -151,6 +152,7 @@ class IPCHandlers {
     this.googleCalendarManager = managers.googleCalendarManager;
     this.appleCalendarManager = managers.appleCalendarManager;
     this.meetingDetectionEngine = managers.meetingDetectionEngine;
+    this.audioTapManager = managers.audioTapManager;
     this.sessionId = crypto.randomUUID();
     this.assemblyAiStreaming = null;
     this.deepgramStreaming = null;
@@ -2259,6 +2261,60 @@ class IPCHandlers {
       const { systemPreferences } = require("electron");
       const status = systemPreferences.getMediaAccessStatus("screen");
       return { granted: status === "granted" };
+    });
+
+    // Native CoreAudio system-audio tap (macOS 14.2+). There is no OS API to
+    // query the System Audio Recording permission — status comes from the tap
+    // binary's own start/permission_denied events, cached by AudioTapManager.
+    ipcMain.handle("check-system-audio-access", () => {
+      if (!this.audioTapManager) {
+        return { granted: false, status: "unsupported", supported: false };
+      }
+      return this.audioTapManager.checkAccess();
+    });
+
+    ipcMain.handle("request-system-audio-access", async () => {
+      if (!this.audioTapManager) {
+        return { granted: false, status: "unsupported" };
+      }
+      // First probe run triggers the macOS consent dialog (dialog text comes
+      // from NSAudioCaptureUsageDescription).
+      return this.audioTapManager.requestAccess();
+    });
+
+    ipcMain.handle("meeting-tap-start", async (event) => {
+      if (!this.audioTapManager?.isSupported() || !this.audioTapManager.isAvailable()) {
+        return { success: false, error: "Native system audio tap is not available." };
+      }
+      const win = BrowserWindow.fromWebContents(event.sender);
+      try {
+        await this.audioTapManager.start({
+          onChunk: (chunk) => {
+            if (win && !win.isDestroyed()) {
+              win.webContents.send("meeting-tap-chunk", chunk);
+            }
+          },
+          onError: (error) => {
+            debugLogger.error("macOS audio tap runtime error", { error: error.message }, "meeting");
+            if (win && !win.isDestroyed()) {
+              win.webContents.send("meeting-tap-error", error.message);
+            }
+          },
+        });
+        return { success: true, sampleRate: TAP_SAMPLE_RATE };
+      } catch (error) {
+        debugLogger.error("macOS audio tap start failed", { error: error.message }, "meeting");
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle("meeting-tap-stop", async () => {
+      try {
+        await this.audioTapManager?.stop();
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
     });
 
     // Auth: clear all session cookies for sign-out.
