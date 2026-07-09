@@ -4757,6 +4757,15 @@ class IPCHandlers {
       return this.windowManager?._pendingNotificationData ?? null;
     });
 
+    // One-shot pull-and-clear: unlike notification data (persists until dismissed),
+    // a stale navigate-to-meeting-note must never re-fire on a later, unrelated
+    // control panel remount.
+    ipcMain.handle("get-pending-navigate-to-meeting-note", async () => {
+      const data = this.windowManager?._pendingNavigateToMeetingNote ?? null;
+      if (this.windowManager) this.windowManager._pendingNavigateToMeetingNote = null;
+      return data;
+    });
+
     ipcMain.handle("meeting-auto-stop-cancel", async () => {
       try {
         this.meetingDetectionEngine.cancelAutoStop();

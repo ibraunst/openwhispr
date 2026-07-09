@@ -1219,6 +1219,15 @@ class WindowManager {
   sendToControlPanel(channel, data) {
     const win = this.controlPanelWindow;
     if (!win || win.isDestroyed()) return;
+    // did-finish-load fires when the page's scripts have loaded, not when React
+    // has mounted and registered its IPC listener — on a fresh control panel
+    // window the send below can still race past an unmounted listener and be
+    // silently lost. Store it so the renderer can pull it once mounted
+    // (get-pending-navigate-to-meeting-note), mirroring the meeting-notification
+    // window's store-and-drain handshake.
+    if (channel === "navigate-to-meeting-note") {
+      this._pendingNavigateToMeetingNote = data;
+    }
     if (win.webContents.isLoading()) {
       win.webContents.once("did-finish-load", () => {
         if (!win.isDestroyed()) win.webContents.send(channel, data);

@@ -191,13 +191,27 @@ export default function ControlPanel() {
   }, [useLocalWhisper, localTranscriptionProvider, useReasoningModel, gpuBannerDismissed]);
 
   useEffect(() => {
-    const cleanup = window.electronAPI?.onNavigateToMeetingNote?.((data) => {
+    // The push below can race a fresh control panel window: did-finish-load
+    // fires before this listener is registered, so the event is silently lost
+    // if it was sent to an unmounted renderer. Also pull any pending data
+    // stored on the main side (mirrors the meeting-notification window's
+    // store-and-drain handshake) — whichever arrives first wins, since both
+    // can otherwise deliver the same navigation and double-start a recording.
+    let handled = false;
+    const applyNavigation = (data: any) => {
+      if (handled || !data) return;
+      handled = true;
       setActiveFolderId(data.folderId);
       setActiveNoteId(data.noteId);
       setActiveView("personal-notes");
       setIsMeetingMode(true);
       setMeetingRecordingRequest(data);
-    });
+    };
+
+    const cleanup = window.electronAPI?.onNavigateToMeetingNote?.(applyNavigation);
+
+    window.electronAPI?.getPendingNavigateToMeetingNote?.().then(applyNavigation);
+
     return () => cleanup?.();
   }, []);
 

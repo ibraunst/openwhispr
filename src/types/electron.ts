@@ -1312,6 +1312,12 @@ declare global {
           existingTranscript?: string | null;
         }) => void
       ) => () => void;
+      getPendingNavigateToMeetingNote?: () => Promise<{
+        noteId: number;
+        folderId: number;
+        event: any;
+        existingTranscript?: string | null;
+      } | null>;
     };
 
     api?: {

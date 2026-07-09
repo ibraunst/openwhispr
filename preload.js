@@ -741,6 +741,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     "navigate-to-meeting-note",
     (callback) => (_event, data) => callback(data)
   ),
+  getPendingNavigateToMeetingNote: () =>
+    ipcRenderer.invoke("get-pending-navigate-to-meeting-note"),
 
   // Meeting auto-stop
   onMeetingAutoStopSuggested: registerListener(
