@@ -1944,6 +1944,19 @@
     "customName": "自定义名称…",
     "resetLine": "不是此发言人——重置此行",
     "lineReset": "该行已重置为未识别",
-    "resetFailed": "无法重置该行"
+    "resetFailed": "无法重置该行",
+    "tuningTitle": "说话人匹配",
+    "meThreshold": "我的声音匹配度",
+    "meThresholdDesc": "声音需要与你的麦克风音频有多相似才会被标记为你。如果你总是被识别为访客，请调低；如果他人被识别为你，请调高。",
+    "matchThreshold": "已知声音匹配度",
+    "matchThresholdDesc": "声音需要与已保存的声纹有多相似才会沿用该联系人的名字。如果熟人总是被识别为新访客，请调低；如果不同的人被合并，请调高。",
+    "thresholdsReset": "恢复默认值",
+    "thresholdDefault": "默认 {{value}}",
+    "rerun": "重新识别说话人",
+    "rerunRunning": "识别中…",
+    "rerunTooltip": "使用当前匹配设置重新识别此录音中的说话人",
+    "rerunDone": "说话人已重新识别",
+    "rerunFailed": "说话人重新识别失败",
+    "rerunNoToken": "需要 HuggingFace 令牌。请在“集成”中添加。"
   }
 }

@@ -34,7 +34,7 @@ import {
   setActiveFolderId,
   updateNoteInStore,
 } from "../../stores/noteStore";
-import { useMeetingTranscription } from "../../hooks/useMeetingTranscription";
+import { useMeetingTranscription, formatDiarizedTranscript } from "../../hooks/useMeetingTranscription";
 import { useScreenRecordingPermission } from "../../hooks/useScreenRecordingPermission";
 import { useNotesOnboarding } from "../../hooks/useNotesOnboarding";
 import NotesOnboarding from "./NotesOnboarding";
@@ -812,6 +812,80 @@ export default function PersonalNotesView({
     ]
   );
 
+  // Re-run speaker identification on an already-recorded meeting using the
+  // CURRENT threshold sliders (Integrations → HuggingFace) — the tuning loop
+  // for a diarization that came out wrong. Read-only against the voicebank:
+  // tuning passes must not drift stored voiceprints or enroll duplicates.
+  // REPLACES the note's transcript with this recording's newly labeled one —
+  // any earlier appended session (interrupted-meeting resume) is dropped.
+  const [rerunningNoteId, setRerunningNoteId] = useState<number | null>(null);
+  const handleRerunSpeakerRecognition = useCallback(async () => {
+    const noteId = activeNoteId;
+    const meetingId = activeNote?.meeting_id;
+    if (noteId == null || !meetingId || rerunningNoteId != null) return;
+    const { hfToken, diarizationMeThreshold, diarizationMatchThreshold } = getSettings();
+    if (!hfToken) {
+      toast({
+        title: t("voicebank.rerunFailed"),
+        description: t("voicebank.rerunNoToken"),
+        variant: "destructive",
+      });
+      return;
+    }
+    setRerunningNoteId(noteId);
+    try {
+      const result = await window.electronAPI?.meetingRunDiarization?.({
+        meetingId,
+        hfToken,
+        meThreshold: diarizationMeThreshold,
+        matchThreshold: diarizationMatchThreshold,
+        readOnlyBank: true,
+      });
+      if (!result?.success || !result.transcript?.segments?.length) {
+        throw new Error(result?.error || "Speaker identification produced no segments");
+      }
+      const updated = formatDiarizedTranscript(result.transcript.segments);
+      await window.electronAPI.updateNote(noteId, { transcript: updated });
+      if (activeMeetingDiarized) overrideDiarizedTranscript(updated);
+
+      if (activeNote?.export_path && activeNote?.export_header) {
+        window.electronAPI
+          .overwriteExportedFile?.(
+            activeNote.export_path,
+            formatTranscriptForExport(activeNote.export_header + updated)
+          )
+          .then((res: { success?: boolean; error?: string } | void) => {
+            if (res && res.success === false) throw new Error(res.error || "Write failed");
+          })
+          .catch((err: Error) => {
+            logger.error("Transcript export rewrite failed", { error: err.message }, "notes");
+          });
+      }
+      await initializeNotes(null, 50, activeFolderId);
+      toast({ title: t("voicebank.rerunDone") });
+    } catch (err) {
+      logger.error("Speaker re-run failed", { error: (err as Error).message }, "notes");
+      toast({
+        title: t("voicebank.rerunFailed"),
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setRerunningNoteId(null);
+    }
+  }, [
+    activeNoteId,
+    activeNote?.meeting_id,
+    activeNote?.export_path,
+    activeNote?.export_header,
+    activeFolderId,
+    activeMeetingDiarized,
+    overrideDiarizedTranscript,
+    rerunningNoteId,
+    toast,
+    t,
+  ]);
+
   // When manually starting a recording, auto-title the note from the nearest calendar event
   const handleStartMeetingRecording = useCallback(async () => {
     calendarTitleRef.current = null;
@@ -1465,6 +1539,12 @@ export default function PersonalNotesView({
               onRenameSpeaker={handleRenameSpeaker}
               speakerSuggestions={speakerSuggestions}
               onResetParagraph={handleResetParagraphSpeaker}
+              onRerunSpeakerRecognition={
+                activeNote?.meeting_id && !isMeetingRecording
+                  ? handleRerunSpeakerRecognition
+                  : undefined
+              }
+              isRerunningSpeakerRecognition={rerunningNoteId === activeNoteId}
               actionProcessingState={actionProcessingState}
               actionName={actionName}
               actionPicker={

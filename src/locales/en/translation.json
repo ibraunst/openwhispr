@@ -2015,6 +2015,19 @@
     "customName": "Custom name…",
     "resetLine": "Not this speaker — reset line",
     "lineReset": "Line reset to unidentified",
-    "resetFailed": "Could not reset line"
+    "resetFailed": "Could not reset line",
+    "tuningTitle": "Speaker matching",
+    "meThreshold": "My voice match",
+    "meThresholdDesc": "How closely a voice must match your microphone audio to be labeled as you. Lower it if you keep showing up as a guest; raise it if others get labeled as you.",
+    "matchThreshold": "Known voice match",
+    "matchThresholdDesc": "How closely a voice must match a saved voiceprint to reuse that person's name. Lower it if known people keep appearing as new guests; raise it if different people get merged.",
+    "thresholdsReset": "Reset to defaults",
+    "thresholdDefault": "default {{value}}",
+    "rerun": "Re-run speaker ID",
+    "rerunRunning": "Identifying…",
+    "rerunTooltip": "Re-identify speakers in this recording using the current matching settings",
+    "rerunDone": "Speakers re-identified",
+    "rerunFailed": "Speaker re-identification failed",
+    "rerunNoToken": "A HuggingFace token is required. Add one in Integrations."
   }
 }

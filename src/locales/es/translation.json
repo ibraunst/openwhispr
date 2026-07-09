@@ -1944,6 +1944,19 @@
     "customName": "Nombre personalizado…",
     "resetLine": "No es este hablante — restablecer línea",
     "lineReset": "Línea restablecida a sin identificar",
-    "resetFailed": "No se pudo restablecer la línea"
+    "resetFailed": "No se pudo restablecer la línea",
+    "tuningTitle": "Coincidencia de hablantes",
+    "meThreshold": "Coincidencia de mi voz",
+    "meThresholdDesc": "Cuánto debe parecerse una voz al audio de tu micrófono para etiquetarse como tú. Bájalo si sigues apareciendo como invitado; súbelo si otros se etiquetan como tú.",
+    "matchThreshold": "Coincidencia de voces conocidas",
+    "matchThresholdDesc": "Cuánto debe parecerse una voz a una huella guardada para reutilizar el nombre de esa persona. Bájalo si personas conocidas siguen apareciendo como invitados nuevos; súbelo si se fusionan personas distintas.",
+    "thresholdsReset": "Restablecer valores predeterminados",
+    "thresholdDefault": "predeterminado {{value}}",
+    "rerun": "Reidentificar hablantes",
+    "rerunRunning": "Identificando…",
+    "rerunTooltip": "Vuelve a identificar los hablantes de esta grabación con la configuración de coincidencia actual",
+    "rerunDone": "Hablantes reidentificados",
+    "rerunFailed": "Falló la reidentificación de hablantes",
+    "rerunNoToken": "Se requiere un token de HuggingFace. Añade uno en Integraciones."
   }
 }

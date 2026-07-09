@@ -229,11 +229,16 @@ class SpeakerEngine:
         voice_db_path: str | Path = "~/.customwhispr/voicebank.db",
         similarity_threshold: float = SIMILARITY_THRESHOLD,
         voicebank_threshold: float = VOICEBANK_MATCH_THRESHOLD,
+        update_bank: bool = True,
     ):
         self.hf_token = hf_token
         self.device = _select_device()
         self.similarity_threshold = similarity_threshold
         self.voicebank_threshold = voicebank_threshold
+        # Re-runs (threshold tuning on an already-processed meeting) must not
+        # write to the voicebank: every pass would inflate meeting counts,
+        # drift stored embeddings, and enroll duplicate guest voiceprints.
+        self.update_bank = update_bank
         self.voice_bank = VoiceBank(voice_db_path)
 
         self._diarization_pipeline: Optional[Pipeline] = None
@@ -371,10 +376,11 @@ class SpeakerEngine:
 
             match = self.voice_bank.find_match(avg_emb, threshold=self.voicebank_threshold)
             if match is not None:
-                match.meeting_count += 1
-                alpha = 1.0 / match.meeting_count
-                match.embedding = (1 - alpha) * match.embedding + alpha * avg_emb
-                self.voice_bank.upsert(match)
+                if self.update_bank:
+                    match.meeting_count += 1
+                    alpha = 1.0 / match.meeting_count
+                    match.embedding = (1 - alpha) * match.embedding + alpha * avg_emb
+                    self.voice_bank.upsert(match)
                 label_map[spk] = match.label
                 speaker_meta.setdefault(match.label, {
                     "label": match.label, "voiceprint_id": match.id,
@@ -383,16 +389,19 @@ class SpeakerEngine:
             else:
                 guest_label = f"Guest {next_guest}"
                 next_guest += 1
-                vp = VoicePrint(
-                    id=str(uuid.uuid4()),
-                    label=guest_label,
-                    embedding=avg_emb,
-                    meeting_count=1,
-                )
-                self.voice_bank.upsert(vp)
+                voiceprint_id = None
+                if self.update_bank:
+                    vp = VoicePrint(
+                        id=str(uuid.uuid4()),
+                        label=guest_label,
+                        embedding=avg_emb,
+                        meeting_count=1,
+                    )
+                    self.voice_bank.upsert(vp)
+                    voiceprint_id = vp.id
                 label_map[spk] = guest_label
                 speaker_meta[guest_label] = {
-                    "label": guest_label, "voiceprint_id": vp.id,
+                    "label": guest_label, "voiceprint_id": voiceprint_id,
                     "is_new": True, "is_me": False,
                 }
 
@@ -528,12 +537,20 @@ def main() -> None:
     parser.add_argument("--voice-db", default="~/.customwhispr/voicebank.db")
     parser.add_argument("--num-speakers", type=int, default=None)
     parser.add_argument("--similarity", type=float, default=SIMILARITY_THRESHOLD)
+    parser.add_argument("--voicebank-threshold", type=float, default=VOICEBANK_MATCH_THRESHOLD)
+    parser.add_argument(
+        "--read-only-bank",
+        action="store_true",
+        help="Match against the voicebank but never write to it (re-runs/tuning)",
+    )
     args = parser.parse_args()
 
     engine = SpeakerEngine(
         hf_token=args.hf_token,
         voice_db_path=args.voice_db,
         similarity_threshold=args.similarity,
+        voicebank_threshold=args.voicebank_threshold,
+        update_bank=not args.read_only_bank,
     )
     try:
         result = engine.process(

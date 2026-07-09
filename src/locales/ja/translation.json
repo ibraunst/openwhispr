@@ -1944,6 +1944,19 @@
     "customName": "カスタム名…",
     "resetLine": "この話者ではない — 行をリセット",
     "lineReset": "行を未識別にリセットしました",
-    "resetFailed": "行をリセットできませんでした"
+    "resetFailed": "行をリセットできませんでした",
+    "tuningTitle": "話者マッチング",
+    "meThreshold": "自分の声の一致度",
+    "meThresholdDesc": "声があなたのマイク音声とどれだけ一致すればあなたとしてラベル付けされるか。自分がゲストとして表示される場合は下げ、他の人があなたとして表示される場合は上げてください。",
+    "matchThreshold": "既知の声の一致度",
+    "matchThresholdDesc": "声が保存済みの声紋とどれだけ一致すればその人の名前を再利用するか。知っている人が新しいゲストとして表示される場合は下げ、別の人が統合される場合は上げてください。",
+    "thresholdsReset": "デフォルトに戻す",
+    "thresholdDefault": "デフォルト {{value}}",
+    "rerun": "話者を再識別",
+    "rerunRunning": "識別中…",
+    "rerunTooltip": "現在のマッチング設定でこの録音の話者を再識別します",
+    "rerunDone": "話者を再識別しました",
+    "rerunFailed": "話者の再識別に失敗しました",
+    "rerunNoToken": "HuggingFace トークンが必要です。「連携」で追加してください。"
   }
 }

@@ -2782,7 +2782,7 @@ class IPCHandlers {
     });
 
     // Run speaker diarization engine (Python subprocess)
-    ipcMain.handle("meeting-run-diarization", async (_event, { meetingId, hfToken: providedToken, numSpeakers }) => {
+    ipcMain.handle("meeting-run-diarization", async (_event, { meetingId, hfToken: providedToken, numSpeakers, meThreshold, matchThreshold, readOnlyBank }) => {
       const hfToken = providedToken || process.env.HF_TOKEN || "";
       if (!hfToken) {
         return { success: false, error: "HuggingFace token required. Set it in Settings → API Keys." };
@@ -2852,6 +2852,14 @@ class IPCHandlers {
           "--voice-db", voiceDbPath,
         ];
         if (numSpeakers) args.push("--num-speakers", String(numSpeakers));
+        // Similarity thresholds ride in from the renderer's tuning sliders;
+        // clamp to a sane band so a corrupt stored value can't break matching.
+        const clamp01 = (v) => Math.min(0.99, Math.max(0.5, v));
+        if (Number.isFinite(meThreshold)) args.push("--similarity", String(clamp01(meThreshold)));
+        if (Number.isFinite(matchThreshold)) args.push("--voicebank-threshold", String(clamp01(matchThreshold)));
+        // Re-runs must never mutate the voicebank (embedding drift, duplicate
+        // guest voiceprints, inflated meeting counts on every tuning pass).
+        if (readOnlyBank) args.push("--read-only-bank");
 
         // The engine writes the labeled transcript (with the speakers array) to
         // transcript.json — read the result from the file rather than parsing

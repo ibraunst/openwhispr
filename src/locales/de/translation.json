@@ -1944,6 +1944,19 @@
     "customName": "Eigener Name…",
     "resetLine": "Nicht dieser Sprecher — Zeile zurücksetzen",
     "lineReset": "Zeile auf nicht identifiziert zurückgesetzt",
-    "resetFailed": "Zeile konnte nicht zurückgesetzt werden"
+    "resetFailed": "Zeile konnte nicht zurückgesetzt werden",
+    "tuningTitle": "Sprecherzuordnung",
+    "meThreshold": "Übereinstimmung meiner Stimme",
+    "meThresholdDesc": "Wie stark eine Stimme deinem Mikrofon-Audio ähneln muss, um als du erkannt zu werden. Senken, wenn du als Gast erscheinst; erhöhen, wenn andere als du erkannt werden.",
+    "matchThreshold": "Übereinstimmung bekannter Stimmen",
+    "matchThresholdDesc": "Wie stark eine Stimme einem gespeicherten Stimmabdruck ähneln muss, um den Namen dieser Person zu übernehmen. Senken, wenn bekannte Personen als neue Gäste erscheinen; erhöhen, wenn verschiedene Personen zusammengelegt werden.",
+    "thresholdsReset": "Auf Standardwerte zurücksetzen",
+    "thresholdDefault": "Standard {{value}}",
+    "rerun": "Sprecher neu erkennen",
+    "rerunRunning": "Erkennung läuft…",
+    "rerunTooltip": "Sprecher in dieser Aufnahme mit den aktuellen Zuordnungseinstellungen neu erkennen",
+    "rerunDone": "Sprecher neu erkannt",
+    "rerunFailed": "Sprechererkennung fehlgeschlagen",
+    "rerunNoToken": "Ein HuggingFace-Token ist erforderlich. Füge eines unter Integrationen hinzu."
   }
 }

@@ -85,6 +85,24 @@ const ARRAY_SETTINGS = new Set(["customDictionary", "gcalAccounts"]);
 
 const NUMERIC_SETTINGS = new Set(["audioRetentionDays"]);
 
+// Diarization tuning (cosine similarity 0-1). ME: how closely a diarized
+// voice must match the user's mic audio to be labeled "Me". MATCH: how
+// closely it must match a saved voiceprint to reuse that person's name.
+export const DIARIZATION_ME_THRESHOLD_DEFAULT = 0.85;
+export const DIARIZATION_MATCH_THRESHOLD_DEFAULT = 0.82;
+const FLOAT_SETTINGS: Record<string, number> = {
+  diarizationMeThreshold: DIARIZATION_ME_THRESHOLD_DEFAULT,
+  diarizationMatchThreshold: DIARIZATION_MATCH_THRESHOLD_DEFAULT,
+};
+
+function readFloat(key: string, fallback: number): number {
+  if (!isBrowser) return fallback;
+  const stored = localStorage.getItem(key);
+  if (stored === null) return fallback;
+  const parsed = parseFloat(stored);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 const LANGUAGE_MIGRATIONS: Record<string, string> = { zh: "zh-CN" };
 
 function migratePreferredLanguage() {
@@ -175,6 +193,12 @@ export interface SettingsState
   setAppleCalendarConnected: (value: boolean) => void;
   setMeetingProcessDetection: (value: boolean) => void;
   setMeetingAudioDetection: (value: boolean) => void;
+  hfToken: string;
+  setHfToken: (key: string) => void;
+  diarizationMeThreshold: number;
+  diarizationMatchThreshold: number;
+  setDiarizationMeThreshold: (value: number) => void;
+  setDiarizationMatchThreshold: (value: number) => void;
   setPanelStartPosition: (position: "bottom-right" | "center" | "bottom-left") => void;
   setKeepTranscriptionInClipboard: (value: boolean) => void;
   setIsSignedIn: (value: boolean) => void;
@@ -287,6 +311,11 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   groqApiKey: readString("groqApiKey", ""),
   mistralApiKey: readString("mistralApiKey", ""),
   hfToken: readString("hfToken", ""),
+  diarizationMeThreshold: readFloat("diarizationMeThreshold", DIARIZATION_ME_THRESHOLD_DEFAULT),
+  diarizationMatchThreshold: readFloat(
+    "diarizationMatchThreshold",
+    DIARIZATION_MATCH_THRESHOLD_DEFAULT
+  ),
   customTranscriptionApiKey: readString("customTranscriptionApiKey", ""),
   customReasoningApiKey: readString("customReasoningApiKey", ""),
 
@@ -496,6 +525,14 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setHfToken: (key: string) => {
     if (isBrowser) localStorage.setItem("hfToken", key);
     set({ hfToken: key });
+  },
+  setDiarizationMeThreshold: (value: number) => {
+    if (isBrowser) localStorage.setItem("diarizationMeThreshold", String(value));
+    set({ diarizationMeThreshold: value });
+  },
+  setDiarizationMatchThreshold: (value: number) => {
+    if (isBrowser) localStorage.setItem("diarizationMatchThreshold", String(value));
+    set({ diarizationMatchThreshold: value });
   },
   setCustomTranscriptionApiKey: (key: string) => {
     if (isBrowser) localStorage.setItem("customTranscriptionApiKey", key);
@@ -903,6 +940,9 @@ export async function initializeSettings(): Promise<void> {
     } else if (NUMERIC_SETTINGS.has(key)) {
       const parsed = parseInt(newValue, 10);
       value = isNaN(parsed) ? 30 : parsed;
+    } else if (key in FLOAT_SETTINGS) {
+      const parsed = parseFloat(newValue);
+      value = Number.isFinite(parsed) ? parsed : FLOAT_SETTINGS[key];
     } else if (key === "appProfiles") {
       try {
         value = JSON.parse(newValue);

@@ -11,6 +11,7 @@ import {
   Pencil,
   ChevronDown,
   UserRound,
+  RefreshCw,
 } from "lucide-react";
 import SpeakerRenameDialog from "./SpeakerRenameDialog";
 import { MarkdownTextarea } from "../ui/MarkdownTextarea";
@@ -88,6 +89,8 @@ interface NoteEditorProps {
   onRenameSpeaker?: (oldLabel: string, newLabel: string) => Promise<void>;
   speakerSuggestions?: string[];
   onResetParagraph?: (paragraphIndex: number) => Promise<void>;
+  onRerunSpeakerRecognition?: () => void;
+  isRerunningSpeakerRecognition?: boolean;
 }
 
 interface DictationRange {
@@ -195,6 +198,8 @@ export default function NoteEditor({
   onRenameSpeaker,
   speakerSuggestions,
   onResetParagraph,
+  onRerunSpeakerRecognition,
+  isRerunningSpeakerRecognition,
 }: NoteEditorProps) {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<MeetingViewMode>(
@@ -874,9 +879,11 @@ export default function NoteEditor({
         <div className="h-full overflow-y-auto">
           {viewMode === "transcript" && hasMeetingTranscript ? (
             <>
-              {onRenameSpeaker && transcriptSpeakers.length > 0 && (
+              {((onRenameSpeaker && transcriptSpeakers.length > 0) ||
+                onRerunSpeakerRecognition) && (
                 <div className="flex items-center gap-1.5 flex-wrap px-5 pt-3">
-                  {transcriptSpeakers.map((speaker) => {
+                  {onRenameSpeaker &&
+                    transcriptSpeakers.map((speaker) => {
                     // Attendees not already assigned to a speaker in this transcript
                     const availableNames = (speakerSuggestions ?? []).filter(
                       (name) => name !== speaker && !transcriptSpeakers.includes(name)
@@ -924,6 +931,28 @@ export default function NoteEditor({
                       </DropdownMenu>
                     );
                   })}
+                  {onRerunSpeakerRecognition && (
+                    <button
+                      onClick={onRerunSpeakerRecognition}
+                      disabled={isRerunningSpeakerRecognition}
+                      title={t("voicebank.rerunTooltip")}
+                      className={cn(
+                        "ml-auto flex items-center gap-1.5 h-6 px-2.5 rounded-full text-xs font-medium",
+                        "bg-foreground/4 dark:bg-white/4 border border-foreground/8 dark:border-white/8",
+                        "text-foreground/60 hover:text-foreground/80",
+                        "hover:bg-foreground/8 dark:hover:bg-white/8 hover:border-foreground/15",
+                        "transition-colors duration-150 disabled:opacity-60 disabled:pointer-events-none"
+                      )}
+                    >
+                      <RefreshCw
+                        size={11}
+                        className={cn(isRerunningSpeakerRecognition && "animate-spin")}
+                      />
+                      {isRerunningSpeakerRecognition
+                        ? t("voicebank.rerunRunning")
+                        : t("voicebank.rerun")}
+                    </button>
+                  )}
                 </div>
               )}
               <TranscriptPlayer

@@ -343,7 +343,7 @@ async function autoNameLoneGuest(
   return segments.map((seg) => (seg.speaker === guest.label ? { ...seg, speaker: name } : seg));
 }
 
-function formatDiarizedTranscript(segments: { start: number; end: number; text: string; speaker?: string }[]): string {
+export function formatDiarizedTranscript(segments: { start: number; end: number; text: string; speaker?: string }[]): string {
   const lines: string[] = [];
   let currentSpeaker = "";
   let currentText = "";
@@ -786,7 +786,11 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
 
           logger.info("Split audio saved, running speaker diarization…", { meetingId: currentMeetingId }, "meeting");
 
-          const { hfToken } = getSettings() as { hfToken?: string };
+          const { hfToken, diarizationMeThreshold, diarizationMatchThreshold } = getSettings() as {
+            hfToken?: string;
+            diarizationMeThreshold?: number;
+            diarizationMatchThreshold?: number;
+          };
           if (!hfToken) {
             logger.warn("Skipping diarization: no HuggingFace token configured", {}, "meeting");
             setDiarizationError("No HuggingFace token configured. Add one in Settings → API Keys to enable speaker identification.");
@@ -797,6 +801,8 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
           const diarizeResult = await window.electronAPI?.meetingRunDiarization?.({
             meetingId: currentMeetingId,
             hfToken,
+            meThreshold: diarizationMeThreshold,
+            matchThreshold: diarizationMatchThreshold,
           });
 
           if (diarizeResult?.success && diarizeResult.transcript?.segments?.length) {

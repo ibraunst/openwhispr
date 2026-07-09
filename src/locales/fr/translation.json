@@ -1944,6 +1944,19 @@
     "customName": "Nom personnalisé…",
     "resetLine": "Ce n'est pas ce locuteur — réinitialiser la ligne",
     "lineReset": "Ligne réinitialisée en non identifié",
-    "resetFailed": "Impossible de réinitialiser la ligne"
+    "resetFailed": "Impossible de réinitialiser la ligne",
+    "tuningTitle": "Correspondance des locuteurs",
+    "meThreshold": "Correspondance de ma voix",
+    "meThresholdDesc": "À quel point une voix doit correspondre à l'audio de votre micro pour être étiquetée comme vous. Baissez si vous apparaissez comme invité ; augmentez si d'autres sont étiquetés comme vous.",
+    "matchThreshold": "Correspondance des voix connues",
+    "matchThresholdDesc": "À quel point une voix doit correspondre à une empreinte enregistrée pour réutiliser le nom de cette personne. Baissez si des personnes connues apparaissent comme nouveaux invités ; augmentez si des personnes différentes sont fusionnées.",
+    "thresholdsReset": "Réinitialiser les valeurs par défaut",
+    "thresholdDefault": "défaut {{value}}",
+    "rerun": "Réidentifier les locuteurs",
+    "rerunRunning": "Identification…",
+    "rerunTooltip": "Réidentifie les locuteurs de cet enregistrement avec les réglages de correspondance actuels",
+    "rerunDone": "Locuteurs réidentifiés",
+    "rerunFailed": "Échec de la réidentification des locuteurs",
+    "rerunNoToken": "Un jeton HuggingFace est requis. Ajoutez-en un dans Intégrations."
   }
 }

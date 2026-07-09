@@ -5,7 +5,11 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { SettingsPanel, SettingsPanelRow } from "./ui/SettingsSection";
 import { ConfirmDialog } from "./ui/dialog";
-import { useSettingsStore } from "../stores/settingsStore";
+import {
+  useSettingsStore,
+  DIARIZATION_ME_THRESHOLD_DEFAULT,
+  DIARIZATION_MATCH_THRESHOLD_DEFAULT,
+} from "../stores/settingsStore";
 import { useScreenRecordingPermission } from "../hooks/useScreenRecordingPermission";
 import { formatSpeakerName } from "../utils/speakerNameFormatter";
 import type { VoiceBankEntry } from "../types/electron";
@@ -19,6 +23,10 @@ export default function IntegrationsView() {
     useSettingsStore();
   const hfToken = (useSettingsStore.getState() as any).hfToken as string ?? "";
   const setHfToken = (useSettingsStore.getState() as any).setHfToken as (key: string) => void;
+  const meThreshold = useSettingsStore((s) => s.diarizationMeThreshold);
+  const matchThreshold = useSettingsStore((s) => s.diarizationMatchThreshold);
+  const setDiarizationMeThreshold = useSettingsStore((s) => s.setDiarizationMeThreshold);
+  const setDiarizationMatchThreshold = useSettingsStore((s) => s.setDiarizationMatchThreshold);
   const [hfTokenInput, setHfTokenInput] = useState(hfToken);
   // State, not a ref: the "saved" flash drives render output, and a ref reset
   // by setTimeout never triggers the re-render that restores the check icon
@@ -416,6 +424,78 @@ export default function IntegrationsView() {
               </button>
             </div>
           </SettingsPanelRow>
+
+          {hfToken && (
+            <SettingsPanelRow>
+              <div className="w-full space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground/70">
+                    {t("voicebank.tuningTitle")}
+                  </p>
+                  {(meThreshold !== DIARIZATION_ME_THRESHOLD_DEFAULT ||
+                    matchThreshold !== DIARIZATION_MATCH_THRESHOLD_DEFAULT) && (
+                    <button
+                      onClick={() => {
+                        setDiarizationMeThreshold(DIARIZATION_ME_THRESHOLD_DEFAULT);
+                        setDiarizationMatchThreshold(DIARIZATION_MATCH_THRESHOLD_DEFAULT);
+                      }}
+                      className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {t("voicebank.thresholdsReset")}
+                    </button>
+                  )}
+                </div>
+                {(
+                  [
+                    {
+                      key: "me",
+                      label: t("voicebank.meThreshold"),
+                      desc: t("voicebank.meThresholdDesc"),
+                      value: meThreshold,
+                      defaultValue: DIARIZATION_ME_THRESHOLD_DEFAULT,
+                      onChange: setDiarizationMeThreshold,
+                    },
+                    {
+                      key: "match",
+                      label: t("voicebank.matchThreshold"),
+                      desc: t("voicebank.matchThresholdDesc"),
+                      value: matchThreshold,
+                      defaultValue: DIARIZATION_MATCH_THRESHOLD_DEFAULT,
+                      onChange: setDiarizationMatchThreshold,
+                    },
+                  ] as const
+                ).map((slider) => (
+                  <div key={slider.key} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-foreground/80">{slider.label}</span>
+                      <span className="text-xs tabular-nums text-muted-foreground">
+                        {slider.value.toFixed(2)}
+                        {slider.value !== slider.defaultValue && (
+                          <span className="text-muted-foreground/50">
+                            {" "}
+                            ({t("voicebank.thresholdDefault", { value: slider.defaultValue.toFixed(2) })})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.5}
+                      max={0.95}
+                      step={0.01}
+                      value={slider.value}
+                      onChange={(e) => slider.onChange(Number(e.target.value))}
+                      aria-label={slider.label}
+                      className="w-full h-1 accent-[var(--color-primary)] cursor-pointer"
+                    />
+                    <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
+                      {slider.desc}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </SettingsPanelRow>
+          )}
 
           {voices.length > 0 && (
             <SettingsPanelRow>

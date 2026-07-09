@@ -1944,6 +1944,19 @@
     "customName": "自訂名稱…",
     "resetLine": "不是此發言者——重設此行",
     "lineReset": "此行已重設為未識別",
-    "resetFailed": "無法重設此行"
+    "resetFailed": "無法重設此行",
+    "tuningTitle": "發言者比對",
+    "meThreshold": "我的聲音比對度",
+    "meThresholdDesc": "聲音需要與你的麥克風音訊有多相似才會被標記為你。如果你總是被辨識為訪客，請調低；如果他人被辨識為你，請調高。",
+    "matchThreshold": "已知聲音比對度",
+    "matchThresholdDesc": "聲音需要與已儲存的聲紋有多相似才會沿用該聯絡人的名字。如果熟人總是被辨識為新訪客，請調低；如果不同的人被合併，請調高。",
+    "thresholdsReset": "還原預設值",
+    "thresholdDefault": "預設 {{value}}",
+    "rerun": "重新辨識發言者",
+    "rerunRunning": "辨識中…",
+    "rerunTooltip": "使用目前的比對設定重新辨識此錄音中的發言者",
+    "rerunDone": "發言者已重新辨識",
+    "rerunFailed": "發言者重新辨識失敗",
+    "rerunNoToken": "需要 HuggingFace 權杖。請在「整合」中新增。"
   }
 }

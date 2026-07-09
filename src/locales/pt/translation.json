@@ -1944,6 +1944,19 @@
     "customName": "Nome personalizado…",
     "resetLine": "Não é este interlocutor — redefinir linha",
     "lineReset": "Linha redefinida para não identificado",
-    "resetFailed": "Não foi possível redefinir a linha"
+    "resetFailed": "Não foi possível redefinir a linha",
+    "tuningTitle": "Correspondência de falantes",
+    "meThreshold": "Correspondência da minha voz",
+    "meThresholdDesc": "O quanto uma voz deve corresponder ao áudio do seu microfone para ser rotulada como você. Diminua se você continuar aparecendo como convidado; aumente se outros forem rotulados como você.",
+    "matchThreshold": "Correspondência de vozes conhecidas",
+    "matchThresholdDesc": "O quanto uma voz deve corresponder a uma impressão vocal salva para reutilizar o nome dessa pessoa. Diminua se pessoas conhecidas continuarem aparecendo como novos convidados; aumente se pessoas diferentes forem mescladas.",
+    "thresholdsReset": "Restaurar padrões",
+    "thresholdDefault": "padrão {{value}}",
+    "rerun": "Reidentificar falantes",
+    "rerunRunning": "Identificando…",
+    "rerunTooltip": "Reidentifica os falantes desta gravação com as configurações de correspondência atuais",
+    "rerunDone": "Falantes reidentificados",
+    "rerunFailed": "Falha na reidentificação de falantes",
+    "rerunNoToken": "Um token do HuggingFace é necessário. Adicione um em Integrações."
   }
 }

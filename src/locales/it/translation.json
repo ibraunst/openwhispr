@@ -1944,6 +1944,19 @@
     "customName": "Nome personalizzato…",
     "resetLine": "Non è questo parlante — reimposta riga",
     "lineReset": "Riga reimpostata su non identificato",
-    "resetFailed": "Impossibile reimpostare la riga"
+    "resetFailed": "Impossibile reimpostare la riga",
+    "tuningTitle": "Corrispondenza dei parlanti",
+    "meThreshold": "Corrispondenza della mia voce",
+    "meThresholdDesc": "Quanto una voce deve corrispondere all'audio del tuo microfono per essere etichettata come te. Abbassalo se continui ad apparire come ospite; alzalo se altri vengono etichettati come te.",
+    "matchThreshold": "Corrispondenza voci conosciute",
+    "matchThresholdDesc": "Quanto una voce deve corrispondere a un'impronta vocale salvata per riutilizzare il nome di quella persona. Abbassalo se persone conosciute continuano ad apparire come nuovi ospiti; alzalo se persone diverse vengono unite.",
+    "thresholdsReset": "Ripristina valori predefiniti",
+    "thresholdDefault": "predefinito {{value}}",
+    "rerun": "Reidentifica parlanti",
+    "rerunRunning": "Identificazione…",
+    "rerunTooltip": "Reidentifica i parlanti di questa registrazione con le impostazioni di corrispondenza attuali",
+    "rerunDone": "Parlanti reidentificati",
+    "rerunFailed": "Reidentificazione dei parlanti non riuscita",
+    "rerunNoToken": "È richiesto un token HuggingFace. Aggiungine uno in Integrazioni."
   }
 }

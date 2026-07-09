@@ -1200,6 +1200,9 @@ declare global {
         meetingId: string;
         hfToken?: string;
         numSpeakers?: number;
+        meThreshold?: number;
+        matchThreshold?: number;
+        readOnlyBank?: boolean;
       }) => Promise<{
         success: boolean;
         transcript?: {
