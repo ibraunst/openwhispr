@@ -106,13 +106,22 @@ Highest reward (no Screen Recording permission, no purple indicator) and highest
 
 | Status | Step |
 |--------|------|
-| [ ] | Zip current working /Applications build as rollback before starting |
-| [ ] | Branch. Electron 36→39+ (upstream went to 41 by 1.6.9; pick deliberately), better-sqlite3 11→12, rebuild natives. NOTE: better-sqlite3 ABI bump breaks the `ELECTRON_RUN_AS_NODE` maintenance scripts' expectations — they run against the app's own electron, so they keep working, but plain-node access stays broken. |
-| [ ] | Port `macos-audio-tap` Swift helper (upstream 1.6.6) into `resources/bin/` + build script |
-| [ ] | Swap `getDisplayMedia` loopback → native tap in `useMeetingTranscription` capture path (split recorders + live-transcript tap sit on top — retest diarization end-to-end) |
-| [ ] | `NSAudioCaptureUsageDescription` in Info.plist; permission flow `useScreenRecordingPermission` → system-audio consent (macOS 14.2+/15+ dialog, 1.6.3 + 1.6.6) |
-| [ ] | Regression pass: pill NSPanel no-focus-steal, vibrancy/glass, tray, hotkeys, dictation paste, meeting record→diarize→playback, notification overlay |
+| [x] | Zip current working /Applications build as rollback before starting |
+| [x] | Branch. Electron 36→39+ (upstream went to 41 by 1.6.9; pick deliberately), better-sqlite3 11→12, rebuild natives. NOTE: better-sqlite3 ABI bump breaks the `ELECTRON_RUN_AS_NODE` maintenance scripts' expectations — they run against the app's own electron, so they keep working, but plain-node access stays broken. |
+| [x] | Port `macos-audio-tap` Swift helper (upstream 1.6.6) into `resources/bin/` + build script |
+| [x] | Swap `getDisplayMedia` loopback → native tap in `useMeetingTranscription` capture path (split recorders + live-transcript tap sit on top — retest diarization end-to-end) |
+| [x] | `NSAudioCaptureUsageDescription` in Info.plist; permission flow `useScreenRecordingPermission` → system-audio consent (macOS 14.2+/15+ dialog, 1.6.3 + 1.6.6) |
+| [x] | Regression pass: pill NSPanel no-focus-steal, vibrancy/glass, tray, hotkeys, dictation paste, meeting record→diarize→playback, notification overlay — programmatic checks done; live meeting E2E pending user (checklist below) |
 | [ ] | User keeps old Screen Recording grant until confirmed stable; new System Audio grant prompted on first meeting capture |
+
+Done 2026-07-09 (branch `tier5-electron-coreaudio-tap`, commits `67192f0b`, `870f8c97`, `c4925444`, `85855bf9`). Rollback zip: `~/Documents/Projects/customWhispr-rollback-pre-tier5-2026-07-09.zip`. Notes:
+- **Electron ^41.2.0 (41.10.1) in one hop** — upstream's 39→41 bump (`397da999`) required zero source changes, so all migration risk was 36→39 anyway. better-sqlite3 pinned `12.11.1` (12.x mandatory for V8 compat on 39+; 12.9.0 = upstream's pin rejects Node 26 under our `engine-strict`). engines/.nvmrc → 24.
+- **Key architectural difference from upstream**: upstream consumes tap PCM entirely in the main process (spool → diarization). Our fork's split recorders / echo gate / live tap / karaoke pipeline are renderer Web Audio, so `meeting-tap-chunk` IPC forwards the 100ms PCM chunks to the renderer where `systemAudio.ts` wraps them in a MediaStream (AudioWorklet jitter buffer, 2s cap drop-oldest). Every downstream consumer is untouched.
+- **Loopback fallback kept** (upstream deleted it on macOS): tap unsupported/denied/failed → getDisplayMedia loopback (needs old Screen Recording grant). The three Mac `enable-features` loopback flags in main.js stay for that path.
+- **Permission**: no OS query API exists — status learned from the tap binary's start/permission_denied stderr events, cached at `{userData}/.system-audio-permission`. `useSystemAudioPermission` (replaces `useScreenRecordingPermission`, same return shape) prefers tap status, degrades to screen-recording semantics only when tap unavailable. First probe run (Grant button or first meeting capture) triggers the macOS consent dialog. Locale keys renamed `screenRecording*` → `systemAudio*` with upstream's translations added to all 10 locales (i18n missing-count 603→540).
+- **Tap binary verified live on macOS 26**: standalone run emits `start` JSON + exact-rate PCM (48KB/s), captured real system audio (46% nonzero, peak 8378 during afplay). Registered with sidecar registry + stale-pid reaper (`audiotap`).
+- Dev-binary TCC grants (accessibility/calendar) reset when `node_modules/electron/dist` was replaced — re-grant per CLAUDE.md §macOS Accessibility on next `npm run dev` that needs them. Packaged app unaffected.
+- **Verify on next real meeting (user)**: consent dialog appears once (customWhispr-attributed, our plist text) → no purple indicator during recording → split recorders + live transcript + diarization + playback all normal → "Native system audio tap stream started" in debug log → Echo gate summary still sane. If the tap misbehaves, revoking System Audio permission forces loopback fallback (old behavior).
 
 ## Deferred / rejected (decided 2026-07-09)
 
