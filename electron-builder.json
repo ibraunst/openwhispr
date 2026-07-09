@@ -111,6 +111,7 @@
         "windows-text-monitor*",
         "calendar-sync-*",
         "windows-fast-paste*",
+        "whisper-vad/**/*",
         "*.dylib",
         "*.dll",
         "*.so*"

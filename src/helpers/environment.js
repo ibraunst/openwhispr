@@ -26,6 +26,10 @@ const PERSISTED_KEYS = [
   "START_MINIMIZED",
   "UI_LANGUAGE",
   "WHISPER_CUDA_ENABLED",
+  // Local whisper-server overrides: WHISPER_VAD=off disables voice activity
+  // detection; WHISPER_THREADS=<n> pins the thread count (default: auto).
+  "WHISPER_VAD",
+  "WHISPER_THREADS",
 ];
 
 class EnvironmentManager {

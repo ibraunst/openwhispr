@@ -17,6 +17,31 @@ const STARTUP_TIMEOUT_MS = 30000;
 const HEALTH_CHECK_INTERVAL_MS = 5000;
 const HEALTH_CHECK_TIMEOUT_MS = 2000;
 
+// Silero VAD tuning passed to whisper-server (upstream-tested values; the
+// binary's own defaults split on shorter silences and pad less, which clips
+// word edges on real recordings).
+const VAD_TUNING = {
+  "--vad-threshold": "0.5",
+  "--vad-min-speech-duration-ms": "250",
+  "--vad-min-silence-duration-ms": "200",
+  "--vad-max-speech-duration-s": "30",
+  "--vad-speech-pad-ms": "100",
+  "--vad-samples-overlap": "0.5",
+};
+
+// VAD is active only when the caller enabled it AND the Silero model file
+// actually exists — a missing model silently runs without VAD, never crashes.
+function resolveVadState(options = {}) {
+  if (options.vadEnabled && options.vadModelPath && fs.existsSync(options.vadModelPath)) {
+    return { active: true, modelPath: options.vadModelPath };
+  }
+  return { active: false, modelPath: null };
+}
+
+function getVadSignature(vadState) {
+  return vadState.active ? `vad:on:${vadState.modelPath}` : "vad:off";
+}
+
 class WhisperServerManager extends EventEmitter {
   constructor() {
     super();
@@ -30,6 +55,8 @@ class WhisperServerManager extends EventEmitter {
     this.cachedFFmpegPath = null;
     this.canConvert = false;
     this.useCuda = false;
+    this.vadSignature = "vad:off";
+    this.startingKey = null;
   }
 
   getFFmpegPath() {
@@ -194,28 +221,37 @@ class WhisperServerManager extends EventEmitter {
   }
 
   async start(modelPath, options = {}) {
-    // Join an in-flight startup only if it is loading the SAME model —
+    const vadState = resolveVadState(options);
+    const nextVadSignature = getVadSignature(vadState);
+    // The startup key covers everything that changes the spawned process —
+    // model AND VAD state — so toggling VAD restarts the server and takes
+    // effect immediately instead of silently keeping the old flags.
+    const startKey = `${modelPath}|${nextVadSignature}`;
+
+    // Join an in-flight startup only if it is loading the SAME configuration —
     // returning it unconditionally serves the wrong model while callers
     // record the requested one as loaded (transcriptions then silently run
     // against the wrong model until an unrelated restart).
     while (this.startupPromise) {
-      if (this.startingModelPath === modelPath) return this.startupPromise;
+      if (this.startingKey === startKey) return this.startupPromise;
       await this.startupPromise.catch(() => {});
     }
 
-    if (this.ready && this.modelPath === modelPath) return;
+    if (this.ready && this.modelPath === modelPath && this.vadSignature === nextVadSignature) {
+      return;
+    }
 
     if (this.process) {
       await this.stop();
     }
 
-    this.startingModelPath = modelPath;
-    this.startupPromise = this._doStart(modelPath, options);
+    this.startingKey = startKey;
+    this.startupPromise = this._doStart(modelPath, { ...options, vadState });
     try {
       await this.startupPromise;
     } finally {
       this.startupPromise = null;
-      this.startingModelPath = null;
+      this.startingKey = null;
     }
   }
 
@@ -260,12 +296,25 @@ class WhisperServerManager extends EventEmitter {
     // explicitly pass "auto" to enable language auto-detection
     args.push("--language", options.language || "auto");
 
+    const vadState = options.vadState || resolveVadState(options);
+    this.vadSignature = getVadSignature(vadState);
+    // Remembered for the health-check auto-restart, which must rebuild the
+    // server with the same flags rather than silently dropping VAD.
+    this.lastVadOptions = { vadEnabled: vadState.active, vadModelPath: vadState.modelPath };
+    if (vadState.active) {
+      args.push("--vad", "--vad-model", vadState.modelPath);
+      for (const [flag, value] of Object.entries(VAD_TUNING)) {
+        args.push(flag, value);
+      }
+    }
+
     debugLogger.debug("Starting whisper-server", {
       port: this.port,
       modelPath,
       args,
       cwd: serverBinaryDir,
       cuda: usingCuda,
+      vad: vadState.active,
     });
 
     const startTime = Date.now();
@@ -336,6 +385,7 @@ class WhisperServerManager extends EventEmitter {
       port: this.port,
       model: path.basename(modelPath),
       cuda: this.useCuda,
+      vad: vadState.active,
     });
   }
 
@@ -417,9 +467,10 @@ class WhisperServerManager extends EventEmitter {
           this.stopHealthCheck();
           const modelPath = this.modelPath;
           const useCuda = this.useCuda;
+          const vadOptions = this.lastVadOptions || {};
           if (modelPath) {
             this.stop()
-              .then(() => this.start(modelPath, { useCuda }))
+              .then(() => this.start(modelPath, { useCuda, ...vadOptions }))
               .catch((err) => {
                 debugLogger.error("whisper-server auto-restart failed", { error: err.message });
               });
@@ -626,6 +677,7 @@ class WhisperServerManager extends EventEmitter {
     this.ready = false;
     this.port = null;
     this.modelPath = null;
+    this.vadSignature = "vad:off";
   }
 
   getStatus() {

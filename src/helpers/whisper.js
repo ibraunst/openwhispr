@@ -45,6 +45,38 @@ class WhisperManager {
     return getModelsDirForService("whisper");
   }
 
+  /** Bundled Silero VAD model (packaged: Resources/bin/whisper-vad, dev: resources/bin/whisper-vad). */
+  getVadModelPath() {
+    if (this.cachedVadModelPath !== undefined) return this.cachedVadModelPath;
+
+    const fileName = "ggml-silero-v5.1.2.bin";
+    const candidates = [];
+    if (process.resourcesPath) {
+      candidates.push(path.join(process.resourcesPath, "bin", "whisper-vad", fileName));
+    }
+    candidates.push(path.join(__dirname, "..", "..", "resources", "bin", "whisper-vad", fileName));
+
+    this.cachedVadModelPath = candidates.find((p) => fs.existsSync(p)) || null;
+    return this.cachedVadModelPath;
+  }
+
+  /** VAD is on by default; WHISPER_VAD=off|false|0 in the .env disables it. */
+  isVadEnabled() {
+    const raw = (process.env.WHISPER_VAD || "").trim().toLowerCase();
+    return !["0", "false", "off", "no"].includes(raw);
+  }
+
+  /** Options every whisper-server start goes through, so VAD state is never dropped. */
+  getServerStartOptions(extra = {}) {
+    const vadEnabled = this.isVadEnabled();
+    const vadModelPath = vadEnabled ? this.getVadModelPath() : null;
+    if (vadEnabled && !vadModelPath && !this._warnedVadModelMissing) {
+      this._warnedVadModelMissing = true;
+      debugLogger.warn("VAD requested but ggml-silero model not found; running without VAD");
+    }
+    return { vadEnabled, vadModelPath, ...extra };
+  }
+
   validateModelName(modelName) {
     // Only allow known model names to prevent path traversal attacks
     const validModels = getValidModelNames();
@@ -87,7 +119,10 @@ class WhisperManager {
 
           try {
             const serverStartTime = Date.now();
-            await this.serverManager.start(modelPath, { useCuda: !!useCuda });
+            await this.serverManager.start(
+              modelPath,
+              this.getServerStartOptions({ useCuda: !!useCuda })
+            );
             this.currentServerModel = whisperModel;
 
             debugLogger.info("whisper-server pre-warmed successfully", {
@@ -200,7 +235,7 @@ class WhisperManager {
     }
 
     try {
-      await this.serverManager.start(modelPath, options);
+      await this.serverManager.start(modelPath, this.getServerStartOptions(options));
       this.currentServerModel = modelName;
       debugLogger.info("whisper-server started", {
         model: modelName,
@@ -269,12 +304,13 @@ class WhisperManager {
     debugLogger.info("Transcription mode: SERVER", { model, language: language || "auto" });
     const modelPath = this.getModelPath(model);
 
-    // Start server if not running or if model changed
-    if (!this.serverManager.ready || this.currentServerModel !== model) {
-      debugLogger.debug("Starting/restarting whisper-server for model", { model });
-      await this.serverManager.start(modelPath, { useCuda: this.serverManager.useCuda });
-      this.currentServerModel = model;
-    }
+    // start() is a no-op when the same model + VAD state is already running,
+    // and restarts the server when either changed.
+    await this.serverManager.start(
+      modelPath,
+      this.getServerStartOptions({ useCuda: this.serverManager.useCuda })
+    );
+    this.currentServerModel = model;
 
     // Convert audioBlob to Buffer if needed
     let audioBuffer;
@@ -310,12 +346,20 @@ class WhisperManager {
     try {
       result = await this.serverManager.transcribe(audioBuffer, { language, initialPrompt, responseFormat });
     } catch (err) {
-      // Server may be in a stuck state — restart and retry once
-      debugLogger.warn("Transcription failed, restarting server and retrying", {
+      // Server may be in a stuck state — restart and retry once. The retry
+      // runs WITHOUT VAD: whisper-server crashes when VAD filters out all
+      // audio (language auto-detect on 0ms input), so a silent recording
+      // must fall back to the plain pipeline, where silence yields
+      // [BLANK_AUDIO] and a clean "No audio detected". The next
+      // transcription restores VAD via the start-signature restart.
+      debugLogger.warn("Transcription failed, restarting server and retrying without VAD", {
         error: err.message,
       });
       await this.serverManager.stop();
-      await this.serverManager.start(modelPath, { useCuda: this.serverManager.useCuda });
+      await this.serverManager.start(
+        modelPath,
+        this.getServerStartOptions({ useCuda: this.serverManager.useCuda, vadEnabled: false })
+      );
       result = await this.serverManager.transcribe(audioBuffer, { language, initialPrompt, responseFormat });
     }
     const elapsed = Date.now() - startTime;
