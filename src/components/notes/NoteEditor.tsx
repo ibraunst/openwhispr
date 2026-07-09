@@ -22,6 +22,7 @@ import {
   DropdownMenuSeparator,
 } from "../ui/dropdown-menu";
 import { cn } from "../lib/utils";
+import { formatSpeakerName } from "../../utils/speakerNameFormatter";
 import type { NoteItem } from "../../types/electron";
 import type { ActionProcessingState } from "../../hooks/useActionProcessing";
 import ActionProcessingOverlay from "./ActionProcessingOverlay";
@@ -880,7 +881,7 @@ export default function NoteEditor({
                               "transition-colors duration-150"
                             )}
                           >
-                            {speaker}
+                            {formatSpeakerName(speaker)}
                             <ChevronDown
                               size={9}
                               className="text-foreground/25 group-hover:text-foreground/50 transition-colors"
@@ -895,7 +896,7 @@ export default function NoteEditor({
                               className="text-xs gap-2"
                             >
                               <UserRound size={12} className="text-foreground/40" />
-                              {name}
+                              {formatSpeakerName(name)}
                             </DropdownMenuItem>
                           ))}
                           {availableNames.length > 0 && <DropdownMenuSeparator />}
@@ -916,6 +917,9 @@ export default function NoteEditor({
                 noteId={note.id}
                 hasRecording={!!note.meeting_id}
                 transcript={effectiveTranscript}
+                onRenameSpeaker={onRenameSpeaker}
+                speakerSuggestions={speakerSuggestions}
+                onRequestCustomName={setRenameSpeakerTarget}
               />
             </>
           ) : viewMode === "enhanced" && enhancement ? (

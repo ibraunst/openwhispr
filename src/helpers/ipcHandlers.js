@@ -27,6 +27,46 @@ const AUDIO_MIME_TYPES = {
   aac: "audio/aac",
 };
 
+// Reconcile transcript.json's speaker labels against the note's markdown
+// transcript (the actual source of truth for renames — the rename UI, voice
+// bank merges, and auto-naming all write there, but historically never wrote
+// back to transcript.json). Groups the raw segments into consecutive
+// same-speaker runs and zips them positionally against the markdown's
+// "**Speaker:** text" paragraphs (formatDiarizedTranscript produces exactly
+// one paragraph per run), so playback always reflects the current name even
+// when transcript.json itself was never updated. Falls back to the raw
+// labels if the run/paragraph counts don't line up (e.g. no markdown yet).
+function reconcileSegmentSpeakers(rawSegments, markdownTranscript) {
+  if (!markdownTranscript || !rawSegments.length) return rawSegments;
+
+  const runs = [];
+  for (const seg of rawSegments) {
+    const label = seg?.speaker ?? null;
+    const last = runs[runs.length - 1];
+    if (!last || last.label !== label) runs.push({ label });
+  }
+
+  const mdLabels = [];
+  const speakerLineRe = /^\*\*(.+?):\*\*/gm;
+  let match;
+  while ((match = speakerLineRe.exec(markdownTranscript)) !== null) {
+    mdLabels.push(match[1].trim());
+  }
+
+  if (mdLabels.length !== runs.length) return rawSegments;
+
+  const labelMap = new Map();
+  runs.forEach((run, i) => {
+    if (run.label != null) labelMap.set(run.label, mdLabels[i]);
+  });
+
+  return rawSegments.map((seg) =>
+    seg?.speaker != null && labelMap.has(seg.speaker)
+      ? { ...seg, speaker: labelMap.get(seg.speaker) }
+      : seg
+  );
+}
+
 function buildMultipartBody(fileBuffer, fileName, contentType, fields = {}) {
   const boundary = `----customWhispr${Date.now()}`;
   const parts = [];
@@ -2858,7 +2898,13 @@ class IPCHandlers {
         if (fs.existsSync(transcriptPath)) {
           try {
             const parsed = JSON.parse(fs.readFileSync(transcriptPath, "utf8"));
-            if (Array.isArray(parsed?.segments)) segments = parsed.segments;
+            if (Array.isArray(parsed?.segments)) {
+              // transcript.json keeps the ORIGINAL diarization labels — it's
+              // never guaranteed to reflect renames made afterward. Reconcile
+              // against the note's markdown (the actual current names) on
+              // every read so playback always shows the latest labels.
+              segments = reconcileSegmentSpeakers(parsed.segments, note.transcript || "");
+            }
           } catch (parseError) {
             debugLogger.warn(
               "Unreadable meeting transcript.json, playback continues without segments",

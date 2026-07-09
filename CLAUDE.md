@@ -166,6 +166,11 @@ Speaker diarization engine:
   - Local path: MediaRecorder → `meeting-transcribe-local` IPC → whisper/parakeet
   - Cloud path: WebSocket streaming → OpenAI Realtime
 - [x] Manual meeting recording: "Record meetings" label in CalendarView becomes a clickable blue mic button when toggle is on
+- [x] Manual meeting-recording fallback from Notes (when detection misses a meeting)
+  - New notes created in the Meetings folder get `note_type: "meeting"`
+  - The record button on ANY meeting-type note runs the full meeting pipeline (system audio + mic, live transcript, diarization) — not plain dictation; personal notes keep dictation
+  - Start checks the calendar (`get-imminent-calendar-event`, includes currently-running events) → auto-titles the note + captures attendees, but never clobbers a non-default title
+  - Picking a meeting back up: `baseTranscriptRef` (in `useMeetingTranscription`) holds the note's existing transcript at manual start; the new session's raw AND diarized transcripts are appended after it (`withBase`) instead of overwriting — an interrupted meeting's first half survives
 - [x] Persistent recording indicator on the floating pill while a meeting records (Granola-style capsule: red dot + pulsing bars; survives auto-hide; click opens control panel)
 - [x] Meeting recording survives sidebar navigation (PersonalNotesView stays mounted while recording/processing/diarizing)
 - [x] Calendar refresh button performs a real Google+Apple provider sync (not just a local-cache re-read)

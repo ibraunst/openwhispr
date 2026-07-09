@@ -1,8 +1,73 @@
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 import { useTranslation } from "react-i18next";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, ChevronDown, UserRound, Pencil } from "lucide-react";
 import { cn } from "../lib/utils";
 import logger from "../../utils/logger";
+import { formatSpeakerName } from "../../utils/speakerNameFormatter";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "../ui/dropdown-menu";
+
+interface SpeakerRenameProps {
+  onRenameSpeaker?: (oldLabel: string, newLabel: string) => Promise<void>;
+  speakerSuggestions?: string[];
+  onRequestCustomName?: (speaker: string) => void;
+}
+
+/** A speaker name inline in the transcript, clickable to rename everywhere it appears. */
+function SpeakerLabel({
+  speaker,
+  onRenameSpeaker,
+  speakerSuggestions,
+  onRequestCustomName,
+}: SpeakerRenameProps & { speaker: string }) {
+  const { t } = useTranslation();
+  const displayName = formatSpeakerName(speaker);
+  if (!onRenameSpeaker) {
+    return <span className="font-semibold text-foreground/90">{displayName}: </span>;
+  }
+  const availableNames = (speakerSuggestions ?? []).filter((name) => name !== speaker);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          title={t("voicebank.renameTooltip")}
+          className="group inline-flex items-center gap-0.5 font-semibold text-foreground/90 hover:text-primary transition-colors duration-150 align-baseline"
+        >
+          {displayName}:
+          <ChevronDown
+            size={10}
+            className="text-foreground/25 group-hover:text-primary/60 transition-colors"
+          />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" sideOffset={4} className="min-w-40">
+        {availableNames.map((name) => (
+          <DropdownMenuItem
+            key={name}
+            onClick={() => void onRenameSpeaker(speaker, name)}
+            className="text-xs gap-2"
+          >
+            <UserRound size={12} className="text-foreground/40" />
+            {formatSpeakerName(name)}
+          </DropdownMenuItem>
+        ))}
+        {availableNames.length > 0 && <DropdownMenuSeparator />}
+        <DropdownMenuItem
+          onClick={() => onRequestCustomName?.(speaker)}
+          className="text-xs gap-2"
+        >
+          <Pencil size={12} className="text-foreground/40" />
+          {t("voicebank.customName")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 interface PlaybackSegment {
   start: number;
@@ -16,7 +81,7 @@ interface SpeakerBlock {
   segments: { segIndex: number; start: number; end: number; words: string[] }[];
 }
 
-interface TranscriptPlayerProps {
+interface TranscriptPlayerProps extends SpeakerRenameProps {
   noteId: number;
   hasRecording: boolean;
   transcript: string;
@@ -54,7 +119,12 @@ function buildSpeakerBlocks(segments: PlaybackSegment[]): SpeakerBlock[] {
 }
 
 /** Fallback rendering of the stored markdown transcript (`**Speaker:** text` paragraphs). */
-function StaticTranscript({ transcript }: { transcript: string }) {
+function StaticTranscript({
+  transcript,
+  onRenameSpeaker,
+  speakerSuggestions,
+  onRequestCustomName,
+}: SpeakerRenameProps & { transcript: string }) {
   const paragraphs = useMemo(() => {
     return transcript
       .split(/\n{2,}/)
@@ -70,7 +140,14 @@ function StaticTranscript({ transcript }: { transcript: string }) {
     <div className="px-5 py-3 pb-24 space-y-4">
       {paragraphs.map((p, i) => (
         <p key={i} className="text-sm leading-[1.7] text-foreground/90 whitespace-pre-wrap break-words">
-          {p.speaker && <span className="font-semibold">{p.speaker}: </span>}
+          {p.speaker && (
+            <SpeakerLabel
+              speaker={p.speaker}
+              onRenameSpeaker={onRenameSpeaker}
+              speakerSuggestions={speakerSuggestions}
+              onRequestCustomName={onRequestCustomName}
+            />
+          )}{" "}
           {p.text}
         </p>
       ))}
@@ -119,7 +196,14 @@ const KaraokeSegment = memo(function KaraokeSegment({
   );
 });
 
-export default function TranscriptPlayer({ noteId, hasRecording, transcript }: TranscriptPlayerProps) {
+export default function TranscriptPlayer({
+  noteId,
+  hasRecording,
+  transcript,
+  onRenameSpeaker,
+  speakerSuggestions,
+  onRequestCustomName,
+}: TranscriptPlayerProps) {
   const { t } = useTranslation();
   const [segments, setSegments] = useState<PlaybackSegment[]>([]);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -277,7 +361,14 @@ export default function TranscriptPlayer({ noteId, hasRecording, transcript }: T
   // Karaoke needs both timing data and the audio itself — anything less
   // renders the stored transcript as plain scrollable text.
   if (!segments.length || !audioUrl) {
-    return <StaticTranscript transcript={transcript} />;
+    return (
+      <StaticTranscript
+        transcript={transcript}
+        onRenameSpeaker={onRenameSpeaker}
+        speakerSuggestions={speakerSuggestions}
+        onRequestCustomName={onRequestCustomName}
+      />
+    );
   }
 
   return (
@@ -330,7 +421,14 @@ export default function TranscriptPlayer({ noteId, hasRecording, transcript }: T
         {blocks.map((block, bi) => (
           <p key={bi} className="text-sm leading-[1.7] whitespace-pre-wrap break-words">
             {block.speaker && (
-              <span className="font-semibold text-foreground/90">{block.speaker}: </span>
+              <>
+                <SpeakerLabel
+                  speaker={block.speaker}
+                  onRenameSpeaker={onRenameSpeaker}
+                  speakerSuggestions={speakerSuggestions}
+                  onRequestCustomName={onRequestCustomName}
+                />{" "}
+              </>
             )}
             {block.segments.map((seg) => {
               const isActive = engaged && seg.segIndex === active.segIdx;

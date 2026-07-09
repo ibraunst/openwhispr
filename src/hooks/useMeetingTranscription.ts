@@ -18,6 +18,7 @@ interface UseMeetingTranscriptionReturn {
   error: string | null;
   diarizationNoteIdRef: React.MutableRefObject<number | null>;
   diarizationAttendeesRef: React.MutableRefObject<string | null>;
+  baseTranscriptRef: React.MutableRefObject<string | null>;
   overrideDiarizedTranscript: (transcript: string) => void;
   prepareTranscription: () => Promise<void>;
   startTranscription: () => Promise<void>;
@@ -391,6 +392,10 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
   // used to auto-name a lone new guest after diarization. Lives in the hook (not the
   // component) so it survives unmount during the 30s+ diarization run.
   const diarizationAttendeesRef = useRef<string | null>(null);
+  // Transcript already on the note when a recording is manually (re)started —
+  // e.g. picking a meeting back up after an interrupted session. The new
+  // session's transcript is APPENDED after it instead of overwriting it.
+  const baseTranscriptRef = useRef<string | null>(null);
 
   // Cloud path refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -604,8 +609,13 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     meetingIdRef.current = "";
     const targetNoteId = diarizationNoteIdRef.current;
     const attendeesJson = diarizationAttendeesRef.current;
+    const baseTranscript = baseTranscriptRef.current;
     diarizationNoteIdRef.current = null;
     diarizationAttendeesRef.current = null;
+    baseTranscriptRef.current = null;
+    // Resumed sessions append after the transcript that was already on the
+    // note — overwriting would lose the first half of an interrupted meeting.
+    const withBase = (text: string) => (baseTranscript ? `${baseTranscript}\n\n${text}` : text);
     const recordingDurationSec = recordingStartedAtRef.current
       ? (Date.now() - recordingStartedAtRef.current) / 1000
       : 30;
@@ -654,14 +664,14 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
           });
 
           if (result?.success && result.transcript) {
-            setTranscript(result.transcript);
+            setTranscript(withBase(result.transcript));
 
             // Persist to the note here — the component's transition effect
             // can't (recording flipped off long before this state arrives),
             // and the component may already be unmounted.
             if (targetNoteId) {
               window.electronAPI
-                ?.updateNote?.(targetNoteId, { transcript: result.transcript })
+                ?.updateNote?.(targetNoteId, { transcript: withBase(result.transcript) })
                 .catch((err: Error) =>
                   logger.error("Failed to persist local transcript to note", { error: err.message }, "meeting")
                 );
@@ -704,12 +714,12 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
       try {
         const result = await window.electronAPI?.meetingTranscriptionStop?.();
         if (result?.success && result.transcript) {
-          setTranscript(result.transcript);
+          setTranscript(withBase(result.transcript));
           // Persist the complete final transcript (includes the last flushed
           // utterance, which the component's effect misses) — unmount-safe.
           if (targetNoteId) {
             window.electronAPI
-              ?.updateNote?.(targetNoteId, { transcript: result.transcript })
+              ?.updateNote?.(targetNoteId, { transcript: withBase(result.transcript) })
               .catch((err: Error) =>
                 logger.error("Failed to persist cloud transcript to note", { error: err.message }, "meeting")
               );
@@ -806,7 +816,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
                   logger.error("Failed to sync renamed segments", { error: err.message }, "meeting")
                 );
             }
-            const formatted = formatDiarizedTranscript(segments);
+            const formatted = withBase(formatDiarizedTranscript(segments));
             // Persist diarized transcript directly to the note via IPC — the
             // component may have unmounted, and targetNoteId was captured at
             // stop time so a newer meeting can't redirect this write.
@@ -1391,6 +1401,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     error,
     diarizationNoteIdRef,
     diarizationAttendeesRef,
+    baseTranscriptRef,
     overrideDiarizedTranscript: setDiarizedTranscript,
     prepareTranscription,
     startTranscription,

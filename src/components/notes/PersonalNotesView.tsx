@@ -136,6 +136,7 @@ export default function PersonalNotesView({
     error: meetingError,
     diarizationNoteIdRef,
     diarizationAttendeesRef,
+    baseTranscriptRef,
     overrideDiarizedTranscript,
     prepareTranscription: prepareMeetingTranscription,
     startTranscription: startMeetingTranscription,
@@ -430,10 +431,15 @@ export default function PersonalNotesView({
 
   const handleNewNote = useCallback(async () => {
     if (!activeFolderId) return;
+    // Notes created in the Meetings folder are meeting notes: their record
+    // button runs the full meeting pipeline (system audio + live transcript +
+    // diarization) — the manual fallback when auto-detection misses a meeting.
+    const activeFolder = folders.find((f) => f.id === activeFolderId);
+    const isMeetingsFolder = !!activeFolder?.is_default && activeFolder.name === "Meetings";
     const result = await window.electronAPI.saveNote(
       t("notes.list.untitledNote"),
       "",
-      "personal",
+      isMeetingsFolder ? "meeting" : "personal",
       null,
       null,
       activeFolderId
@@ -442,7 +448,7 @@ export default function PersonalNotesView({
       setActiveNoteId(result.note.id);
       loadFolders();
     }
-  }, [activeFolderId, loadFolders]);
+  }, [activeFolderId, folders, loadFolders]);
 
   const handleNotesAdded = useCallback(async () => {
     if (activeFolderId) {
@@ -745,6 +751,9 @@ export default function PersonalNotesView({
     meetingNoteIdRef.current = activeNoteId;
     diarizationNoteIdRef.current = activeNoteId;
     setMeetingNoteId(activeNoteId);
+    // Picking a meeting back up: keep what an earlier interrupted session
+    // already transcribed — the new session appends after it.
+    baseTranscriptRef.current = activeNote?.transcript || null;
     const result = await window.electronAPI?.getImminentCalendarEvent?.();
     if (result?.event?.summary) {
       calendarTitleRef.current = result.event.summary;
@@ -752,10 +761,24 @@ export default function PersonalNotesView({
       calendarAttendeesRef.current = result.event.attendees || null;
       diarizationAttendeesRef.current = result.event.attendees || null;
       suggestionAttendeesRef.current = { noteId: activeNoteId, attendees: result.event.attendees || null };
-      handleTitleChange(result.event.summary);
+      // Don't clobber a title the user (or AI) already gave the note
+      const currentTitle = (activeNote?.title || "").trim();
+      if (!currentTitle || currentTitle === t("notes.list.untitledNote") || currentTitle === "Meeting") {
+        handleTitleChange(result.event.summary);
+      }
     }
     startMeetingTranscription();
-  }, [startMeetingTranscription, handleTitleChange, activeNoteId, diarizationNoteIdRef, diarizationAttendeesRef]);
+  }, [
+    startMeetingTranscription,
+    handleTitleChange,
+    activeNoteId,
+    activeNote?.transcript,
+    activeNote?.title,
+    diarizationNoteIdRef,
+    diarizationAttendeesRef,
+    baseTranscriptRef,
+    t,
+  ]);
 
   // Pre-warm WebSocket when entering meeting mode (before user hits record)
   useEffect(() => {
@@ -784,6 +807,8 @@ export default function PersonalNotesView({
     diarizationNoteIdRef.current = meetingRecordingRequest.noteId;
     setMeetingNoteId(meetingRecordingRequest.noteId);
     lastExportRef.current = null;
+    // Detection always creates a fresh, empty note — nothing to append after
+    baseTranscriptRef.current = null;
     // Only use event title if it's a real calendar event — synthetic process-detected
     // events use calendar_id "__detected__" and their title (e.g. "Zoom Meeting")
     // should be replaced by the AI-generated subject after transcription.
@@ -807,6 +832,7 @@ export default function PersonalNotesView({
     onMeetingRecordingRequestHandled,
     diarizationNoteIdRef,
     diarizationAttendeesRef,
+    baseTranscriptRef,
     toast,
     t,
   ]);
@@ -1347,7 +1373,13 @@ export default function PersonalNotesView({
               isMeetingLocalProcessing={isMeetingNoteActive && isMeetingLocalProcessing}
               isMeetingDiarizing={isMeetingNoteActive && isMeetingDiarizing}
               meetingTranscript={activeMeetingTranscript}
-              onStartMeetingRecording={isMeetingMode ? handleStartMeetingRecording : undefined}
+              onStartMeetingRecording={
+                // Meeting notes always record as meetings, even outside meeting
+                // mode — the manual fallback when detection misses one
+                isMeetingMode || editorNote.note_type === "meeting"
+                  ? handleStartMeetingRecording
+                  : undefined
+              }
               onStopMeetingRecording={stopMeetingTranscription}
               isMeetingPaused={isMeetingNoteActive && isMeetingPaused}
               onPauseMeetingRecording={canPauseMeeting ? pauseMeetingTranscription : undefined}
