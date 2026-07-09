@@ -38,6 +38,7 @@ import { useMeetingTranscription } from "../../hooks/useMeetingTranscription";
 import { useScreenRecordingPermission } from "../../hooks/useScreenRecordingPermission";
 import { useNotesOnboarding } from "../../hooks/useNotesOnboarding";
 import NotesOnboarding from "./NotesOnboarding";
+import { formatTranscriptForExport } from "../../utils/speakerNameFormatter";
 
 const FOLDER_INPUT_CLASS =
   "w-full h-6 bg-foreground/5 dark:bg-white/5 rounded px-2 text-xs text-foreground outline-none border border-primary/30 focus:border-primary/50";
@@ -182,7 +183,7 @@ export default function PersonalNotesView({
       persistTo?: { noteId: number; header: string }
     ) => {
       window.electronAPI
-        .saveTranscriptToFile?.(content, filename, directory)
+        .saveTranscriptToFile?.(formatTranscriptForExport(content), filename, directory)
         .then((result?: { success?: boolean; filePath?: string; error?: string }) => {
           if (result && result.success === false) {
             throw new Error(result.error || "Write failed");
@@ -702,7 +703,10 @@ export default function PersonalNotesView({
             writeTranscriptExport(headerLines.join("\n") + updated, filename, directory);
           } else if (activeNote?.export_path && activeNote?.export_header) {
             window.electronAPI
-              .overwriteExportedFile?.(activeNote.export_path, activeNote.export_header + updated)
+              .overwriteExportedFile?.(
+                activeNote.export_path,
+                formatTranscriptForExport(activeNote.export_header + updated)
+              )
               .then((res: { success?: boolean; error?: string } | void) => {
                 if (res && res.success === false) throw new Error(res.error || "Write failed");
               })
