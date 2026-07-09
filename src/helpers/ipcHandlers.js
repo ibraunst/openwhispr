@@ -40,10 +40,12 @@ function reconcileSegmentSpeakers(rawSegments, markdownTranscript) {
   if (!markdownTranscript || !rawSegments.length) return rawSegments;
 
   const runs = [];
+  const segRunIndex = [];
   for (const seg of rawSegments) {
     const label = seg?.speaker ?? null;
     const last = runs[runs.length - 1];
     if (!last || last.label !== label) runs.push({ label });
+    segRunIndex.push(runs.length - 1);
   }
 
   const mdLabels = [];
@@ -53,18 +55,23 @@ function reconcileSegmentSpeakers(rawSegments, markdownTranscript) {
     mdLabels.push(match[1].trim());
   }
 
+  // Run/paragraph counts only line up when reconciliation is trustworthy —
+  // that's also the only time a raw segment's run index can be trusted as
+  // the markdown paragraph index for a later per-paragraph edit.
   if (mdLabels.length !== runs.length) return rawSegments;
 
-  const labelMap = new Map();
-  runs.forEach((run, i) => {
-    if (run.label != null) labelMap.set(run.label, mdLabels[i]);
+  // Map each segment to its run's markdown label BY RUN INDEX, not by raw
+  // label — the same raw diarization speaker id commonly recurs in separate,
+  // non-adjacent runs (A talks, B talks, A talks again). A label-keyed map
+  // would let the last run's name silently overwrite earlier runs sharing
+  // that raw id, misattributing whole stretches of the karaoke view.
+  return rawSegments.map((seg, i) => {
+    const runIndex = segRunIndex[i];
+    const mdLabel = runs[runIndex].label != null ? mdLabels[runIndex] : null;
+    return mdLabel != null
+      ? { ...seg, speaker: mdLabel, paragraphIndex: runIndex }
+      : { ...seg, paragraphIndex: runIndex };
   });
-
-  return rawSegments.map((seg) =>
-    seg?.speaker != null && labelMap.has(seg.speaker)
-      ? { ...seg, speaker: labelMap.get(seg.speaker) }
-      : seg
-  );
 }
 
 function buildMultipartBody(fileBuffer, fileName, contentType, fields = {}) {
@@ -2979,6 +2986,47 @@ class IPCHandlers {
         return { success: true, changes };
       } catch (error) {
         debugLogger.error("meeting-update-speaker-label failed", { error: error.message }, "meeting");
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Corrects a single misattributed paragraph without touching the
+    // speaker's global rename/voiceprint — sends just that paragraph back to
+    // a fresh generic label so the user can re-identify it separately (or
+    // leave it as unknown). paragraphIndex must be the reconciled run index
+    // (see reconcileSegmentSpeakers) so it lines up with the Nth "**X:**"
+    // paragraph in the note's markdown.
+    ipcMain.handle("meeting-reset-paragraph-speaker", async (_event, { noteId, paragraphIndex } = {}) => {
+      try {
+        if (noteId == null || paragraphIndex == null) {
+          return { success: false, error: "noteId and paragraphIndex are required" };
+        }
+        const note = this.databaseManager.getNote(noteId);
+        const transcript = note?.transcript || "";
+        const blocks = transcript.split(/\n{2,}/);
+        if (paragraphIndex < 0 || paragraphIndex >= blocks.length) {
+          return { success: false, error: "paragraphIndex out of range" };
+        }
+        const block = blocks[paragraphIndex];
+        if (!/^\*\*(.+?):\*\*/.test(block)) {
+          return { success: false, error: "Target paragraph has no speaker label" };
+        }
+
+        let maxGuestNum = 0;
+        const guestRe = /\*\*Guest (\d+):\*\*/g;
+        let guestMatch;
+        while ((guestMatch = guestRe.exec(transcript)) !== null) {
+          maxGuestNum = Math.max(maxGuestNum, parseInt(guestMatch[1], 10));
+        }
+        const newLabel = `Guest ${maxGuestNum + 1}`;
+
+        blocks[paragraphIndex] = block.replace(/^\*\*(.+?):\*\*/, `**${newLabel}:**`);
+        const updatedTranscript = blocks.join("\n\n");
+
+        this.databaseManager.updateNote(noteId, { transcript: updatedTranscript });
+        return { success: true, transcript: updatedTranscript, newLabel };
+      } catch (error) {
+        debugLogger.error("meeting-reset-paragraph-speaker failed", { error: error.message }, "meeting");
         return { success: false, error: error.message };
       }
     });

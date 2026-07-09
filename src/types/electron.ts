@@ -1211,7 +1211,13 @@ declare global {
       meetingGetPlayback?: (noteId: number) => Promise<{
         success: boolean;
         audioPath?: string;
-        segments?: Array<{ start: number; end: number; text: string; speaker?: string }>;
+        segments?: Array<{
+          start: number;
+          end: number;
+          text: string;
+          speaker?: string;
+          paragraphIndex?: number;
+        }>;
         error?: string;
       }>;
       meetingUpdateSpeakerLabel?: (data: {
@@ -1219,6 +1225,10 @@ declare global {
         oldLabel: string;
         newLabel: string;
       }) => Promise<{ success: boolean; changes?: number; error?: string }>;
+      meetingResetParagraphSpeaker?: (data: {
+        noteId: number;
+        paragraphIndex: number;
+      }) => Promise<{ success: boolean; transcript?: string; newLabel?: string; error?: string }>;
       voicebankList?: () => Promise<{ success: boolean; voices?: VoiceBankEntry[]; error?: string }>;
       voicebankRename?: (data: {
         id?: string;

@@ -1941,6 +1941,9 @@
     "deleteVoice": "Stimme vergessen",
     "deleteConfirmTitle": "„{{name}}“ vergessen?",
     "deleteConfirmDescription": "In künftigen Meetings wird diese Person als neuer Gast behandelt.",
-    "customName": "Eigener Name…"
+    "customName": "Eigener Name…",
+    "resetLine": "Nicht dieser Sprecher — Zeile zurücksetzen",
+    "lineReset": "Zeile auf nicht identifiziert zurückgesetzt",
+    "resetFailed": "Zeile konnte nicht zurückgesetzt werden"
   }
 }

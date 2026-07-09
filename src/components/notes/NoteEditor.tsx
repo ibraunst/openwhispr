@@ -87,6 +87,7 @@ interface NoteEditorProps {
   liveTranscript?: string;
   onRenameSpeaker?: (oldLabel: string, newLabel: string) => Promise<void>;
   speakerSuggestions?: string[];
+  onResetParagraph?: (paragraphIndex: number) => Promise<void>;
 }
 
 interface DictationRange {
@@ -193,6 +194,7 @@ export default function NoteEditor({
   liveTranscript,
   onRenameSpeaker,
   speakerSuggestions,
+  onResetParagraph,
 }: NoteEditorProps) {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<MeetingViewMode>(
@@ -931,6 +933,7 @@ export default function NoteEditor({
                 onRenameSpeaker={onRenameSpeaker}
                 speakerSuggestions={speakerSuggestions}
                 onRequestCustomName={setRenameSpeakerTarget}
+                onResetParagraph={onResetParagraph}
               />
             </>
           ) : viewMode === "enhanced" && enhancement ? (

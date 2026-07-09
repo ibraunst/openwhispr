@@ -1941,6 +1941,9 @@
     "deleteVoice": "忘记声音",
     "deleteConfirmTitle": "忘记“{{name}}”？",
     "deleteConfirmDescription": "之后的会议将把此人视为新访客。",
-    "customName": "自定义名称…"
+    "customName": "自定义名称…",
+    "resetLine": "不是此发言人——重置此行",
+    "lineReset": "该行已重置为未识别",
+    "resetFailed": "无法重置该行"
   }
 }

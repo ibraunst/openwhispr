@@ -748,6 +748,70 @@ export default function PersonalNotesView({
     ]
   );
 
+  // Corrects one misattributed paragraph without renaming the speaker
+  // everywhere — sends that single paragraph back to a fresh "Guest N",
+  // leaving the voiceprint and every other paragraph with that name intact.
+  const handleResetParagraphSpeaker = useCallback(
+    async (paragraphIndex: number) => {
+      const noteId = activeNoteId;
+      if (noteId == null) return;
+      try {
+        const result = await window.electronAPI?.meetingResetParagraphSpeaker?.({
+          noteId,
+          paragraphIndex,
+        });
+        if (!result?.success || !result.transcript) {
+          throw new Error(result?.error || "Reset failed");
+        }
+        const updated = result.transcript;
+        if (activeMeetingDiarized) overrideDiarizedTranscript(updated);
+
+        if (lastExportRef.current && noteId === meetingNoteId) {
+          const { filename, directory, headerLines } = lastExportRef.current;
+          writeTranscriptExport(headerLines.join("\n") + updated, filename, directory);
+        } else if (activeNote?.export_path && activeNote?.export_header) {
+          window.electronAPI
+            .overwriteExportedFile?.(
+              activeNote.export_path,
+              formatTranscriptForExport(activeNote.export_header + updated)
+            )
+            .then((res: { success?: boolean; error?: string } | void) => {
+              if (res && res.success === false) throw new Error(res.error || "Write failed");
+            })
+            .catch((err: Error) => {
+              logger.error("Transcript export rewrite failed", { error: err.message }, "notes");
+              toast({
+                title: "Transcript export failed",
+                description: err.message,
+                variant: "destructive",
+              });
+            });
+        }
+        await initializeNotes(null, 50, activeFolderId);
+        toast({ title: t("voicebank.lineReset") });
+      } catch (err) {
+        logger.error("Paragraph speaker reset failed", { error: (err as Error).message }, "notes");
+        toast({
+          title: t("voicebank.resetFailed"),
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+      }
+    },
+    [
+      activeNoteId,
+      activeNote?.export_path,
+      activeNote?.export_header,
+      activeFolderId,
+      activeMeetingDiarized,
+      overrideDiarizedTranscript,
+      meetingNoteId,
+      writeTranscriptExport,
+      toast,
+      t,
+    ]
+  );
+
   // When manually starting a recording, auto-title the note from the nearest calendar event
   const handleStartMeetingRecording = useCallback(async () => {
     calendarTitleRef.current = null;
@@ -1400,6 +1464,7 @@ export default function PersonalNotesView({
               liveTranscript={liveTranscript}
               onRenameSpeaker={handleRenameSpeaker}
               speakerSuggestions={speakerSuggestions}
+              onResetParagraph={handleResetParagraphSpeaker}
               actionProcessingState={actionProcessingState}
               actionName={actionName}
               actionPicker={

@@ -1941,6 +1941,9 @@
     "deleteVoice": "Oublier la voix",
     "deleteConfirmTitle": "Oublier « {{name}} » ?",
     "deleteConfirmDescription": "Lors des prochaines réunions, cette personne sera traitée comme un nouvel invité.",
-    "customName": "Nom personnalisé…"
+    "customName": "Nom personnalisé…",
+    "resetLine": "Ce n'est pas ce locuteur — réinitialiser la ligne",
+    "lineReset": "Ligne réinitialisée en non identifié",
+    "resetFailed": "Impossible de réinitialiser la ligne"
   }
 }

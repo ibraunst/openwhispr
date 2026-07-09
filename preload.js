@@ -486,6 +486,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   meetingGetPlayback: (noteId) => ipcRenderer.invoke("meeting-get-playback", noteId),
   meetingUpdateSpeakerLabel: (data) =>
     ipcRenderer.invoke("meeting-update-speaker-label", data),
+  meetingResetParagraphSpeaker: (data) =>
+    ipcRenderer.invoke("meeting-reset-paragraph-speaker", data),
   voicebankList: () => ipcRenderer.invoke("voicebank-list"),
   voicebankRename: (data) => ipcRenderer.invoke("voicebank-rename", data),
   voicebankDelete: (id) => ipcRenderer.invoke("voicebank-delete", id),

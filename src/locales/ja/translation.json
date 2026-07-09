@@ -1941,6 +1941,9 @@
     "deleteVoice": "声を削除",
     "deleteConfirmTitle": "「{{name}}」を削除しますか？",
     "deleteConfirmDescription": "今後の会議では、この人物は新しいゲストとして扱われます。",
-    "customName": "カスタム名…"
+    "customName": "カスタム名…",
+    "resetLine": "この話者ではない — 行をリセット",
+    "lineReset": "行を未識別にリセットしました",
+    "resetFailed": "行をリセットできませんでした"
   }
 }

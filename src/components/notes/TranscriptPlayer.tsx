@@ -16,21 +16,30 @@ interface SpeakerRenameProps {
   onRenameSpeaker?: (oldLabel: string, newLabel: string) => Promise<void>;
   speakerSuggestions?: string[];
   onRequestCustomName?: (speaker: string) => void;
+  onResetParagraph?: (paragraphIndex: number) => Promise<void>;
 }
+
+const GENERIC_SPEAKER_RE = /^Guest \d+$/i;
 
 /** A speaker name inline in the transcript, clickable to rename everywhere it appears. */
 function SpeakerLabel({
   speaker,
+  paragraphIndex,
   onRenameSpeaker,
   speakerSuggestions,
   onRequestCustomName,
-}: SpeakerRenameProps & { speaker: string }) {
+  onResetParagraph,
+}: SpeakerRenameProps & { speaker: string; paragraphIndex?: number | null }) {
   const { t } = useTranslation();
   const displayName = formatSpeakerName(speaker);
   if (!onRenameSpeaker) {
     return <span className="font-semibold text-foreground/90">{displayName}: </span>;
   }
   const availableNames = (speakerSuggestions ?? []).filter((name) => name !== speaker);
+  // Only a paragraph already identified as a real person is worth "undoing" —
+  // a still-generic "Guest N" has nothing to reset back to.
+  const canReset =
+    !!onResetParagraph && paragraphIndex != null && !GENERIC_SPEAKER_RE.test(speaker);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -64,6 +73,18 @@ function SpeakerLabel({
           <Pencil size={12} className="text-foreground/40" />
           {t("voicebank.customName")}
         </DropdownMenuItem>
+        {canReset && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => void onResetParagraph!(paragraphIndex!)}
+              className="text-xs gap-2"
+            >
+              <UserRound size={12} className="text-foreground/40" />
+              {t("voicebank.resetLine")}
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -74,10 +95,15 @@ interface PlaybackSegment {
   end: number;
   text: string;
   speaker?: string;
+  paragraphIndex?: number;
 }
 
 interface SpeakerBlock {
   speaker: string | null;
+  // Null when the block spans segments from more than one markdown
+  // paragraph (two adjacent diarization runs renamed to the same name) —
+  // resetting would be ambiguous, so the reset option is hidden in that case.
+  paragraphIndex: number | null;
   segments: { segIndex: number; start: number; end: number; words: string[] }[];
 }
 
@@ -102,7 +128,7 @@ function toFileUrl(p: string): string {
 
 /** Group consecutive same-speaker segments into paragraph blocks. */
 function buildSpeakerBlocks(segments: PlaybackSegment[]): SpeakerBlock[] {
-  const blocks: SpeakerBlock[] = [];
+  const blocks: (SpeakerBlock & { _paragraphIndexes: Set<number> })[] = [];
   segments.forEach((seg, segIndex) => {
     const text = seg.text.trim();
     if (!text) return;
@@ -111,11 +137,20 @@ function buildSpeakerBlocks(segments: PlaybackSegment[]): SpeakerBlock[] {
     const entry = { segIndex, start: seg.start, end: seg.end, words: text.split(/\s+/) };
     if (last && last.speaker === speaker) {
       last.segments.push(entry);
+      if (seg.paragraphIndex != null) last._paragraphIndexes.add(seg.paragraphIndex);
     } else {
-      blocks.push({ speaker, segments: [entry] });
+      blocks.push({
+        speaker,
+        paragraphIndex: null,
+        segments: [entry],
+        _paragraphIndexes: new Set(seg.paragraphIndex != null ? [seg.paragraphIndex] : []),
+      });
     }
   });
-  return blocks;
+  return blocks.map(({ _paragraphIndexes, ...block }) => ({
+    ...block,
+    paragraphIndex: _paragraphIndexes.size === 1 ? [..._paragraphIndexes][0] : null,
+  }));
 }
 
 /** Fallback rendering of the stored markdown transcript (`**Speaker:** text` paragraphs). */
@@ -124,15 +159,21 @@ function StaticTranscript({
   onRenameSpeaker,
   speakerSuggestions,
   onRequestCustomName,
+  onResetParagraph,
 }: SpeakerRenameProps & { transcript: string }) {
   const paragraphs = useMemo(() => {
+    // Track each paragraph's index in the RAW (unfiltered) split — that's
+    // what the backend's meeting-reset-paragraph-speaker handler uses to
+    // target this exact paragraph, so it must not shift after filtering.
     return transcript
       .split(/\n{2,}/)
-      .map((p) => p.trim())
-      .filter(Boolean)
-      .map((p) => {
-        const match = p.match(/^\*\*(.+?):\*\*\s*([\s\S]*)$/);
-        return match ? { speaker: match[1], text: match[2] } : { speaker: null, text: p };
+      .map((raw, paragraphIndex) => ({ raw: raw.trim(), paragraphIndex }))
+      .filter((p) => p.raw.length > 0)
+      .map(({ raw, paragraphIndex }) => {
+        const match = raw.match(/^\*\*(.+?):\*\*\s*([\s\S]*)$/);
+        return match
+          ? { speaker: match[1], text: match[2], paragraphIndex }
+          : { speaker: null, text: raw, paragraphIndex };
       });
   }, [transcript]);
 
@@ -143,9 +184,11 @@ function StaticTranscript({
           {p.speaker && (
             <SpeakerLabel
               speaker={p.speaker}
+              paragraphIndex={p.paragraphIndex}
               onRenameSpeaker={onRenameSpeaker}
               speakerSuggestions={speakerSuggestions}
               onRequestCustomName={onRequestCustomName}
+              onResetParagraph={onResetParagraph}
             />
           )}{" "}
           {p.text}
@@ -203,6 +246,7 @@ export default function TranscriptPlayer({
   onRenameSpeaker,
   speakerSuggestions,
   onRequestCustomName,
+  onResetParagraph,
 }: TranscriptPlayerProps) {
   const { t } = useTranslation();
   const [segments, setSegments] = useState<PlaybackSegment[]>([]);
@@ -367,6 +411,7 @@ export default function TranscriptPlayer({
         onRenameSpeaker={onRenameSpeaker}
         speakerSuggestions={speakerSuggestions}
         onRequestCustomName={onRequestCustomName}
+        onResetParagraph={onResetParagraph}
       />
     );
   }
@@ -424,9 +469,11 @@ export default function TranscriptPlayer({
               <>
                 <SpeakerLabel
                   speaker={block.speaker}
+                  paragraphIndex={block.paragraphIndex}
                   onRenameSpeaker={onRenameSpeaker}
                   speakerSuggestions={speakerSuggestions}
                   onRequestCustomName={onRequestCustomName}
+                  onResetParagraph={onResetParagraph}
                 />{" "}
               </>
             )}

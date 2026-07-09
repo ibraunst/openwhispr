@@ -1941,6 +1941,9 @@
     "deleteVoice": "忘記聲音",
     "deleteConfirmTitle": "忘記「{{name}}」？",
     "deleteConfirmDescription": "之後的會議將把此人視為新的訪客。",
-    "customName": "自訂名稱…"
+    "customName": "自訂名稱…",
+    "resetLine": "不是此發言者——重設此行",
+    "lineReset": "此行已重設為未識別",
+    "resetFailed": "無法重設此行"
   }
 }

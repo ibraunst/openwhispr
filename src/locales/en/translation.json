@@ -2012,6 +2012,9 @@
     "deleteVoice": "Forget voice",
     "deleteConfirmTitle": "Forget “{{name}}”?",
     "deleteConfirmDescription": "Future meetings will treat this person as a new guest.",
-    "customName": "Custom name…"
+    "customName": "Custom name…",
+    "resetLine": "Not this speaker — reset line",
+    "lineReset": "Line reset to unidentified",
+    "resetFailed": "Could not reset line"
   }
 }
