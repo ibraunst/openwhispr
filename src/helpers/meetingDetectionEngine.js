@@ -381,6 +381,18 @@ class MeetingDetectionEngine {
       }
       this._cancelAutoStop();
     } else {
+      // Detections queued while the user was recording are signals from the
+      // very meeting that was just recorded — surfacing them after stop is
+      // pure noise ("Meeting Detected" right as you hang up). Drop them.
+      // Audio detections get reset (the detector's own cooldown prevents an
+      // instant re-fire); process detections stay marked active and reset
+      // naturally when the meeting process exits.
+      for (const item of this._notificationQueue) {
+        if (item.source !== "audio") continue;
+        const detection = this.activeDetections.get(`${item.source}:${item.key}`);
+        if (detection) this._resetDetectionState(detection);
+      }
+      this._notificationQueue = [];
       this._postRecordingCooldown = setTimeout(() => {
         this._postRecordingCooldown = null;
         this._flushNotificationQueue();

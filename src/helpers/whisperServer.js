@@ -501,6 +501,12 @@ class WhisperServerManager extends EventEmitter {
     const bodyParts = parts.map((part) => (typeof part === "string" ? Buffer.from(part) : part));
     const body = Buffer.concat(bodyParts);
 
+    // Long recordings (meetings) need more than a flat 5-minute cap — a
+    // 30-minute meeting through the medium model runs well past it. Allow
+    // ~2x realtime with a 5-minute floor. WAV here is 16 kHz mono s16le.
+    const audioSeconds = finalBuffer.length / 32000;
+    const requestTimeoutMs = Math.max(300000, Math.ceil(audioSeconds * 2000));
+
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
 
@@ -514,7 +520,7 @@ class WhisperServerManager extends EventEmitter {
             "Content-Type": `multipart/form-data; boundary=${boundary}`,
             "Content-Length": body.length,
           },
-          timeout: 300000,
+          timeout: requestTimeoutMs,
         },
         (res) => {
           let data = "";

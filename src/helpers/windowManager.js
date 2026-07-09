@@ -1184,7 +1184,7 @@ class WindowManager {
 
     this._notificationTimeout = setTimeout(() => {
       this.dismissMeetingNotification();
-    }, 60000);
+    }, 15000);
 
     // Capture this window instance: when a new notification replaces this
     // one, the OLD window's async closed event must not null out (or clear
