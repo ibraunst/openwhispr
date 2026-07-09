@@ -207,6 +207,24 @@ const getMeetingMicConstraints = async (): Promise<MediaStreamConstraints> => {
   return { audio: micProcessing };
 };
 
+/**
+ * Detach an AudioContext from hardware output to avoid Bluetooth routing issues.
+ * When BT headphones become the default output, the OS drops to the HFP profile
+ * and the context's render thread can stall on the sample-rate mismatch — the
+ * MediaStreamDestination then produces silence and the recording is empty.
+ * These contexts only capture/process (nothing audible is connected), so a
+ * "none" sink keeps them rendering without coupling to any physical device.
+ */
+const detachFromOutputDevice = async (ctx: AudioContext) => {
+  if ("setSinkId" in ctx) {
+    try {
+      await (ctx as AudioContext & { setSinkId: (sink: unknown) => Promise<void> }).setSinkId({
+        type: "none",
+      });
+    } catch {}
+  }
+};
+
 const createAudioPipeline = async ({
   stream,
   context,
@@ -1021,6 +1039,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
 
         // Mix system audio + mic into a single stream for MediaRecorder
         const mixContext = new AudioContext();
+        await detachFromOutputDevice(mixContext);
         localMixContextRef.current = mixContext;
         const destination = mixContext.createMediaStreamDestination();
 
@@ -1066,6 +1085,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
         // never touches the recording or the end-of-meeting full pass.
         try {
           const liveContext = new AudioContext({ sampleRate: LIVE_SAMPLE_RATE });
+          await detachFromOutputDevice(liveContext);
           liveContextRef.current = liveContext;
 
           let liveChunks: Int16Array[] = [];

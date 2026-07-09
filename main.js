@@ -85,6 +85,16 @@ if (process.platform === "linux" && process.env.XDG_SESSION_TYPE === "wayland") 
   );
 }
 
+// Enable system audio loopback capture on macOS via ScreenCaptureKit / CoreAudio Taps.
+// Without these flags, getDisplayMedia audio:"loopback" can return a live audio track
+// that produces only silence (all-zero samples), notably with Bluetooth output devices.
+if (process.platform === "darwin") {
+  app.commandLine.appendSwitch(
+    "enable-features",
+    "MacLoopbackAudioForScreenShare,MacSckSystemAudioLoopbackOverride,MacCatapSystemAudioLoopbackCapture"
+  );
+}
+
 // Set desktop filename so Wayland compositors can match windows to the .desktop entry.
 // This allows XDG portals (e.g. PipeWire) to persist permissions across sessions.
 if (process.platform === "linux") {

@@ -30,6 +30,9 @@ export function isBuiltInMicrophone(label: string): boolean {
       "external",
       "headset",
       "webcam",
+      // Continuity Camera devices ("iPhone Microphone") are not built-in
+      "iphone",
+      "ipad",
     ];
     return !externalIndicators.some((indicator) => lowerLabel.includes(indicator));
   }

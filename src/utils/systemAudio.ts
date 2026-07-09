@@ -9,8 +9,15 @@ export async function getSystemAudioStream(): Promise<MediaStream | null> {
   try {
     // Use getDisplayMedia (handled by setDisplayMediaRequestHandler in main process)
     // which properly captures system audio via macOS ScreenCaptureKit loopback.
+    // Disable all audio processing — echo cancellation and noise suppression
+    // on loopback audio can cancel out the captured system audio entirely,
+    // especially when Bluetooth headphones change the audio routing.
     const stream = await navigator.mediaDevices.getDisplayMedia({
-      audio: true,
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      },
       video: true,
     });
 
@@ -32,10 +39,29 @@ export async function getSystemAudioStream(): Promise<MediaStream | null> {
       return null;
     }
 
-    // Video tracks must stay alive — stopping them kills the ScreenCaptureKit loopback audio
+    // Belt-and-suspenders: also apply constraints directly on the track
+    // in case getDisplayMedia ignored the initial constraints.
+    try {
+      await audioTracks[0].applyConstraints({
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      });
+    } catch {}
+
+    // ScreenCaptureKit requires active video frame consumption to pump the capture
+    // session. Without a consumer, the loopback audio track produces silence even
+    // though the track is "live" — video tracks merely staying un-stopped is not
+    // enough. Attach the stream to a hidden muted <video> element so Chromium
+    // pulls frames and keeps the session active.
+    const videoSink = document.createElement("video");
+    videoSink.srcObject = new MediaStream(videoTracks);
+    videoSink.muted = true;
+    videoSink.play().catch(() => {});
 
     audioTracks[0].addEventListener("ended", () => {
       logger.error("System audio track ended unexpectedly", {}, "audio");
+      videoSink.srcObject = null;
     });
 
     return stream;
