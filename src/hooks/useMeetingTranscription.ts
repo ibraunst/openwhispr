@@ -909,6 +909,17 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
       return;
     }
 
+    // Cloud (OpenAI Realtime) meeting path is retired — see startTranscription.
+    // Skip the warmup entirely rather than opening a WebSocket that can't work.
+    if (options.provider === "openai-realtime") {
+      logger.debug(
+        "Skipping meeting transcription prepare — cloud path is retired",
+        {},
+        "meeting"
+      );
+      return;
+    }
+
     logger.info("Meeting transcription preparing (pre-warming WebSocket)...", {}, "meeting");
 
     const promise = (async () => {
@@ -1152,7 +1163,29 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
       return;
     }
 
-    // Cloud (OpenAI Realtime) path — unchanged
+    // Cloud (OpenAI Realtime) meeting path is retired: OpenAI removed the
+    // Realtime Beta API this depends on (2026-05-12), so it can no longer
+    // connect. It used to fail silently deep inside the IPC round-trip below
+    // with no user-visible message; surface a clear one up front instead of
+    // letting the user wonder why "recording" produced nothing. Local is the
+    // only supported meeting transcription path — see Settings > Transcription.
+    if (options.provider === "openai-realtime") {
+      logger.error(
+        "Cloud meeting transcription is unavailable (OpenAI Realtime Beta API was removed)",
+        {},
+        "meeting"
+      );
+      setError(
+        "Cloud meeting transcription is no longer available. Switch to a local model in Settings > Transcription > Meeting transcription model."
+      );
+      isRecordingRef.current = false;
+      isStartingRef.current = false;
+      setIsRecording(false);
+      window.electronAPI?.meetingSetUserRecording?.(false);
+      window.electronAPI?.setSleepBlocker?.(false);
+      return;
+    }
+
     // Wait for in-flight prepare to reuse the warm connection
     if (preparePromiseRef.current) {
       logger.debug("Waiting for in-flight prepare to finish...", {}, "meeting");

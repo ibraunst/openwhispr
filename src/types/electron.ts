@@ -310,6 +310,7 @@ declare global {
       pasteText: (text: string, options?: { fromStreaming?: boolean }) => Promise<void>;
       hideWindow: () => Promise<void>;
       showDictationPanel: () => Promise<void>;
+      setSleepBlocker?: (active: boolean) => Promise<void>;
       showControlPanel?: () => Promise<{ success: boolean }>;
       onMeetingRecordingIndicator?: (callback: (data: { active: boolean }) => void) => () => void;
       onToggleDictation: (callback: () => void) => () => void;
