@@ -4,9 +4,10 @@ const net = require("net");
 const path = require("path");
 const http = require("http");
 const debugLogger = require("./debugLogger");
-const { killProcess } = require("../utils/process");
+const { killProcessGroup } = require("../utils/process");
 const { getSafeTempDir } = require("./safeTempDir");
 const { app } = require("electron");
+const sidecarPidFile = require("./sidecarPidFile");
 
 const PORT_RANGE_START = 8200;
 const PORT_RANGE_END = 8220;
@@ -245,7 +246,9 @@ class LlamaServerManager {
         windowsHide: true,
         cwd: getSafeTempDir(),
         env,
+        detached: process.platform !== "win32",
       });
+      sidecarPidFile.write("llama", this.process.pid);
 
       let stderrBuffer = "";
       let exitCode = null;
@@ -280,6 +283,7 @@ class LlamaServerManager {
         this.ready = false;
         this.process = null;
         this.stopHealthCheck();
+        sidecarPidFile.clear("llama");
       });
 
       const getProcessInfo = () => ({ stderr: stderrBuffer, exitCode, exitSignal });
@@ -342,10 +346,10 @@ class LlamaServerManager {
     this.stopHealthCheck();
 
     try {
-      killProcess(this.process, "SIGTERM");
+      killProcessGroup(this.process, "SIGTERM");
       await new Promise((resolve) => {
         const timeout = setTimeout(() => {
-          if (this.process) killProcess(this.process, "SIGKILL");
+          if (this.process) killProcessGroup(this.process, "SIGKILL");
           resolve();
         }, 5000);
 
@@ -503,12 +507,12 @@ class LlamaServerManager {
     debugLogger.debug("Stopping llama-server");
 
     try {
-      killProcess(this.process, "SIGTERM");
+      killProcessGroup(this.process, "SIGTERM");
 
       await new Promise((resolve) => {
         const timeout = setTimeout(() => {
           if (this.process) {
-            killProcess(this.process, "SIGKILL");
+            killProcessGroup(this.process, "SIGKILL");
           }
           resolve();
         }, 5000);

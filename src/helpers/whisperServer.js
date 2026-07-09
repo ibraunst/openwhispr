@@ -6,9 +6,10 @@ const path = require("path");
 const http = require("http");
 const { app } = require("electron");
 const debugLogger = require("./debugLogger");
-const { killProcess } = require("../utils/process");
+const { killProcessGroup } = require("../utils/process");
 const { getSafeTempDir } = require("./safeTempDir");
 const { convertToWav } = require("./ffmpegUtils");
+const sidecarPidFile = require("./sidecarPidFile");
 
 const PORT_RANGE_START = 8178;
 const PORT_RANGE_END = 8199;
@@ -274,7 +275,9 @@ class WhisperServerManager extends EventEmitter {
       windowsHide: true,
       env: spawnEnv,
       cwd: serverBinaryDir,
+      detached: process.platform !== "win32",
     });
+    sidecarPidFile.write("whisper", this.process.pid);
 
     let stderrBuffer = "";
     let exitCode = null;
@@ -301,6 +304,7 @@ class WhisperServerManager extends EventEmitter {
       this.ready = false;
       this.process = null;
       this.stopHealthCheck();
+      sidecarPidFile.clear("whisper");
     });
 
     try {
@@ -594,12 +598,12 @@ class WhisperServerManager extends EventEmitter {
     debugLogger.debug("Stopping whisper-server");
 
     try {
-      killProcess(this.process, "SIGTERM");
+      killProcessGroup(this.process, "SIGTERM");
 
       await new Promise((resolve) => {
         const timeout = setTimeout(() => {
           if (this.process) {
-            killProcess(this.process, "SIGKILL");
+            killProcessGroup(this.process, "SIGKILL");
           }
           resolve();
         }, 5000);

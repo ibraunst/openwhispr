@@ -187,6 +187,8 @@ const AudioActivityDetector = require("./src/helpers/audioActivityDetector");
 const MeetingDetectionEngine = require("./src/helpers/meetingDetectionEngine");
 const { i18nMain, changeLanguage } = require("./src/helpers/i18nMain");
 const { ensureYdotool } = require("./src/helpers/ensureYdotool");
+const sidecarRegistry = require("./src/helpers/sidecarRegistry");
+const { reapStaleSidecars } = require("./src/helpers/sidecarReaper");
 
 // Manager instances - initialized after app.whenReady()
 let debugLogger = null;
@@ -304,6 +306,13 @@ function initializeCoreManagers() {
     meetingDetectionEngine,
     getTrayManager: () => trayManager,
   });
+}
+
+function registerSidecars() {
+  if (whisperManager) sidecarRegistry.register("whisper", () => whisperManager.stopServer());
+  if (parakeetManager) sidecarRegistry.register("parakeet", () => parakeetManager.stopServer());
+  const modelManager = require("./src/helpers/modelManagerBridge").default;
+  sidecarRegistry.register("llama", () => modelManager.stopServer());
 }
 
 // Phase 2: Non-critical setup after windows are visible
@@ -535,8 +544,11 @@ function startAuthBridgeServer() {
 
 // Main application startup
 async function startApp() {
+  reapStaleSidecars();
+
   // Phase 1: Core managers + IPC handlers before windows
   initializeCoreManagers();
+  registerSidecars();
   startAuthBridgeServer();
 
   // Electron's file:// sends no Origin header, which Neon Auth rejects.
@@ -1137,53 +1149,57 @@ if (gotSingleInstanceLock) {
     }
   });
 
-  app.on("will-quit", () => {
-    if (authBridgeServer) {
-      authBridgeServer.close();
-      authBridgeServer = null;
-    }
-    if (windowManager && isLiveWindow(windowManager.agentWindow)) {
-      windowManager.agentWindow.destroy();
-    }
-    if (hotkeyManager) {
-      hotkeyManager.unregisterAll();
-    } else {
-      globalShortcut.unregisterAll();
-    }
-    if (globeKeyManager) {
-      globeKeyManager.stop();
-    }
-    if (windowsKeyManager) {
-      windowsKeyManager.stop();
-    }
-    if (meetingDetectionEngine) {
-      meetingDetectionEngine.stop();
-    }
-    if (googleCalendarManager) {
-      googleCalendarManager.stop();
-    }
-    if (appleCalendarManager) {
-      appleCalendarManager.stop();
-    }
-    if (ipcHandlers) {
-      ipcHandlers._cleanupTextEditMonitor();
-    }
-    if (textEditMonitor) {
-      textEditMonitor.stopMonitoring();
-    }
-    if (updateManager) {
-      updateManager.cleanup();
-    }
-    // Stop whisper server if running
-    if (whisperManager) {
-      whisperManager.stopServer().catch(() => {});
-    }
-    // Stop parakeet WS server if running
-    if (parakeetManager) {
-      parakeetManager.stopServer().catch(() => {});
-    }
-    // Stop llama-server if running
-    const modelManager = require("./src/helpers/modelManagerBridge").default;
-    modelManager.stopServer().catch(() => {});
+  // before-quit (not will-quit) so we can await sidecar shutdown before the
+  // process actually exits — will-quit's handler ran fire-and-forget
+  // .catch(() => {}) promises that were never awaited, so SIGTERM was never
+  // sent before the main process exited and a stalled sidecar (e.g. a hung
+  // meeting transcription holding sherpa-onnx-ws's port) survived a clean
+  // Quit and broke the next launch with EADDRINUSE.
+  let isShuttingDown = false;
+  app.on("before-quit", (event) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    event.preventDefault();
+    performSyncTeardown();
+    sidecarRegistry.shutdownAll().finally(() => app.exit(0));
   });
+}
+
+function performSyncTeardown() {
+  if (authBridgeServer) {
+    authBridgeServer.close();
+    authBridgeServer = null;
+  }
+  if (windowManager && isLiveWindow(windowManager.agentWindow)) {
+    windowManager.agentWindow.destroy();
+  }
+  if (hotkeyManager) {
+    hotkeyManager.unregisterAll();
+  } else {
+    globalShortcut.unregisterAll();
+  }
+  if (globeKeyManager) {
+    globeKeyManager.stop();
+  }
+  if (windowsKeyManager) {
+    windowsKeyManager.stop();
+  }
+  if (meetingDetectionEngine) {
+    meetingDetectionEngine.stop();
+  }
+  if (googleCalendarManager) {
+    googleCalendarManager.stop();
+  }
+  if (appleCalendarManager) {
+    appleCalendarManager.stop();
+  }
+  if (ipcHandlers) {
+    ipcHandlers._cleanupTextEditMonitor();
+  }
+  if (textEditMonitor) {
+    textEditMonitor.stopMonitoring();
+  }
+  if (updateManager) {
+    updateManager.cleanup();
+  }
 }

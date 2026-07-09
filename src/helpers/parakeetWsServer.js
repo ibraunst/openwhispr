@@ -10,6 +10,7 @@ const {
   gracefulStopProcess,
 } = require("../utils/serverUtils");
 const { getSafeTempDir } = require("./safeTempDir");
+const sidecarPidFile = require("./sidecarPidFile");
 
 const PORT_RANGE_START = 6006;
 const PORT_RANGE_END = 6029;
@@ -124,7 +125,9 @@ class ParakeetWsServer {
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
       cwd: getSafeTempDir(),
+      detached: process.platform !== "win32",
     });
+    sidecarPidFile.write("parakeet", this.process.pid);
 
     let stderrBuffer = "";
     let exitCode = null;
@@ -157,6 +160,7 @@ class ParakeetWsServer {
       this.ready = false;
       this.process = null;
       this.stopHealthCheck();
+      sidecarPidFile.clear("parakeet");
       readyResolve(false);
     });
 
