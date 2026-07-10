@@ -95,6 +95,7 @@
     "resources/bin/macos-fast-paste",
     "resources/bin/macos-media-remote",
     "resources/bin/macos-mic-listener",
+    "resources/bin/macos-audio-tap",
     "resources/bin/macos-text-monitor",
     "resources/bin/linux-fast-paste",
     "resources/bin/linux-text-monitor",
@@ -131,6 +132,7 @@
     "extendInfo": {
       "LSUIElement": false,
       "NSMicrophoneUsageDescription": "customWhispr needs microphone access for speech-to-text transcription.",
+      "NSAudioCaptureUsageDescription": "customWhispr uses system audio to capture other participants' audio from calls and meetings.",
       "NSAccessibilityUsageDescription": "customWhispr needs accessibility permissions to paste transcribed text into other applications."
     }
   },

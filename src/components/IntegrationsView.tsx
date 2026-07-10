@@ -10,7 +10,7 @@ import {
   DIARIZATION_ME_THRESHOLD_DEFAULT,
   DIARIZATION_MATCH_THRESHOLD_DEFAULT,
 } from "../stores/settingsStore";
-import { useScreenRecordingPermission } from "../hooks/useScreenRecordingPermission";
+import { useSystemAudioPermission } from "../hooks/useSystemAudioPermission";
 import { formatSpeakerName } from "../utils/speakerNameFormatter";
 import type { VoiceBankEntry } from "../types/electron";
 import googleCalendarIcon from "../assets/icons/google-calendar.svg";
@@ -39,7 +39,7 @@ export default function IntegrationsView() {
   const [confirmDisconnectAcal, setConfirmDisconnectAcal] = useState(false);
   const [appleCalendars, setAppleCalendars] = useState<Array<{ id: string; title: string; color: string | null; is_selected: number }>>([]);
   const [loadingAcalCalendars, setLoadingAcalCalendars] = useState(false);
-  const screenRecording = useScreenRecordingPermission();
+  const systemAudio = useSystemAudioPermission();
   const hasAccounts = gcalAccounts.length > 0;
 
   // Known voices (speaker voicebank)
@@ -99,12 +99,12 @@ export default function IntegrationsView() {
   }, [setGcalAccounts]);
 
   const handleConnect = useCallback(async () => {
-    if (screenRecording.isMacOS && !screenRecording.granted) {
+    if (systemAudio.isMacOS && !systemAudio.granted) {
       setShowPermissionDialog(true);
       return;
     }
     await startOAuth();
-  }, [screenRecording.isMacOS, screenRecording.granted, startOAuth]);
+  }, [systemAudio.isMacOS, systemAudio.granted, startOAuth]);
 
   const handleDisconnect = useCallback(
     async (email: string) => {
@@ -597,10 +597,10 @@ export default function IntegrationsView() {
       <ConfirmDialog
         open={showPermissionDialog}
         onOpenChange={setShowPermissionDialog}
-        title={t("integrations.googleCalendar.screenRecordingRequired")}
-        description={t("integrations.googleCalendar.screenRecordingDescription")}
+        title={t("integrations.googleCalendar.systemAudioRequired")}
+        description={t("integrations.googleCalendar.systemAudioDescription")}
         confirmText={t("integrations.googleCalendar.openSettings")}
-        onConfirm={screenRecording.openSettings}
+        onConfirm={systemAudio.openSettings}
       />
 
       <ConfirmDialog

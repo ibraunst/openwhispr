@@ -80,7 +80,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   undoLearnedCorrections: (words) => ipcRenderer.invoke("undo-learned-corrections", words),
 
   // Note functions
-  saveNote: (title, content, noteType, sourceFile, audioDuration, folderId) =>
+  saveNote: (title, content, noteType, sourceFile, audioDuration, folderId, calendarEventId) =>
     ipcRenderer.invoke(
       "db-save-note",
       title,
@@ -88,7 +88,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
       noteType,
       sourceFile,
       audioDuration,
-      folderId
+      folderId,
+      calendarEventId
     ),
   getNote: (id) => ipcRenderer.invoke("db-get-note", id),
   getNoteByCalendarEventId: (calendarEventId) => ipcRenderer.invoke("db-get-note-by-calendar-event", calendarEventId),
@@ -246,6 +247,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   windowClose: () => ipcRenderer.invoke("window-close"),
   windowIsMaximized: () => ipcRenderer.invoke("window-is-maximized"),
   restoreFromMeetingMode: () => ipcRenderer.invoke("restore-from-meeting-mode"),
+  snapToMeetingMode: () => ipcRenderer.invoke("snap-to-meeting-mode"),
   getPlatform: () => process.platform,
   appQuit: () => ipcRenderer.invoke("app-quit"),
 
@@ -389,6 +391,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openSoundInputSettings: () => ipcRenderer.invoke("open-sound-input-settings"),
   openAccessibilitySettings: () => ipcRenderer.invoke("open-accessibility-settings"),
   openScreenRecordingSettings: () => ipcRenderer.invoke("open-screen-recording-settings"),
+  checkSystemAudioAccess: () => ipcRenderer.invoke("check-system-audio-access"),
+  requestSystemAudioAccess: () => ipcRenderer.invoke("request-system-audio-access"),
   toggleMediaPlayback: () => ipcRenderer.invoke("toggle-media-playback"),
   pauseMediaPlayback: () => ipcRenderer.invoke("pause-media-playback"),
   resumeMediaPlayback: () => ipcRenderer.invoke("resume-media-playback"),
@@ -754,4 +758,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
     (callback) => (_event, data) => callback(data)
   ),
   meetingAutoStopCancel: () => ipcRenderer.invoke("meeting-auto-stop-cancel"),
+
+  // Native system-audio tap (CoreAudio, macOS 14.2+)
+  meetingTapStart: () => ipcRenderer.invoke("meeting-tap-start"),
+  meetingTapStop: () => ipcRenderer.invoke("meeting-tap-stop"),
+  onMeetingTapChunk: registerListener(
+    "meeting-tap-chunk",
+    (callback) => (_event, chunk) => callback(chunk)
+  ),
+  onMeetingTapError: registerListener(
+    "meeting-tap-error",
+    (callback) => (_event, message) => callback(message)
+  ),
 });

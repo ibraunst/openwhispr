@@ -177,7 +177,7 @@ Speaker diarization engine:
 - [x] Persistent recording indicator on the floating pill while a meeting records (Granola-style capsule: red dot + pulsing bars; survives auto-hide; click opens control panel)
 - [x] Meeting recording survives sidebar navigation (PersonalNotesView stays mounted while recording/processing/diarizing)
 - [x] Calendar refresh button performs a real Google+Apple provider sync (not just a local-cache re-read)
-- [x] Meeting auto-stop on process close or sustained silence (10s "Keep Recording" grace toast)
+- [x] Meeting auto-stop on process close or sustained silence (5s "Keep Recording" grace toast)
 - [x] Live transcript preview during local meeting recordings (`LiveTranscriptPanel`) — 16kHz tap on mixed stream, 4-10s silence-boundary chunks through Parakeet, cleared at stop so the final pass isn't polluted
 - [x] Pause/resume for local meeting recordings — `MediaRecorder.pause()`/`resume()` on both split recorders (no gap in the blob, timestamps stay aligned for diarization); live-transcript tap is suspended while paused. Cloud/streaming meetings cannot pause (timestamps would drift out of sync with diarization audio)
 - [x] Speaker diarization (Python + pyannote.audio, requires HuggingFace token set in Integrations)
@@ -250,7 +250,7 @@ Speaker diarization engine:
 - **Pause/resume (local only)**: `pauseTranscription`/`resumeTranscription` in `useMeetingTranscription` call `MediaRecorder.pause()`/`.resume()` on both split recorders and suspend/resume the live-transcript tap's `AudioContext` — keeps one continuous blob (no gap) so post-stop diarization timestamps stay aligned. `isPaused`/`canPause` reset at recording start/stop. Not offered for cloud/streaming meetings.
 - **Whisper timeout scales with audio length**: `whisperServer.js` computes `requestTimeoutMs = Math.max(300000, Math.ceil(audioSeconds * 2000))` before the `/inference` call — a flat 5-minute cap killed transcription on meetings past ~25-30 minutes (medium model runs slower than 2x realtime at the margin).
 - **Queued meeting-detected notifications are dropped, not flushed, at recording stop**: `meetingDetectionEngine.setUserRecording(false)` clears `_notificationQueue` for audio-sourced detections instead of flushing them after the cooldown — otherwise a detection that fired mid-meeting surfaces as a stale "Meeting Detected" popup right after hangup.
-- **Meeting notification auto-dismiss is 15s** (`windowManager.js` timer + `MeetingNotificationOverlay.tsx` countdown animation) — was 60s, too slow for a decision that's usually made in a few seconds.
+- **Meeting notification (join/start-recording) auto-dismiss is 15s** (`windowManager.js` timer + `MeetingNotificationOverlay.tsx` countdown animation) — was 60s, too slow for a decision that's usually made in a few seconds; briefly cut to 5s, restored to 15s (5s was too easy to miss).
 
 ### Speaker Diarization Architecture (critical — do not regress)
 - `useMeetingTranscription` runs two parallel `MediaRecorder` instances: one on the system audio stream, one on the mic stream (split recorders).
@@ -443,7 +443,7 @@ interface AppProfile {
 
 ### Full-app bug-scan fixes (2026-07-07) — do not regress
 - **Note saves flush, never cancel**: `PersonalNotesView` keeps pending save payloads in `pendingSaveRef`/`pendingEnhancedSaveRef` and flushes them when switching notes or unmounting. Clearing the debounce timer on note switch loses edits permanently.
-- **Meeting auto-stop grace period**: `meetingDetectionEngine._handleMeetingEndSignal` broadcasts `meeting-auto-stop-suggested` and arms a 10s `_autoStopTimer` (`AUTO_STOP_GRACE_MS`) before `meeting-auto-stop-execute`; `cancelAutoStop` clears it. Never execute immediately — the renderer's "Keep Recording" toast depends on the delay (countdown text derives from `autoStopInMs`, not a hardcoded number).
+- **Meeting auto-stop grace period**: `meetingDetectionEngine._handleMeetingEndSignal` broadcasts `meeting-auto-stop-suggested` and arms a 5s `_autoStopTimer` (`AUTO_STOP_GRACE_MS`) before `meeting-auto-stop-execute`; `cancelAutoStop` clears it. Never execute immediately — the renderer's "Meeting Ended" toast depends on the delay (countdown text derives from `autoStopInMs`, not a hardcoded number).
 - **Batch stop deferral**: `audioManager.stopRecording()` sets `_stopRequestedDuringBatchStart` when setup is in flight (mic acquisition), applied after `mediaRecorder.start()`. Without it a quick push-to-talk release leaves recording stuck on.
 - **FTS search quoting**: `database.searchNotes` wraps every token in FTS5 string-literal quotes (unicode-preserving, operator-neutralizing). The old `\w`-only sanitizer broke all non-Latin search; bare AND/OR/NOT crash FTS5.
 - **Apple calendar sync**: `_parseEvents` THROWS on binary failure/malformed output (returning `[]` wipes all stored future events via `clearFutureEventsByCalendarId`). That query must compare `datetime(start_time)`, not the raw ISO string (lexical compare classifies all of today as "future").

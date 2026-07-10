@@ -5,28 +5,14 @@ import { Button } from "./ui/button";
 import { cn } from "./lib/utils";
 import type { CalendarEvent } from "../types/calendar";
 import { formatUpcomingDateGroup } from "../utils/dateFormatting";
-import { useScreenRecordingPermission } from "../hooks/useScreenRecordingPermission";
+import { useSystemAudioPermission } from "../hooks/useSystemAudioPermission";
 import { useSettingsStore } from "../stores/settingsStore";
+import { getMeetingJoinUrl } from "../utils/meetingJoinUrl";
 
 interface UpcomingMeetingsProps {
   events: CalendarEvent[];
   isLoading: boolean;
 }
-
-const getJoinUrl = (event: CalendarEvent): string | null => {
-  if (event.hangout_link) return event.hangout_link;
-  if (!event.conference_data) return null;
-  try {
-    const data = JSON.parse(event.conference_data);
-    return (
-      data?.entryPoints?.find(
-        (ep: { entryPointType: string; uri?: string }) => ep.entryPointType === "video"
-      )?.uri || null
-    );
-  } catch {
-    return null;
-  }
-};
 
 const openJoinUrl = (url: string) => {
   if (window.electronAPI?.openExternal) {
@@ -39,7 +25,7 @@ const openJoinUrl = (url: string) => {
 export default function UpcomingMeetings({ events, isLoading }: UpcomingMeetingsProps) {
   const { t, i18n } = useTranslation();
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
-  const screenRecording = useScreenRecordingPermission();
+  const systemAudio = useSystemAudioPermission();
   const isSignedIn = useSettingsStore((s) => s.isSignedIn);
 
   // Tick every 30s — memoizing mount time froze "happening now" forever in
@@ -110,16 +96,16 @@ export default function UpcomingMeetings({ events, isLoading }: UpcomingMeetings
       {/* Empty state */}
       {!isLoading && events.length === 0 && (
         <div className="flex flex-col items-center justify-center py-8 px-3">
-          {screenRecording.isMacOS && !screenRecording.granted ? (
+          {systemAudio.isMacOS && !systemAudio.granted ? (
             <>
               <Monitor size={24} className="text-muted-foreground/30 mb-2.5" />
               <p className="text-xs text-muted-foreground/60 text-center mb-3">
-                {t("upcoming.screenRecordingRequired")}
+                {t("upcoming.systemAudioRequired")}
               </p>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={screenRecording.openSettings}
+                onClick={systemAudio.openSettings}
                 className="text-xs h-7"
               >
                 {t("upcoming.openSettings")}
@@ -158,7 +144,7 @@ export default function UpcomingMeetings({ events, isLoading }: UpcomingMeetings
               </div>
               <div className="space-y-1.5">
                 {group.items.map((event) => {
-                  const joinUrl = getJoinUrl(event);
+                  const joinUrl = getMeetingJoinUrl(event);
                   const isNow = isHappeningNow(event);
                   const isHovered = hoveredEventId === event.id;
 

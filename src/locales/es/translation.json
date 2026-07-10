@@ -160,7 +160,9 @@
       "testAndGrant": "Probar y conceder",
       "requiredForApp": "Necesario para que customWhispr funcione",
       "microphoneRequired": "Se requiere acceso al micrófono",
-      "openSystemSettings": "Abrir Ajustes del Sistema"
+      "openSystemSettings": "Abrir Ajustes del Sistema",
+      "systemAudioTitle": "Audio del Sistema",
+      "systemAudioDescription": "Permite que el grabador de reuniones escuche al resto de participantes de tus llamadas: reuniones, clases, pódcasts. Puedes activarlo más tarde en Ajustes."
     },
     "transcription": {
       "title": "Configuración de transcripción",
@@ -1264,7 +1266,9 @@
       "testAndGrant": "Probar y conceder",
       "title": "Permisos",
       "troubleshoot": "Solucionar problemas",
-      "troubleshootingTitle": "Solución de problemas"
+      "troubleshootingTitle": "Solución de problemas",
+      "systemAudioTitle": "Audio del Sistema",
+      "systemAudioDescription": "Transcribe reuniones, llamadas, clases, podcasts y otros audios del sistema."
     },
     "privacy": {
       "cloudBackup": "Respaldo en la nube",
@@ -1823,7 +1827,9 @@
       "addAnother": "Añadir otro calendario",
       "disconnect": "Desconectar",
       "disconnectConfirm": "¿Desconectar {{email}}?",
-      "disconnectDescription": "Ya no se grabarán notas de reuniones de este calendario."
+      "disconnectDescription": "Ya no se grabarán notas de reuniones de este calendario.",
+      "systemAudioRequired": "Se requiere permiso de Audio del Sistema",
+      "systemAudioDescription": "Para transcribir reuniones, customWhispr necesita el permiso de Audio del Sistema para capturar el audio de otros participantes. Nunca grabamos tu pantalla. Serás dirigido a Ajustes del Sistema para activarlo."
     },
     "plan": {
       "title": "Tu Plan",
@@ -1874,7 +1880,8 @@
     "connectCalendar": "Conecta tu calendario",
     "connectCalendarDescription": "Vincula tu Google Calendar para ver próximas reuniones y grabar notas automáticamente.",
     "notABot": "customWhispr graba usando el audio de tu sistema — nunca se une a las reuniones como un bot.",
-    "connectCalendarButton": "Conectar calendario"
+    "connectCalendarButton": "Conectar calendario",
+    "systemAudioRequired": "Se necesita el permiso de Audio del Sistema para capturar el audio de otros participantes."
   },
   "notesView": {
     "searchPlaceholder": "Buscar notas…",

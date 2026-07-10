@@ -160,7 +160,9 @@
       "testAndGrant": "テストして許可",
       "requiredForApp": "customWhispr の動作に必要です",
       "microphoneRequired": "マイクへのアクセスが必要です",
-      "openSystemSettings": "システム設定を開く"
+      "openSystemSettings": "システム設定を開く",
+      "systemAudioTitle": "システムオーディオ",
+      "systemAudioDescription": "会議レコーダーが通話の相手側の音声（会議、講義、ポッドキャストなど）を聴けるようにします。後から設定で有効にできます。"
     },
     "transcription": {
       "title": "文字起こし設定",
@@ -1264,7 +1266,9 @@
       "testAndGrant": "テストして許可",
       "title": "権限",
       "troubleshoot": "トラブルシュート",
-      "troubleshootingTitle": "トラブルシューティング"
+      "troubleshootingTitle": "トラブルシューティング",
+      "systemAudioTitle": "システムオーディオ",
+      "systemAudioDescription": "会議、通話、講義、ポッドキャストなど、システム音声を文字起こしします。"
     },
     "privacy": {
       "cloudBackup": "クラウドバックアップ",
@@ -1823,7 +1827,9 @@
       "addAnother": "別のカレンダーを追加",
       "disconnect": "切断",
       "disconnectConfirm": "{{email}} を切断しますか？",
-      "disconnectDescription": "このカレンダーからの会議メモは記録されなくなります。"
+      "disconnectDescription": "このカレンダーからの会議メモは記録されなくなります。",
+      "systemAudioRequired": "システムオーディオの権限が必要です",
+      "systemAudioDescription": "会議を文字起こしするには、customWhispr に他の参加者の音声を録音するためのシステムオーディオの権限が必要です。画面を録画することはありません。システム設定に移動して有効にします。"
     },
     "plan": {
       "title": "プラン",
@@ -1874,7 +1880,8 @@
     "connectCalendar": "カレンダーを接続",
     "connectCalendarDescription": "Google カレンダーを連携して、今後のミーティングを確認し、自動的にノートを記録します。",
     "notABot": "customWhispr はシステムオーディオで録音します — ボットとしてミーティングに参加することはありません。",
-    "connectCalendarButton": "カレンダーを接続"
+    "connectCalendarButton": "カレンダーを接続",
+    "systemAudioRequired": "他の参加者の音声を録音するには、システムオーディオの権限が必要です。"
   },
   "notesView": {
     "searchPlaceholder": "ノートを検索…",

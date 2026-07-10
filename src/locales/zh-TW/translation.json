@@ -160,7 +160,9 @@
       "testAndGrant": "測試並授權",
       "requiredForApp": "customWhispr 運作所需",
       "microphoneRequired": "需要麥克風存取權限",
-      "openSystemSettings": "打開系統設定"
+      "openSystemSettings": "打開系統設定",
+      "systemAudioTitle": "系統音訊",
+      "systemAudioDescription": "讓會議錄音機聽到通話另一方的聲音 — 會議、講座、Podcast。你可以稍後在「設定」中開啟。"
     },
     "transcription": {
       "title": "轉錄設定",
@@ -1264,7 +1266,9 @@
       "testAndGrant": "測試並授權",
       "title": "權限",
       "troubleshoot": "疑難排解",
-      "troubleshootingTitle": "疑難排解"
+      "troubleshootingTitle": "疑難排解",
+      "systemAudioTitle": "系統音訊",
+      "systemAudioDescription": "轉錄會議、通話、講座、播客和其他系統音訊。"
     },
     "privacy": {
       "cloudBackup": "雲端備份",
@@ -1823,7 +1827,9 @@
       "addAnother": "新增其他日曆",
       "disconnect": "中斷連接",
       "disconnectConfirm": "中斷 {{email}} 的連接？",
-      "disconnectDescription": "將不再從此日曆記錄會議筆記。"
+      "disconnectDescription": "將不再從此日曆記錄會議筆記。",
+      "systemAudioRequired": "需要系統音訊權限",
+      "systemAudioDescription": "要轉錄會議，customWhispr 需要系統音訊權限來錄製其他參與者的音訊。我們絕不會錄製您的螢幕。您將被引導至系統設定以啟用此權限。"
     },
     "plan": {
       "title": "您的方案",
@@ -1874,7 +1880,8 @@
     "connectCalendar": "連接您的日曆",
     "connectCalendarDescription": "關聯 Google 日曆以查看即將到來的會議並自動記錄筆記。",
     "notABot": "customWhispr 透過系統音訊錄製 — 它不會以機器人身分加入您的會議。",
-    "connectCalendarButton": "連接日曆"
+    "connectCalendarButton": "連接日曆",
+    "systemAudioRequired": "需要系統音訊權限來錄製其他參與者的音訊。"
   },
   "notesView": {
     "searchPlaceholder": "搜尋筆記…",

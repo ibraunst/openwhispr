@@ -195,6 +195,7 @@ const AppleCalendarManager = require("./src/helpers/appleCalendarManager");
 const MeetingProcessDetector = require("./src/helpers/meetingProcessDetector");
 const AudioActivityDetector = require("./src/helpers/audioActivityDetector");
 const MeetingDetectionEngine = require("./src/helpers/meetingDetectionEngine");
+const { AudioTapManager } = require("./src/helpers/audioTapManager");
 const { i18nMain, changeLanguage } = require("./src/helpers/i18nMain");
 const { ensureYdotool } = require("./src/helpers/ensureYdotool");
 const sidecarRegistry = require("./src/helpers/sidecarRegistry");
@@ -218,6 +219,7 @@ let whisperCudaManager = null;
 let googleCalendarManager = null;
 let appleCalendarManager = null;
 let meetingDetectionEngine = null;
+let audioTapManager = null;
 let ipcHandlers = null;
 let globeKeyAlertShown = false;
 let authBridgeServer = null;
@@ -296,6 +298,7 @@ function initializeCoreManagers() {
   appleCalendarManager.meetingDetectionEngine = meetingDetectionEngine;
   updateManager = new UpdateManager();
   windowsKeyManager = new WindowsKeyManager();
+  audioTapManager = new AudioTapManager();
   textEditMonitor = new TextEditMonitor();
   windowManager.textEditMonitor = textEditMonitor;
 
@@ -314,6 +317,7 @@ function initializeCoreManagers() {
     googleCalendarManager,
     appleCalendarManager,
     meetingDetectionEngine,
+    audioTapManager,
     getTrayManager: () => trayManager,
   });
 }
@@ -321,6 +325,7 @@ function initializeCoreManagers() {
 function registerSidecars() {
   if (whisperManager) sidecarRegistry.register("whisper", () => whisperManager.stopServer());
   if (parakeetManager) sidecarRegistry.register("parakeet", () => parakeetManager.stopServer());
+  if (audioTapManager) sidecarRegistry.register("audiotap", () => audioTapManager.stop());
   const modelManager = require("./src/helpers/modelManagerBridge").default;
   sidecarRegistry.register("llama", () => modelManager.stopServer());
 }
@@ -678,7 +683,15 @@ async function startApp() {
     if (!systemPreferences.isTrustedAccessibilityClient(false)) {
       revokedPerms.push("accessibility");
     }
-    if (systemPreferences.getMediaAccessStatus("screen") !== "granted") {
+    // System-audio capture: when the native CoreAudio tap is available, the
+    // relevant grant is System Audio Recording (tracked by AudioTapManager's
+    // cached probe status — kTCCServiceScreenCapture is the wrong TCC class
+    // for it). The screen TCC check only matters for the loopback fallback.
+    if (audioTapManager?.isSupported() && audioTapManager.isAvailable()) {
+      if (audioTapManager.getPermissionStatus() === "denied") {
+        revokedPerms.push("systemAudio");
+      }
+    } else if (systemPreferences.getMediaAccessStatus("screen") !== "granted") {
       revokedPerms.push("screenRecording");
     }
     if (revokedPerms.length > 0) {

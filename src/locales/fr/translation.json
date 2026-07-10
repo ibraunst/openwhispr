@@ -160,7 +160,9 @@
       "testAndGrant": "Tester et autoriser",
       "requiredForApp": "Nécessaire pour le bon fonctionnement d'customWhispr",
       "microphoneRequired": "Accès microphone requis",
-      "openSystemSettings": "Ouvrir les Réglages Système"
+      "openSystemSettings": "Ouvrir les Réglages Système",
+      "systemAudioTitle": "Audio Système",
+      "systemAudioDescription": "Permet à l'enregistreur de réunion d'entendre vos interlocuteurs : réunions, cours, podcasts. Activable plus tard dans les Réglages."
     },
     "transcription": {
       "title": "Configuration de la transcription",
@@ -1264,7 +1266,9 @@
       "testAndGrant": "Tester et autoriser",
       "title": "Permissions",
       "troubleshoot": "Dépanner",
-      "troubleshootingTitle": "Dépannage"
+      "troubleshootingTitle": "Dépannage",
+      "systemAudioTitle": "Audio Système",
+      "systemAudioDescription": "Transcrivez réunions, appels, conférences, podcasts et autres audios système."
     },
     "privacy": {
       "cloudBackup": "Sauvegarde cloud",
@@ -1823,7 +1827,9 @@
       "addAnother": "Ajouter un autre calendrier",
       "disconnect": "Déconnecter",
       "disconnectConfirm": "Déconnecter {{email}} ?",
-      "disconnectDescription": "Les notes de réunion ne seront plus enregistrées depuis ce calendrier."
+      "disconnectDescription": "Les notes de réunion ne seront plus enregistrées depuis ce calendrier.",
+      "systemAudioRequired": "Autorisation Audio Système requise",
+      "systemAudioDescription": "Pour transcrire les réunions, customWhispr a besoin de l'autorisation Audio Système pour capturer l'audio des autres participants. Nous n'enregistrons jamais votre écran. Vous serez dirigé vers les Réglages Système pour l'activer."
     },
     "plan": {
       "title": "Votre forfait",
@@ -1874,7 +1880,8 @@
     "connectCalendar": "Connectez votre calendrier",
     "connectCalendarDescription": "Associez votre Google Calendar pour voir vos prochaines réunions et enregistrer des notes automatiquement.",
     "notABot": "customWhispr enregistre via l'audio de votre système — il ne rejoint jamais vos réunions en tant que bot.",
-    "connectCalendarButton": "Connecter le calendrier"
+    "connectCalendarButton": "Connecter le calendrier",
+    "systemAudioRequired": "L'autorisation Audio Système est nécessaire pour capturer l'audio des autres participants."
   },
   "notesView": {
     "searchPlaceholder": "Rechercher des notes…",

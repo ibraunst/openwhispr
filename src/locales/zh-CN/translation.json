@@ -160,7 +160,9 @@
       "testAndGrant": "测试并授权",
       "requiredForApp": "customWhispr 运行所必需的权限",
       "microphoneRequired": "需要麦克风访问权限",
-      "openSystemSettings": "打开系统设置"
+      "openSystemSettings": "打开系统设置",
+      "systemAudioTitle": "系统音频",
+      "systemAudioDescription": "让会议录音机听到通话另一方的声音 — 会议、讲座、播客。你可以稍后在“设置”中开启。"
     },
     "transcription": {
       "title": "转录设置",
@@ -1264,7 +1266,9 @@
       "testAndGrant": "测试并授权",
       "title": "权限",
       "troubleshoot": "排查问题",
-      "troubleshootingTitle": "问题排查"
+      "troubleshootingTitle": "问题排查",
+      "systemAudioTitle": "系统音频",
+      "systemAudioDescription": "转录会议、通话、讲座、播客和其他系统音频。"
     },
     "privacy": {
       "cloudBackup": "云端备份",
@@ -1823,7 +1827,9 @@
       "addAnother": "添加其他日历",
       "disconnect": "断开",
       "disconnectConfirm": "断开 {{email}}？",
-      "disconnectDescription": "将不再从此日历记录会议笔记。"
+      "disconnectDescription": "将不再从此日历记录会议笔记。",
+      "systemAudioRequired": "需要系统音频权限",
+      "systemAudioDescription": "要转录会议，customWhispr 需要系统音频权限来录制其他参与者的音频。我们绝不会录制您的屏幕。您将被引导至系统设置以启用此权限。"
     },
     "plan": {
       "title": "您的方案",
@@ -1874,7 +1880,8 @@
     "connectCalendar": "连接您的日历",
     "connectCalendarDescription": "关联 Google 日历以查看即将到来的会议并自动记录笔记。",
     "notABot": "customWhispr 通过系统音频录制 — 它不会以机器人身份加入您的会议。",
-    "connectCalendarButton": "连接日历"
+    "connectCalendarButton": "连接日历",
+    "systemAudioRequired": "需要系统音频权限来录制其他参与者的音频。"
   },
   "notesView": {
     "searchPlaceholder": "搜索笔记…",

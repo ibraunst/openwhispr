@@ -160,7 +160,9 @@
       "testAndGrant": "Testen & erteilen",
       "requiredForApp": "Erforderlich, damit customWhispr funktioniert",
       "microphoneRequired": "Mikrofonzugriff erforderlich",
-      "openSystemSettings": "Systemeinstellungen öffnen"
+      "openSystemSettings": "Systemeinstellungen öffnen",
+      "systemAudioTitle": "Systemaudio",
+      "systemAudioDescription": "Lässt den Meeting-Rekorder die Gegenseite deiner Anrufe hören — Meetings, Vorlesungen, Podcasts. Kann später in den Einstellungen aktiviert werden."
     },
     "transcription": {
       "title": "Transkriptions-Einrichtung",
@@ -1264,7 +1266,9 @@
       "testAndGrant": "Testen & erteilen",
       "title": "Berechtigungen",
       "troubleshoot": "Fehlerbehebung",
-      "troubleshootingTitle": "Fehlerbehebung"
+      "troubleshootingTitle": "Fehlerbehebung",
+      "systemAudioTitle": "Systemaudio",
+      "systemAudioDescription": "Transkribiert Meetings, Anrufe, Vorträge, Podcasts und andere Systemaudios."
     },
     "privacy": {
       "cloudBackup": "Cloud-Backup",
@@ -1823,7 +1827,9 @@
       "addAnother": "Weiteren Kalender hinzufügen",
       "disconnect": "Trennen",
       "disconnectConfirm": "{{email}} trennen?",
-      "disconnectDescription": "Besprechungsnotizen werden von diesem Kalender nicht mehr aufgezeichnet."
+      "disconnectDescription": "Besprechungsnotizen werden von diesem Kalender nicht mehr aufgezeichnet.",
+      "systemAudioRequired": "Systemaudio-Berechtigung erforderlich",
+      "systemAudioDescription": "Zum Transkribieren von Meetings benötigt customWhispr die Systemaudio-Berechtigung, um den Ton anderer Teilnehmer aufzunehmen. Wir nehmen Ihren Bildschirm nie auf. Sie werden zu den Systemeinstellungen weitergeleitet, um diese zu aktivieren."
     },
     "plan": {
       "title": "Dein Plan",
@@ -1874,7 +1880,8 @@
     "connectCalendar": "Kalender verbinden",
     "connectCalendarDescription": "Verknüpfe deinen Google Kalender, um anstehende Meetings zu sehen und automatisch Notizen aufzuzeichnen.",
     "notABot": "customWhispr nimmt über dein Systemaudio auf — es tritt niemals als Bot deinen Meetings bei.",
-    "connectCalendarButton": "Kalender verbinden"
+    "connectCalendarButton": "Kalender verbinden",
+    "systemAudioRequired": "Die Systemaudio-Berechtigung wird benötigt, um den Ton anderer Teilnehmer aufzunehmen."
   },
   "notesView": {
     "searchPlaceholder": "Notizen durchsuchen…",

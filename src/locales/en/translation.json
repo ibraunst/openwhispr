@@ -160,8 +160,8 @@
       "requiredForApp": "Required for customWhispr to work",
       "microphoneRequired": "Microphone access required",
       "openSystemSettings": "Open System Settings",
-      "screenRecordingTitle": "Screen Recording",
-      "screenRecordingDescription": "Needed to capture meeting audio. You can enable this later in System Settings.",
+      "systemAudioTitle": "System Audio",
+      "systemAudioDescription": "Lets the meeting recorder hear the other side of your calls — meetings, lectures, podcasts. You can turn this on later in Settings.",
       "optional": "Optional"
     },
     "transcription": {
@@ -553,6 +553,9 @@
     "today": "Today",
     "tomorrow": "Tomorrow",
     "recordMeetings": "Record meetings",
+    "join": "Join",
+    "joinTooltip": "Open the meeting and start recording",
+    "joinRecordingFailed": "Couldn't start meeting recording",
     "detection": {
       "title": "Meeting Detection",
       "description": "Automatically detect unscheduled meetings",
@@ -570,7 +573,7 @@
     "now": "Now",
     "join": "Join",
     "untitledEvent": "Untitled Event",
-    "screenRecordingRequired": "Screen Recording permission is needed to capture meeting audio.",
+    "systemAudioRequired": "System Audio permission is needed to capture other participants' audio.",
     "openSettings": "Open System Settings",
     "signInRequired": "Sign in to use meeting recording",
     "signInDescription": "Create an account or sign in to record and transcribe meetings.",
@@ -1330,8 +1333,8 @@
         "title": "Reset Accessibility Permissions"
       },
       "optional": "Optional",
-      "screenRecordingTitle": "Screen Recording",
-      "screenRecordingDescription": "Required to capture meeting audio from other apps",
+      "systemAudioTitle": "System Audio",
+      "systemAudioDescription": "Transcribe meetings, calls, lectures, podcasts, and other system audio.",
       "test": "Test",
       "testAndGrant": "Test & Grant",
       "title": "Permissions",
@@ -1907,8 +1910,8 @@
       "disconnect": "Disconnect",
       "disconnectConfirm": "Disconnect {{email}}?",
       "disconnectDescription": "Meeting notes will no longer be recorded from this calendar.",
-      "screenRecordingRequired": "Screen Recording Permission Required",
-      "screenRecordingDescription": "To transcribe meetings, customWhispr needs the Screen Recording permission to capture audio from other apps. You'll be taken to System Settings to enable it.",
+      "systemAudioRequired": "System Audio Permission Required",
+      "systemAudioDescription": "To transcribe meetings, customWhispr needs the System Audio permission to capture other participants' audio. We never record your screen. You'll be taken to System Settings to enable it.",
       "openSettings": "Open System Settings"
     },
     "plan": {

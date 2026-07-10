@@ -12,6 +12,7 @@ export interface CalendarEvent {
   conference_data: string | null;
   organizer_email: string | null;
   attendees_count: number;
+  attendees?: string | null;
 }
 
 export type TranscriptionStatus = "completed" | "failed" | "pending";
@@ -392,7 +393,8 @@ declare global {
         noteType?: string,
         sourceFile?: string | null,
         audioDuration?: number | null,
-        folderId?: number | null
+        folderId?: number | null,
+        calendarEventId?: string | null
       ) => Promise<{ success: boolean; note?: NoteItem }>;
       getNote: (id: number) => Promise<NoteItem | null>;
       getNoteByCalendarEventId: (calendarEventId: string) => Promise<NoteItem | null>;
@@ -661,6 +663,7 @@ declare global {
       windowClose: () => Promise<void>;
       windowIsMaximized: () => Promise<boolean>;
       restoreFromMeetingMode: () => Promise<void>;
+      snapToMeetingMode?: () => Promise<void>;
       getPlatform: () => string;
       startWindowDrag: () => Promise<void>;
       stopWindowDrag: () => Promise<void>;
@@ -791,6 +794,20 @@ declare global {
       openSoundInputSettings?: () => Promise<{ success: boolean; error?: string }>;
       openAccessibilitySettings?: () => Promise<{ success: boolean; error?: string }>;
       openScreenRecordingSettings?: () => Promise<{ success: boolean; error?: string }>;
+      checkSystemAudioAccess?: () => Promise<{
+        granted: boolean;
+        status: "granted" | "denied" | "unknown" | "unsupported" | "unavailable";
+        supported: boolean;
+      }>;
+      requestSystemAudioAccess?: () => Promise<{
+        granted: boolean;
+        status: "granted" | "denied" | "unknown" | "unsupported";
+        error?: string;
+      }>;
+      meetingTapStart?: () => Promise<{ success: boolean; sampleRate?: number; error?: string }>;
+      meetingTapStop?: () => Promise<{ success: boolean; error?: string }>;
+      onMeetingTapChunk?: (callback: (chunk: Uint8Array | ArrayBuffer) => void) => () => void;
+      onMeetingTapError?: (callback: (message: string) => void) => () => void;
       toggleMediaPlayback?: () => Promise<boolean>;
       pauseMediaPlayback?: () => Promise<boolean>;
       resumeMediaPlayback?: () => Promise<boolean>;
