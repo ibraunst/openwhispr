@@ -123,9 +123,23 @@ Done 2026-07-09 (branch `tier5-electron-coreaudio-tap`, commits `67192f0b`, `870
 - Dev-binary TCC grants (accessibility/calendar) reset when `node_modules/electron/dist` was replaced — re-grant per CLAUDE.md §macOS Accessibility on next `npm run dev` that needs them. Packaged app unaffected.
 - **Verify on next real meeting (user)**: consent dialog appears once (customWhispr-attributed, our plist text) → no purple indicator during recording → split recorders + live transcript + diarization + playback all normal → "Native system audio tap stream started" in debug log → Echo gate summary still sane. If the tap misbehaves, revoking System Audio permission forces loopback fallback (old behavior).
 
+## Tier 6 — Dual diarization engines: pyannote ⇄ sherpa-onnx A/B switch (OWN BRANCH, GATED ON TIER 5 MERGE)
+
+Approved 2026-07-10. Full plan: `~/.claude/plans/ok-seems-reasonable-how-joyful-spindle.md`. Promotes the former "escape hatch" item below into an active tier: port upstream's ONNX diarization pipeline (Silero VAD + pyannote-segmentation-3.0 ONNX + CAM++ embeddings + agglomerative clustering, ~45MB, no Python/torch/HF token) and run it side-by-side with the existing pyannote/Python engine behind a UI switch, then keep the winner and delete the loser.
+
+| Status | Step |
+|--------|------|
+| [ ] | **Phase 0 (user gate, not code)**: multi-party meeting validates Tier 5 tap → merge `tier5-electron-coreaudio-tap` to main. Tier 6 branches from post-merge main — never from the unmerged tier5 branch (couples rollback stories; Electron 36/41 native ABI differs). |
+| [ ] | Phase 1: engine port, env-flag gated (`CUSTOMWHISPR_DIARIZATION=sherpa`), no UI. New `src/helpers/sherpaDiarization.js` on the sherpa-onnx runtime already bundled for Parakeet, consuming the same split WAVs. Bulk of work = JS reimplementation of what `speaker_engine.py` does beyond diarization: `merge_transcript` rules, mic-channel is-me via CAM++, read-only-bank re-runs. Separate VoiceBank (CAM++ ≠ pyannote embedding space, no migration) + separate threshold settings. Model download w/ checksums (mirror `download-whisper-vad-model.js`). Same 15-min timeout/kill discipline. |
+| [ ] | Phase 2: `diarizationEngine` setting + Integrations UI ("Speaker identification" panel; HF token field pyannote-only); "Re-run speaker ID" honors engine (primary A/B lever); per-engine cached outputs (`transcript.pyannote.json` / `transcript.sherpa.json`, `transcript.json` canonical) so flipping is instant + non-destructive. |
+| [ ] | Phase 3: evaluate on ≥2 real multi-party TAP-captured meetings (calibrate sherpa thresholds on tap audio only — pre-tap archives valid for contract tests, not tuning). Track crosstalk accuracy, is-me hit rate, runtime. |
+| [ ] | Phase 4: pick default, delete the losing engine (no permanent dual-engine maintenance). Sherpa wins → Python subsystem + pythonResolver + HF token UI deletable. |
+
+Port rule (same as Tier 5): upstream spools tap PCM → diarization in the main process — port their **engine**, never their meeting handlers; our input stays the saved split WAVs. Contract is frozen: both engines emit identical `transcript.json` (`segments` + `speakers[{label,voiceprint_id,is_new,is_me}]`); downstream (karaoke, VoiceBank, renames, export) never learns which engine ran.
+
 ## Deferred / rejected (decided 2026-07-09)
 
-- **sherpa-onnx diarization** (replaces Python/torch/HF token): escape hatch only — current pyannote pipeline works and has fork-only tooling (VoiceBank, sliders, re-run). Existing voiceprints would NOT transfer (different embedding model).
+- **sherpa-onnx diarization**: ~~escape hatch only~~ — **promoted to Tier 6 (2026-07-10)**, see above.
 - **Keychain-encrypted API keys** (1.7.0/1.7.1): real improvement, not urgent on a single personal machine.
 - **Skip entirely:** cloud sync overhaul, Better Auth/SSO, new providers (Tinfoil/Corti/xAI/Azure), referral/MCP/billing, Windows/Linux fixes, TipTap migration, Qdrant semantic search, onboarding redesigns, Snippets (revisit on request), README/docs.
 - **Auto-updater stays hard-disabled** — upstream feed + new bundle ID would replace this fork.
