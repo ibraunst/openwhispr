@@ -17,6 +17,7 @@
     "node_modules/**/*",
     "src/dist/**/*",
     "src/helpers/**/*",
+    "src/workers/**/*",
     "src/config/**/*",
     "src/locales/**/*",
     "src/hooks/**/*",
@@ -85,7 +86,8 @@
   "asarUnpack": [
     "**/node_modules/ffmpeg-static/**/*",
     "**/node_modules/better-sqlite3/**/*",
-    "**/node_modules/onnxruntime-node/**/*"
+    "**/node_modules/onnxruntime-node/**/*",
+    "src/workers/**/*"
   ],
   "extraResources": [
     ".env",
