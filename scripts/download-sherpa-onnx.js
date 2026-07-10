@@ -20,24 +20,32 @@ const BINARIES = {
     archiveName: `sherpa-onnx-v${SHERPA_ONNX_VERSION}-osx-universal2-shared.tar.bz2`,
     binaryPath: "sherpa-onnx-offline-websocket-server",
     outputName: "sherpa-onnx-ws-darwin-arm64",
+    diarizeBinaryPath: "sherpa-onnx-offline-speaker-diarization",
+    diarizeOutputName: "sherpa-onnx-diarize-darwin-arm64",
     libPattern: "*.dylib",
   },
   "darwin-x64": {
     archiveName: `sherpa-onnx-v${SHERPA_ONNX_VERSION}-osx-universal2-shared.tar.bz2`,
     binaryPath: "sherpa-onnx-offline-websocket-server",
     outputName: "sherpa-onnx-ws-darwin-x64",
+    diarizeBinaryPath: "sherpa-onnx-offline-speaker-diarization",
+    diarizeOutputName: "sherpa-onnx-diarize-darwin-x64",
     libPattern: "*.dylib",
   },
   "win32-x64": {
     archiveName: `sherpa-onnx-v${SHERPA_ONNX_VERSION}-win-x64-shared.tar.bz2`,
     binaryPath: "sherpa-onnx-offline-websocket-server.exe",
     outputName: "sherpa-onnx-ws-win32-x64.exe",
+    diarizeBinaryPath: "sherpa-onnx-offline-speaker-diarization.exe",
+    diarizeOutputName: "sherpa-onnx-diarize-win32-x64.exe",
     libPattern: "*.dll",
   },
   "linux-x64": {
     archiveName: `sherpa-onnx-v${SHERPA_ONNX_VERSION}-linux-x64-shared.tar.bz2`,
     binaryPath: "sherpa-onnx-offline-websocket-server",
     outputName: "sherpa-onnx-ws-linux-x64",
+    diarizeBinaryPath: "sherpa-onnx-offline-speaker-diarization",
+    diarizeOutputName: "sherpa-onnx-diarize-linux-x64",
     libPattern: "*.so*",
   },
 };
@@ -100,8 +108,9 @@ async function downloadBinary(platformArch, config, isForce = false) {
   }
 
   const outputPath = path.join(BIN_DIR, config.outputName);
+  const diarizeOutputPath = path.join(BIN_DIR, config.diarizeOutputName);
 
-  if (fs.existsSync(outputPath) && !isForce) {
+  if (fs.existsSync(outputPath) && fs.existsSync(diarizeOutputPath) && !isForce) {
     console.log(`  ${platformArch}: Already exists (use --force to re-download)`);
     return true;
   }
@@ -126,6 +135,21 @@ async function downloadBinary(platformArch, config, isForce = false) {
       fs.copyFileSync(binaryPath, outputPath);
       setExecutable(outputPath);
       console.log(`  ${platformArch}: Extracted to ${config.outputName}`);
+
+      // Extract the speaker-diarization CLI from the same archive (Tier 6
+      // sherpa diarization engine spawns it on the meeting WAV)
+      const diarizeBinaryName = path.basename(config.diarizeBinaryPath);
+      const diarizeBinaryInArchive = findBinaryInDir(extractDir, diarizeBinaryName);
+      if (diarizeBinaryInArchive && fs.existsSync(diarizeBinaryInArchive)) {
+        fs.copyFileSync(diarizeBinaryInArchive, diarizeOutputPath);
+        setExecutable(diarizeOutputPath);
+        console.log(`  ${platformArch}: Extracted to ${config.diarizeOutputName}`);
+      } else {
+        console.error(
+          `  ${platformArch}: Diarization binary '${diarizeBinaryName}' not found in archive`
+        );
+        return false;
+      }
 
       // Copy shared libraries
       if (config.libPattern) {
@@ -217,7 +241,10 @@ async function main() {
     }
 
     if (args.shouldCleanup) {
-      cleanupFiles(BIN_DIR, "sherpa-onnx", `sherpa-onnx-ws-${args.platformArch}`);
+      cleanupFiles(BIN_DIR, "sherpa-onnx", [
+        `sherpa-onnx-ws-${args.platformArch}`,
+        `sherpa-onnx-diarize-${args.platformArch}`,
+      ]);
     }
   } else {
     console.log("Downloading binaries for all platforms:");

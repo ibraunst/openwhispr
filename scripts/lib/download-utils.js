@@ -311,9 +311,10 @@ function setExecutable(filePath) {
 }
 
 function cleanupFiles(binDir, prefix, keepPrefix) {
+  const keepPrefixes = Array.isArray(keepPrefix) ? keepPrefix : [keepPrefix];
   const files = fs.readdirSync(binDir).filter((f) => f.startsWith(prefix));
   files.forEach((file) => {
-    if (!file.startsWith(keepPrefix)) {
+    if (!keepPrefixes.some((keep) => file.startsWith(keep))) {
       const filePath = path.join(binDir, file);
       console.log(`Removing old binary: ${file}`);
       fs.unlinkSync(filePath);

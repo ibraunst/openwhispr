@@ -7,6 +7,7 @@ const EXPECTED_BINARY_FRAGMENTS = {
   whisper: "whisper-server",
   llama: "llama-server",
   audiotap: "macos-audio-tap",
+  diarize: "sherpa-onnx-diarize",
 };
 
 function isProcessAlive(pid) {
