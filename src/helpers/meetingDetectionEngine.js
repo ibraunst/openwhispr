@@ -4,7 +4,7 @@ const debugLogger = require("./debugLogger");
 const IMMINENT_THRESHOLD_MS = 5 * 60 * 1000;
 // Grace period between a meeting-end signal and the actual auto-stop, giving
 // the user time to hit "Keep Recording" (renderer shows a countdown toast).
-const AUTO_STOP_GRACE_MS = 10 * 1000;
+const AUTO_STOP_GRACE_MS = 5 * 1000;
 
 function extractMeetingUrl(event) {
   if (event?.hangout_link) return event.hangout_link;

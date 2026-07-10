@@ -109,7 +109,7 @@ export default function MeetingNotificationOverlay() {
             <div
               className="h-full bg-primary/30 rounded-full"
               style={{
-                animation: "shrinkWidth 5s linear forwards",
+                animation: "shrinkWidth 15s linear forwards",
               }}
             />
           </div>
