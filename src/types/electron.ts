@@ -12,6 +12,7 @@ export interface CalendarEvent {
   conference_data: string | null;
   organizer_email: string | null;
   attendees_count: number;
+  attendees?: string | null;
 }
 
 export type TranscriptionStatus = "completed" | "failed" | "pending";
@@ -392,7 +393,8 @@ declare global {
         noteType?: string,
         sourceFile?: string | null,
         audioDuration?: number | null,
-        folderId?: number | null
+        folderId?: number | null,
+        calendarEventId?: string | null
       ) => Promise<{ success: boolean; note?: NoteItem }>;
       getNote: (id: number) => Promise<NoteItem | null>;
       getNoteByCalendarEventId: (calendarEventId: string) => Promise<NoteItem | null>;
@@ -661,6 +663,7 @@ declare global {
       windowClose: () => Promise<void>;
       windowIsMaximized: () => Promise<boolean>;
       restoreFromMeetingMode: () => Promise<void>;
+      snapToMeetingMode?: () => Promise<void>;
       getPlatform: () => string;
       startWindowDrag: () => Promise<void>;
       stopWindowDrag: () => Promise<void>;

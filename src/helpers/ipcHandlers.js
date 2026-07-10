@@ -357,6 +357,10 @@ class IPCHandlers {
       this.windowManager.restoreControlPanelFromMeetingMode();
     });
 
+    ipcMain.handle("snap-to-meeting-mode", () => {
+      this.windowManager.snapControlPanelToMeetingMode();
+    });
+
     ipcMain.handle("app-quit", () => {
       app.quit();
     });
@@ -725,14 +729,14 @@ class IPCHandlers {
 
     ipcMain.handle(
       "db-save-note",
-      async (event, title, content, noteType, sourceFile, audioDuration, folderId) => {
+      async (event, title, content, noteType, sourceFile, audioDuration, folderId, explicitCalendarEventId) => {
         let finalTitle = title;
-        let calendarEventId = null;
+        let calendarEventId = explicitCalendarEventId || null;
         if (!finalTitle || finalTitle.trim().toLowerCase() === "new note") {
           const activeEvents = this.databaseManager.getActiveEvents();
           if (activeEvents && activeEvents.length > 0) {
             finalTitle = activeEvents[0].summary || finalTitle;
-            if (noteType === "meeting") {
+            if (noteType === "meeting" && !calendarEventId) {
               calendarEventId = activeEvents[0].id;
             }
           }

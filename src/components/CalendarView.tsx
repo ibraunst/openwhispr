@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, RefreshCw, Loader2, Lock, Mic } from "lucide-react";
+import { CalendarDays, RefreshCw, Loader2, Lock, Mic, Video } from "lucide-react";
 import { Toggle } from "./ui/toggle";
 import { cn } from "./lib/utils";
 import type { CalendarEvent } from "../types/electron";
+import { getMeetingJoinUrl } from "../utils/meetingJoinUrl";
 
 interface GroupedEvents {
   label: string;
@@ -104,9 +105,10 @@ function groupEventsByDate(events: CalendarEvent[]): GroupedEvents[] {
 interface CalendarViewProps {
   onOpenNote?: (noteId: number) => void;
   onStartMeetingRecording?: () => void;
+  onJoinMeeting?: (event: CalendarEvent) => void;
 }
 
-export default function CalendarView({ onOpenNote, onStartMeetingRecording }: CalendarViewProps) {
+export default function CalendarView({ onOpenNote, onStartMeetingRecording, onJoinMeeting }: CalendarViewProps) {
   const { t } = useTranslation();
   const [upcoming, setUpcoming] = useState<CalendarEvent[]>([]);
   const [active, setActive] = useState<CalendarEvent[]>([]);
@@ -271,13 +273,14 @@ export default function CalendarView({ onOpenNote, onStartMeetingRecording }: Ca
                         <div className="mt-1 w-1.5 h-1.5 rounded-full bg-red-500" />
                       )}
                     </div>
-                    {/* Events column */}
-                    <div className="flex-1 py-2 pr-3 space-y-1">
+                    {/* Events column — min-w-0 so long titles truncate instead of
+                        widening the column past the card (Join button takes space) */}
+                    <div className="flex-1 min-w-0 py-2 pr-3 space-y-1">
                       {group.events.length === 0 ? (
                         <div className="py-2 text-xs text-muted-foreground/60">No more events today</div>
                       ) : (
                         group.events.map((event) => (
-                          <EventRow key={event.id} event={event} />
+                          <EventRow key={event.id} event={event} onJoinMeeting={onJoinMeeting} />
                         ))
                       )}
                     </div>
@@ -311,12 +314,20 @@ export default function CalendarView({ onOpenNote, onStartMeetingRecording }: Ca
   );
 }
 
-function EventRow({ event }: { event: CalendarEvent }) {
+function EventRow({
+  event,
+  onJoinMeeting,
+}: {
+  event: CalendarEvent;
+  onJoinMeeting?: (event: CalendarEvent) => void;
+}) {
+  const { t } = useTranslation();
   const now = new Date();
   const start = new Date(event.start_time);
   const end = new Date(event.end_time);
   const isActive = now >= start && now < end;
   const { isPrivate } = parseConferenceData(event);
+  const canJoin = Boolean(onJoinMeeting && getMeetingJoinUrl(event));
 
   return (
     <div
@@ -340,12 +351,25 @@ function EventRow({ event }: { event: CalendarEvent }) {
           </div>
           {isPrivate && <Lock size={12} className="shrink-0 text-muted-foreground/60" />}
         </div>
-        
+
         <div className="text-[11px] text-muted-foreground mt-[1px]">
           {formatTime(event.start_time)} – {formatTime(event.end_time)}
         </div>
-        
+
       </div>
+      {canJoin && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onJoinMeeting?.(event);
+          }}
+          title={t("calendar.joinTooltip")}
+          className="shrink-0 self-center flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-500 hover:bg-blue-400 text-white text-[11px] font-medium opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+        >
+          <Video size={11} />
+          {t("calendar.join")}
+        </button>
+      )}
     </div>
   );
 }

@@ -80,7 +80,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   undoLearnedCorrections: (words) => ipcRenderer.invoke("undo-learned-corrections", words),
 
   // Note functions
-  saveNote: (title, content, noteType, sourceFile, audioDuration, folderId) =>
+  saveNote: (title, content, noteType, sourceFile, audioDuration, folderId, calendarEventId) =>
     ipcRenderer.invoke(
       "db-save-note",
       title,
@@ -88,7 +88,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
       noteType,
       sourceFile,
       audioDuration,
-      folderId
+      folderId,
+      calendarEventId
     ),
   getNote: (id) => ipcRenderer.invoke("db-get-note", id),
   getNoteByCalendarEventId: (calendarEventId) => ipcRenderer.invoke("db-get-note-by-calendar-event", calendarEventId),
@@ -246,6 +247,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   windowClose: () => ipcRenderer.invoke("window-close"),
   windowIsMaximized: () => ipcRenderer.invoke("window-is-maximized"),
   restoreFromMeetingMode: () => ipcRenderer.invoke("restore-from-meeting-mode"),
+  snapToMeetingMode: () => ipcRenderer.invoke("snap-to-meeting-mode"),
   getPlatform: () => process.platform,
   appQuit: () => ipcRenderer.invoke("app-quit"),
 

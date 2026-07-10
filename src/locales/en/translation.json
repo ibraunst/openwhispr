@@ -553,6 +553,9 @@
     "today": "Today",
     "tomorrow": "Tomorrow",
     "recordMeetings": "Record meetings",
+    "join": "Join",
+    "joinTooltip": "Open the meeting and start recording",
+    "joinRecordingFailed": "Couldn't start meeting recording",
     "detection": {
       "title": "Meeting Detection",
       "description": "Automatically detect unscheduled meetings",

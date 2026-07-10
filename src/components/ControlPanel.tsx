@@ -24,6 +24,8 @@ import WindowControls from "./WindowControls";
 import { getCachedPlatform } from "../utils/platform";
 import { cn } from "./lib/utils";
 import { setActiveNoteId, setActiveFolderId } from "../stores/noteStore";
+import { getMeetingJoinUrl } from "../utils/meetingJoinUrl";
+import type { CalendarEvent } from "../types/electron";
 
 const platform = getCachedPlatform();
 
@@ -262,6 +264,67 @@ export default function ControlPanel() {
       // ignore — user can navigate manually
     }
   }, []);
+
+  // Join button on an upcoming event: open the meeting link, then run the same
+  // note + recording flow the meeting-detection notification uses.
+  const handleJoinMeeting = useCallback(
+    async (event: CalendarEvent) => {
+      const joinUrl = getMeetingJoinUrl(event);
+      if (joinUrl) {
+        window.electronAPI?.openExternal?.(joinUrl);
+      }
+      try {
+        const foldersResult = await window.electronAPI?.getFolders?.();
+        const meetingsFolder =
+          foldersResult?.find?.((f: any) => f.name === "Meetings" && f.is_default) ??
+          foldersResult?.find?.((f: any) => f.name === "Meetings") ??
+          foldersResult?.[0];
+        if (!meetingsFolder?.id) throw new Error("Meetings folder not found");
+
+        // Rejoining a meeting that already has a note (interrupted recording,
+        // re-join after leaving) resumes that note; its current transcript rides
+        // along so the new session appends instead of overwriting.
+        let noteId: number | null = null;
+        let existingTranscript: string | null = null;
+        const existing = await window.electronAPI?.getNoteByCalendarEventId?.(event.id);
+        if (existing?.id) {
+          noteId = existing.id;
+          existingTranscript = existing.transcript || null;
+        } else {
+          const noteResult = await window.electronAPI?.saveNote?.(
+            event.summary || "Meeting",
+            "",
+            "meeting",
+            null,
+            null,
+            meetingsFolder.id,
+            event.id
+          );
+          noteId = noteResult?.note?.id ?? null;
+        }
+        if (!noteId) throw new Error("Could not create meeting note");
+
+        window.electronAPI?.snapToMeetingMode?.();
+        setActiveFolderId(meetingsFolder.id);
+        setActiveNoteId(noteId);
+        setActiveView("personal-notes");
+        setIsMeetingMode(true);
+        setMeetingRecordingRequest({
+          noteId,
+          folderId: meetingsFolder.id,
+          event,
+          existingTranscript,
+        });
+      } catch (error) {
+        console.error("Join meeting failed:", error);
+        toast({
+          title: t("calendar.joinRecordingFailed"),
+          variant: "destructive",
+        });
+      }
+    },
+    [toast, t]
+  );
 
   const loadTranscriptions = async () => {
     try {
@@ -652,6 +715,7 @@ export default function ControlPanel() {
                     setActiveView("personal-notes");
                   }}
                   onStartMeetingRecording={handleStartMeetingRecording}
+                  onJoinMeeting={handleJoinMeeting}
                 />
               </Suspense>
             )}

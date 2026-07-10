@@ -7,26 +7,12 @@ import type { CalendarEvent } from "../types/calendar";
 import { formatUpcomingDateGroup } from "../utils/dateFormatting";
 import { useSystemAudioPermission } from "../hooks/useSystemAudioPermission";
 import { useSettingsStore } from "../stores/settingsStore";
+import { getMeetingJoinUrl } from "../utils/meetingJoinUrl";
 
 interface UpcomingMeetingsProps {
   events: CalendarEvent[];
   isLoading: boolean;
 }
-
-const getJoinUrl = (event: CalendarEvent): string | null => {
-  if (event.hangout_link) return event.hangout_link;
-  if (!event.conference_data) return null;
-  try {
-    const data = JSON.parse(event.conference_data);
-    return (
-      data?.entryPoints?.find(
-        (ep: { entryPointType: string; uri?: string }) => ep.entryPointType === "video"
-      )?.uri || null
-    );
-  } catch {
-    return null;
-  }
-};
 
 const openJoinUrl = (url: string) => {
   if (window.electronAPI?.openExternal) {
@@ -158,7 +144,7 @@ export default function UpcomingMeetings({ events, isLoading }: UpcomingMeetings
               </div>
               <div className="space-y-1.5">
                 {group.items.map((event) => {
-                  const joinUrl = getJoinUrl(event);
+                  const joinUrl = getMeetingJoinUrl(event);
                   const isNow = isHappeningNow(event);
                   const isHovered = hoveredEventId === event.id;
 
