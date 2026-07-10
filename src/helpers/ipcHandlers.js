@@ -2841,10 +2841,23 @@ class IPCHandlers {
       }
     });
 
-    // Run speaker diarization engine (Python subprocess)
-    ipcMain.handle("meeting-run-diarization", async (_event, { meetingId, hfToken: providedToken, numSpeakers, maxSpeakers, meThreshold, matchThreshold, readOnlyBank }) => {
+    // Run speaker diarization. Two engines behind one contract (Tier 6 A/B):
+    //  - "pyannote": Python subprocess (pyannote.audio, needs HF token)
+    //  - "sherpa":   sherpa-onnx worker (ONNX models, no Python/token)
+    // Both rewrite transcript.json in place (segments[].speaker + speakers[])
+    // and the result is read from the file, never from stdout. The
+    // CUSTOMWHISPR_DIARIZATION env var overrides the requested engine.
+    ipcMain.handle("meeting-run-diarization", async (_event, { meetingId, hfToken: providedToken, numSpeakers, maxSpeakers, meThreshold, matchThreshold, readOnlyBank, engine: requestedEngine, sherpaMeThreshold, sherpaMatchThreshold, sherpaClusterThreshold }) => {
+      const envEngine = (process.env.CUSTOMWHISPR_DIARIZATION || "").toLowerCase();
+      const engine =
+        envEngine === "sherpa" || envEngine === "pyannote"
+          ? envEngine
+          : requestedEngine === "sherpa"
+            ? "sherpa"
+            : "pyannote";
+
       const hfToken = providedToken || process.env.HF_TOKEN || "";
-      if (!hfToken) {
+      if (engine === "pyannote" && !hfToken) {
         return { success: false, error: "HuggingFace token required. Set it in Settings → API Keys." };
       }
       try {
@@ -2859,28 +2872,8 @@ class IPCHandlers {
           }
         }
 
-        const speakerEnginePath = app.isPackaged
-          ? path.join(process.resourcesPath, "python", "speaker_engine.py")
-          : path.join(__dirname, "..", "..", "python", "speaker_engine.py");
-        if (!fs.existsSync(speakerEnginePath)) {
-          return { success: false, error: `speaker_engine.py not found at ${speakerEnginePath}` };
-        }
-
-        const voiceDbPath = path.join(app.getPath("userData"), "voicebank.db");
-
-        // Packaged GUI apps get a minimal PATH — resolve an interpreter that
-        // actually has torch/pyannote installed instead of trusting "python3".
-        const { resolveDiarizationPython } = require("./pythonResolver");
-        const pythonBin = await resolveDiarizationPython();
-        if (!pythonBin) {
-          return {
-            success: false,
-            error:
-              "No Python 3 with the diarization dependencies (torch, pyannote.audio) was found. Install them with: pip3 install -r requirements.txt",
-          };
-        }
-
-        // Convert WebM/Opus files to WAV — torchaudio can't read WebM without duration headers
+        // Convert WebM/Opus files to WAV — torchaudio can't read WebM without
+        // duration headers, and the sherpa CLI expects 16kHz mono PCM.
         const { convertToWav, sampleWavRMS } = require("./ffmpegUtils");
         const systemWavPath = path.join(meetingDir, "system_record.wav");
         const micWavPath = path.join(meetingDir, "mic_record.wav");
@@ -2903,56 +2896,125 @@ class IPCHandlers {
           debugLogger.warn("System-audio silence check failed, keeping system audio", { error: rmsError.message }, "meeting");
         }
 
-        const args = [
-          speakerEnginePath,
-          "--system-audio", primaryAudioPath,
-          "--mic-audio", micWavPath,
-          "--transcript", transcriptPath,
-          "--hf-token", hfToken,
-          "--voice-db", voiceDbPath,
-        ];
-        if (numSpeakers) args.push("--num-speakers", String(numSpeakers));
-        // Cap (not exact count) — calendar attendee lists are an upper bound:
-        // a no-show attendee must never force-split a real speaker in two.
-        if (Number.isInteger(maxSpeakers) && maxSpeakers >= 2) {
-          args.push("--max-speakers", String(maxSpeakers));
-        }
-        // Similarity thresholds ride in from the renderer's tuning sliders;
-        // clamp to a sane band so a corrupt stored value can't break matching.
-        const clamp01 = (v) => Math.min(0.99, Math.max(0.5, v));
-        if (Number.isFinite(meThreshold)) args.push("--similarity", String(clamp01(meThreshold)));
-        if (Number.isFinite(matchThreshold)) args.push("--voicebank-threshold", String(clamp01(matchThreshold)));
-        // Re-runs must never mutate the voicebank (embedding drift, duplicate
-        // guest voiceprints, inflated meeting counts on every tuning pass).
-        if (readOnlyBank) args.push("--read-only-bank");
+        if (engine === "sherpa") {
+          const sherpaDiarization = require("./sherpaDiarization");
+          if (!sherpaDiarization.isAvailable()) {
+            return {
+              success: false,
+              error: `Sherpa diarization unavailable: ${sherpaDiarization.unavailableReason()}`,
+            };
+          }
+          // CAM++ cosine similarities sit far lower than pyannote's — the
+          // sherpa thresholds get their own clamp band and never inherit the
+          // pyannote sliders.
+          const clampSherpa = (v) => Math.min(0.99, Math.max(0.2, v));
+          await sherpaDiarization.run({
+            systemAudioPath: primaryAudioPath,
+            micAudioPath: micWavPath,
+            transcriptPath,
+            voiceDbPath: path.join(app.getPath("userData"), "voicebank-sherpa.db"),
+            numSpeakers,
+            // Cap (not exact count) — calendar attendee lists are an upper
+            // bound: a no-show must never force-split a real speaker in two.
+            maxSpeakers:
+              Number.isInteger(maxSpeakers) && maxSpeakers >= 2 ? maxSpeakers : undefined,
+            meThreshold: Number.isFinite(sherpaMeThreshold)
+              ? clampSherpa(sherpaMeThreshold)
+              : undefined,
+            matchThreshold: Number.isFinite(sherpaMatchThreshold)
+              ? clampSherpa(sherpaMatchThreshold)
+              : undefined,
+            clusterThreshold: Number.isFinite(sherpaClusterThreshold)
+              ? clampSherpa(sherpaClusterThreshold)
+              : undefined,
+            // Re-runs must never mutate the voicebank (embedding drift,
+            // duplicate guest voiceprints, inflated meeting counts).
+            readOnlyBank: Boolean(readOnlyBank),
+            primaryIsMic: primaryAudioPath === micWavPath,
+          });
+        } else {
+          const speakerEnginePath = app.isPackaged
+            ? path.join(process.resourcesPath, "python", "speaker_engine.py")
+            : path.join(__dirname, "..", "..", "python", "speaker_engine.py");
+          if (!fs.existsSync(speakerEnginePath)) {
+            return { success: false, error: `speaker_engine.py not found at ${speakerEnginePath}` };
+          }
 
-        // The engine writes the labeled transcript (with the speakers array) to
-        // transcript.json — read the result from the file rather than parsing
-        // stdout, which any stray library print would corrupt. The timeout
-        // covers first-run model downloads; without it a hung python process
-        // would leave the renderer stuck in "diarizing" forever.
-        const { execFile } = require("child_process");
-        await new Promise((resolve, reject) => {
-          execFile(
-            pythonBin,
-            args,
-            { maxBuffer: 4 * 1024 * 1024, timeout: 15 * 60 * 1000, killSignal: "SIGKILL" },
-            (error, stdout, stderr) => {
-              if (error) {
-                debugLogger.error("Speaker diarization failed", { error: error.message, stderr: (stderr || "").slice(-4000) }, "meeting");
-                const stderrTail = (stderr || "").trim().split("\n").slice(-6).join("\n");
-                reject(new Error(stderrTail || error.message));
-              } else {
-                resolve();
+          const voiceDbPath = path.join(app.getPath("userData"), "voicebank.db");
+
+          // Packaged GUI apps get a minimal PATH — resolve an interpreter that
+          // actually has torch/pyannote installed instead of trusting "python3".
+          const { resolveDiarizationPython } = require("./pythonResolver");
+          const pythonBin = await resolveDiarizationPython();
+          if (!pythonBin) {
+            return {
+              success: false,
+              error:
+                "No Python 3 with the diarization dependencies (torch, pyannote.audio) was found. Install them with: pip3 install -r requirements.txt",
+            };
+          }
+
+          const args = [
+            speakerEnginePath,
+            "--system-audio", primaryAudioPath,
+            "--mic-audio", micWavPath,
+            "--transcript", transcriptPath,
+            "--hf-token", hfToken,
+            "--voice-db", voiceDbPath,
+          ];
+          if (numSpeakers) args.push("--num-speakers", String(numSpeakers));
+          // Cap (not exact count) — calendar attendee lists are an upper bound:
+          // a no-show attendee must never force-split a real speaker in two.
+          if (Number.isInteger(maxSpeakers) && maxSpeakers >= 2) {
+            args.push("--max-speakers", String(maxSpeakers));
+          }
+          // Similarity thresholds ride in from the renderer's tuning sliders;
+          // clamp to a sane band so a corrupt stored value can't break matching.
+          const clamp01 = (v) => Math.min(0.99, Math.max(0.5, v));
+          if (Number.isFinite(meThreshold)) args.push("--similarity", String(clamp01(meThreshold)));
+          if (Number.isFinite(matchThreshold)) args.push("--voicebank-threshold", String(clamp01(matchThreshold)));
+          // Re-runs must never mutate the voicebank (embedding drift, duplicate
+          // guest voiceprints, inflated meeting counts on every tuning pass).
+          if (readOnlyBank) args.push("--read-only-bank");
+
+          // The engine writes the labeled transcript (with the speakers array) to
+          // transcript.json — read the result from the file rather than parsing
+          // stdout, which any stray library print would corrupt. The timeout
+          // covers first-run model downloads; without it a hung python process
+          // would leave the renderer stuck in "diarizing" forever.
+          const { execFile } = require("child_process");
+          await new Promise((resolve, reject) => {
+            execFile(
+              pythonBin,
+              args,
+              { maxBuffer: 4 * 1024 * 1024, timeout: 15 * 60 * 1000, killSignal: "SIGKILL" },
+              (error, stdout, stderr) => {
+                if (error) {
+                  debugLogger.error("Speaker diarization failed", { error: error.message, stderr: (stderr || "").slice(-4000) }, "meeting");
+                  const stderrTail = (stderr || "").trim().split("\n").slice(-6).join("\n");
+                  reject(new Error(stderrTail || error.message));
+                } else {
+                  resolve();
+                }
               }
-            }
-          );
-        });
+            );
+          });
+        }
 
         const result = JSON.parse(fs.readFileSync(transcriptPath, "utf8"));
 
-        debugLogger.info("Speaker diarization complete", { meetingId, segmentCount: result?.segments?.length, firstSpeaker: result?.segments?.[0]?.speaker }, "meeting");
-        return { success: true, transcript: result };
+        // Cache the labeled output per engine (transcript.pyannote.json /
+        // transcript.sherpa.json) so flipping engines on a note is instant and
+        // never destroys the other engine's result. transcript.json stays
+        // canonical (renames keep applying to it as before).
+        try {
+          fs.copyFileSync(transcriptPath, path.join(meetingDir, `transcript.${engine}.json`));
+        } catch (cacheError) {
+          debugLogger.warn("Failed to write per-engine transcript cache", { engine, error: cacheError.message }, "meeting");
+        }
+
+        debugLogger.info("Speaker diarization complete", { meetingId, engine, segmentCount: result?.segments?.length, firstSpeaker: result?.segments?.[0]?.speaker }, "meeting");
+        return { success: true, transcript: result, engine };
       } catch (error) {
         debugLogger.error("Speaker diarization error", { error: error.message }, "meeting");
         return { success: false, error: error.message };
