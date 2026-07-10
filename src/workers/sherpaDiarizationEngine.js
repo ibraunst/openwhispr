@@ -45,6 +45,13 @@ const MAX_EMBEDDING_SECONDS = 8; // CAM++ input cap (upstream-proven envelope)
 // frontend): same-person cluster pairs land 0.55-0.89, different-person
 // major pairs stay ≤0.17.
 const CONSOLIDATE_SIMILARITY = 0.55;
+// Two clusters that BOTH carry substantial speech are almost never the same
+// person at borderline similarity — fragments are what consolidation exists
+// for. Without this guard, agglomerative chaining (each merge drifts the
+// centroid toward the next candidate) collapsed a 58-min meeting's two
+// dominant speakers into one cluster via a 0.55-0.62 merge chain.
+const MAJOR_CLUSTER_SECONDS = 60;
+const MAJOR_MERGE_SIMILARITY = 0.75;
 // Clusters with less than this much embedded speech produce junk centroids
 // (a 2s cluster sat at 0.66 cosine to a different speaker in calibration) —
 // they are force-merged into their most similar cluster instead of being
@@ -555,8 +562,13 @@ function consolidateClusters(clusterEmbeddings, clusterWeights, maxSpeakers) {
     const labels = canonical();
     if (labels.length < 2) break;
 
+    // Best pair overall (cap enforcement fallback) and best QUALIFYING pair —
+    // a pair of major clusters (both ≥60s) qualifies only at high similarity,
+    // anything involving a fragment qualifies at the base threshold.
     let bestPair = null;
     let bestSim = -1;
+    let bestAllowedPair = null;
+    let bestAllowedSim = -1;
     for (let i = 0; i < labels.length; i++) {
       for (let j = i + 1; j < labels.length; j++) {
         const sim = cosineSimilarity(
@@ -567,6 +579,14 @@ function consolidateClusters(clusterEmbeddings, clusterWeights, maxSpeakers) {
           bestSim = sim;
           bestPair = [labels[i], labels[j]];
         }
+        const bothMajor =
+          (clusterWeights.get(labels[i]) || 0) >= MAJOR_CLUSTER_SECONDS &&
+          (clusterWeights.get(labels[j]) || 0) >= MAJOR_CLUSTER_SECONDS;
+        const required = bothMajor ? MAJOR_MERGE_SIMILARITY : CONSOLIDATE_SIMILARITY;
+        if (sim >= required && sim > bestAllowedSim) {
+          bestAllowedSim = sim;
+          bestAllowedPair = [labels[i], labels[j]];
+        }
       }
     }
 
@@ -576,8 +596,14 @@ function consolidateClusters(clusterEmbeddings, clusterWeights, maxSpeakers) {
     const runt = labels
       .filter((l) => (clusterWeights.get(l) || 0) < MIN_CLUSTER_SECONDS)
       .sort((a, b) => (clusterWeights.get(a) || 0) - (clusterWeights.get(b) || 0))[0];
-    if (bestSim < CONSOLIDATE_SIMILARITY && !overCap) {
-      if (!runt) break;
+
+    if (bestAllowedPair) {
+      bestPair = bestAllowedPair;
+      bestSim = bestAllowedSim;
+    } else if (overCap) {
+      // Cap must hold — merge the globally most similar pair even if it
+      // wouldn't otherwise qualify (calendar attendee count is trusted).
+    } else if (runt) {
       let bestTarget = null;
       let bestTargetSim = -Infinity;
       for (const l of labels) {
@@ -590,6 +616,8 @@ function consolidateClusters(clusterEmbeddings, clusterWeights, maxSpeakers) {
       }
       bestPair = [bestTarget, runt];
       bestSim = bestTargetSim;
+    } else {
+      break;
     }
 
     // Merge the lighter cluster into the heavier one, weighted by duration.
