@@ -1964,6 +1964,17 @@
     "rerunTooltip": "Sprecher in dieser Aufnahme mit den aktuellen Zuordnungseinstellungen neu erkennen",
     "rerunDone": "Sprecher neu erkannt",
     "rerunFailed": "Sprechererkennung fehlgeschlagen",
-    "rerunNoToken": "Ein HuggingFace-Token ist erforderlich. Füge eines unter Integrationen hinzu."
+    "rerunNoToken": "Ein HuggingFace-Token ist erforderlich. Füge eines unter Integrationen hinzu.",
+    "panelTitle": "Sprechererkennung",
+    "engineDescPyannote": "pyannote-Engine (Python) — benötigt ein HuggingFace-Token",
+    "engineDescSherpa": "Integrierte sherpa-onnx-Engine — kein Token oder Python nötig",
+    "enginePyannote": "pyannote",
+    "engineSherpa": "sherpa",
+    "clusterThreshold": "Stimmengruppierung",
+    "clusterThresholdDesc": "Wie ähnlich Sprachsegmente sein müssen, um vor der Benennung zu einem Sprecher zusammengefasst zu werden. Erhöhen, wenn verschiedene Personen zusammengelegt werden; verringern, wenn eine Person in mehrere Gäste aufgeteilt wird.",
+    "knownVoicesEngine": "Bekannte Stimmen — {{engine}}",
+    "showEngineResult": "{{engine}}-Ergebnis anzeigen",
+    "showEngineTooltip": "Dieses Transkript auf das zwischengespeicherte {{engine}}-Sprecherergebnis umstellen (sofort, nichts wird neu berechnet)",
+    "engineApplied": "Auf {{engine}}-Ergebnis umgestellt"
   }
 }

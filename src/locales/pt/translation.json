@@ -1964,6 +1964,17 @@
     "rerunTooltip": "Reidentifica os falantes desta gravação com as configurações de correspondência atuais",
     "rerunDone": "Falantes reidentificados",
     "rerunFailed": "Falha na reidentificação de falantes",
-    "rerunNoToken": "Um token do HuggingFace é necessário. Adicione um em Integrações."
+    "rerunNoToken": "Um token do HuggingFace é necessário. Adicione um em Integrações.",
+    "panelTitle": "Identificação de falantes",
+    "engineDescPyannote": "Motor pyannote (Python) — requer um token do HuggingFace",
+    "engineDescSherpa": "Motor integrado sherpa-onnx — não precisa de token nem Python",
+    "enginePyannote": "pyannote",
+    "engineSherpa": "sherpa",
+    "clusterThreshold": "Agrupamento de vozes",
+    "clusterThresholdDesc": "Quão semelhantes os segmentos de voz devem ser para se agruparem em um mesmo falante antes da nomeação. Aumente se pessoas diferentes forem mescladas; diminua se uma pessoa se dividir em vários convidados.",
+    "knownVoicesEngine": "Vozes conhecidas — {{engine}}",
+    "showEngineResult": "Mostrar resultado de {{engine}}",
+    "showEngineTooltip": "Alternar esta transcrição para o resultado de falantes em cache de {{engine}} (instantâneo, nada é recalculado)",
+    "engineApplied": "Alternado para o resultado de {{engine}}"
   }
 }

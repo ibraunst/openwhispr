@@ -1222,12 +1222,35 @@ declare global {
         meThreshold?: number;
         matchThreshold?: number;
         readOnlyBank?: boolean;
+        engine?: "pyannote" | "sherpa";
+        sherpaMeThreshold?: number;
+        sherpaMatchThreshold?: number;
+        sherpaClusterThreshold?: number;
       }) => Promise<{
         success: boolean;
         transcript?: {
           segments: Array<{ start: number; end: number; text: string; speaker: string }>;
           speakers?: VoiceBankSpeakerMeta[];
         };
+        engine?: string;
+        error?: string;
+      }>;
+      meetingGetDiarizationCaches?: (meetingId: string) => Promise<{
+        success: boolean;
+        engines?: string[];
+        current?: string | null;
+        error?: string;
+      }>;
+      meetingApplyCachedDiarization?: (data: {
+        meetingId: string;
+        engine: string;
+      }) => Promise<{
+        success: boolean;
+        transcript?: {
+          segments: Array<{ start: number; end: number; text: string; speaker: string }>;
+          speakers?: VoiceBankSpeakerMeta[];
+        };
+        engine?: string;
         error?: string;
       }>;
       meetingGetPlayback?: (noteId: number) => Promise<{
@@ -1251,13 +1274,19 @@ declare global {
         noteId: number;
         paragraphIndex: number;
       }) => Promise<{ success: boolean; transcript?: string; newLabel?: string; error?: string }>;
-      voicebankList?: () => Promise<{ success: boolean; voices?: VoiceBankEntry[]; error?: string }>;
+      voicebankList?: (options?: {
+        engine?: "pyannote" | "sherpa";
+      }) => Promise<{ success: boolean; voices?: VoiceBankEntry[]; error?: string }>;
       voicebankRename?: (data: {
         id?: string;
         oldLabel?: string;
         newLabel: string;
+        engine?: "pyannote" | "sherpa";
       }) => Promise<{ success: boolean; changes?: number; error?: string }>;
-      voicebankDelete?: (id: string) => Promise<{ success: boolean; changes?: number; error?: string }>;
+      voicebankDelete?: (
+        id: string,
+        engine?: "pyannote" | "sherpa"
+      ) => Promise<{ success: boolean; changes?: number; error?: string }>;
       onMeetingTranscriptionPartial?: (callback: (text: string) => void) => () => void;
       onMeetingTranscriptionFinal?: (callback: (text: string) => void) => () => void;
       onMeetingTranscriptionError?: (callback: (error: string) => void) => () => void;

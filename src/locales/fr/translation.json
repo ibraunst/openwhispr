@@ -1964,6 +1964,17 @@
     "rerunTooltip": "Réidentifie les locuteurs de cet enregistrement avec les réglages de correspondance actuels",
     "rerunDone": "Locuteurs réidentifiés",
     "rerunFailed": "Échec de la réidentification des locuteurs",
-    "rerunNoToken": "Un jeton HuggingFace est requis. Ajoutez-en un dans Intégrations."
+    "rerunNoToken": "Un jeton HuggingFace est requis. Ajoutez-en un dans Intégrations.",
+    "panelTitle": "Identification des intervenants",
+    "engineDescPyannote": "Moteur pyannote (Python) — nécessite un jeton HuggingFace",
+    "engineDescSherpa": "Moteur intégré sherpa-onnx — aucun jeton ni Python requis",
+    "enginePyannote": "pyannote",
+    "engineSherpa": "sherpa",
+    "clusterThreshold": "Regroupement des voix",
+    "clusterThresholdDesc": "Similarité requise entre les segments vocaux pour les regrouper en un même intervenant avant le nommage. Augmentez si des personnes différentes sont fusionnées ; diminuez si une personne est divisée en plusieurs invités.",
+    "knownVoicesEngine": "Voix connues — {{engine}}",
+    "showEngineResult": "Afficher le résultat {{engine}}",
+    "showEngineTooltip": "Basculer cette transcription vers le résultat {{engine}} en cache (instantané, aucun recalcul)",
+    "engineApplied": "Résultat {{engine}} appliqué"
   }
 }

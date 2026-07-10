@@ -658,7 +658,13 @@ export default function PersonalNotesView({
       try {
         // Rename the stored voiceprint so future meetings use the new name.
         // 0 changes is fine — "Me" and manually relabeled speakers aren't in the bank.
-        const vbResult = await window.electronAPI?.voicebankRename?.({ oldLabel, newLabel });
+        // Targets the active engine's bank: guest numbering is per-bank, so a
+        // label like "Guest 3" means a different person in the other bank.
+        const vbResult = await window.electronAPI?.voicebankRename?.({
+          oldLabel,
+          newLabel,
+          engine: getSettings().diarizationEngine === "sherpa" ? "sherpa" : "pyannote",
+        });
         if (!vbResult?.success) {
           throw new Error(vbResult?.error || "Voicebank update failed");
         }
@@ -823,8 +829,17 @@ export default function PersonalNotesView({
     const noteId = activeNoteId;
     const meetingId = activeNote?.meeting_id;
     if (noteId == null || !meetingId || rerunningNoteId != null) return;
-    const { hfToken, diarizationMeThreshold, diarizationMatchThreshold } = getSettings();
-    if (!hfToken) {
+    const {
+      hfToken,
+      diarizationMeThreshold,
+      diarizationMatchThreshold,
+      diarizationEngine,
+      sherpaMeThreshold,
+      sherpaMatchThreshold,
+      sherpaClusterThreshold,
+    } = getSettings();
+    const engine = diarizationEngine === "sherpa" ? "sherpa" : "pyannote";
+    if (engine === "pyannote" && !hfToken) {
       toast({
         title: t("voicebank.rerunFailed"),
         description: t("voicebank.rerunNoToken"),
@@ -839,6 +854,10 @@ export default function PersonalNotesView({
         hfToken,
         meThreshold: diarizationMeThreshold,
         matchThreshold: diarizationMatchThreshold,
+        engine,
+        sherpaMeThreshold,
+        sherpaMatchThreshold,
+        sherpaClusterThreshold,
         readOnlyBank: true,
       });
       if (!result?.success || !result.transcript?.segments?.length) {
@@ -885,6 +904,83 @@ export default function PersonalNotesView({
     toast,
     t,
   ]);
+
+  // Per-engine cached diarization results for the active note's recording —
+  // drives the instant engine-flip control in the transcript tab (Tier 6 A/B).
+  const [diarizationCaches, setDiarizationCaches] = useState<{
+    engines: string[];
+    current: string | null;
+  }>({ engines: [], current: null });
+  const refreshDiarizationCaches = useCallback(async () => {
+    const meetingId = activeNote?.meeting_id;
+    if (!meetingId) {
+      setDiarizationCaches({ engines: [], current: null });
+      return;
+    }
+    const result = await window.electronAPI?.meetingGetDiarizationCaches?.(meetingId);
+    if (result?.success) {
+      setDiarizationCaches({ engines: result.engines || [], current: result.current || null });
+    }
+  }, [activeNote?.meeting_id]);
+  useEffect(() => {
+    refreshDiarizationCaches();
+  }, [refreshDiarizationCaches, rerunningNoteId, meetingDiarizedTranscript]);
+
+  const handleApplyCachedDiarization = useCallback(
+    async (engine: string) => {
+      const noteId = activeNoteId;
+      const meetingId = activeNote?.meeting_id;
+      if (noteId == null || !meetingId || rerunningNoteId != null) return;
+      setRerunningNoteId(noteId);
+      try {
+        const result = await window.electronAPI?.meetingApplyCachedDiarization?.({
+          meetingId,
+          engine,
+        });
+        if (!result?.success || !result.transcript?.segments?.length) {
+          throw new Error(result?.error || "No cached result for this engine");
+        }
+        const updated = formatDiarizedTranscript(result.transcript.segments);
+        await window.electronAPI.updateNote(noteId, { transcript: updated });
+        if (activeMeetingDiarized) overrideDiarizedTranscript(updated);
+        if (activeNote?.export_path && activeNote?.export_header) {
+          window.electronAPI
+            .overwriteExportedFile?.(
+              activeNote.export_path,
+              formatTranscriptForExport(activeNote.export_header + updated)
+            )
+            .catch((err: Error) => {
+              logger.error("Transcript export rewrite failed", { error: err.message }, "notes");
+            });
+        }
+        await initializeNotes(null, 50, activeFolderId);
+        await refreshDiarizationCaches();
+        toast({ title: t("voicebank.engineApplied", { engine }) });
+      } catch (err) {
+        logger.error("Cached diarization apply failed", { error: (err as Error).message }, "notes");
+        toast({
+          title: t("voicebank.rerunFailed"),
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+      } finally {
+        setRerunningNoteId(null);
+      }
+    },
+    [
+      activeNoteId,
+      activeNote?.meeting_id,
+      activeNote?.export_path,
+      activeNote?.export_header,
+      activeFolderId,
+      activeMeetingDiarized,
+      overrideDiarizedTranscript,
+      rerunningNoteId,
+      refreshDiarizationCaches,
+      toast,
+      t,
+    ]
+  );
 
   // When manually starting a recording, auto-title the note from the nearest calendar event
   const handleStartMeetingRecording = useCallback(async () => {
@@ -1545,6 +1641,11 @@ export default function PersonalNotesView({
                   : undefined
               }
               isRerunningSpeakerRecognition={rerunningNoteId === activeNoteId}
+              diarizationCacheEngines={
+                activeNote?.meeting_id && !isMeetingRecording ? diarizationCaches.engines : []
+              }
+              currentDiarizationEngine={diarizationCaches.current}
+              onApplyCachedDiarization={handleApplyCachedDiarization}
               actionProcessingState={actionProcessingState}
               actionName={actionName}
               actionPicker={

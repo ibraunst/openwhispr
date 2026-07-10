@@ -2820,14 +2820,37 @@ class IPCHandlers {
       }
     });
 
-    // Save transcript.json for speaker diarization
+    // Save transcript.json for speaker diarization. Existing top-level keys
+    // (speakers array, engine tag) are preserved — this is also called after
+    // auto-naming to sync renamed segments, and dropping the engine tag there
+    // would orphan the per-engine caches. The matching engine cache gets the
+    // same segments so renames survive an engine flip.
     ipcMain.handle("meeting-save-transcript", async (_event, { meetingId, segments }) => {
       try {
         const meetingDir = path.join(app.getPath("userData"), "meetings", String(meetingId));
         fs.mkdirSync(meetingDir, { recursive: true });
 
         const transcriptPath = path.join(meetingDir, "transcript.json");
-        fs.writeFileSync(transcriptPath, JSON.stringify({ segments }, null, 2));
+        let existing = {};
+        if (fs.existsSync(transcriptPath)) {
+          try {
+            existing = JSON.parse(fs.readFileSync(transcriptPath, "utf8")) || {};
+          } catch {
+            existing = {};
+          }
+        }
+        const merged = { ...existing, segments };
+        fs.writeFileSync(transcriptPath, JSON.stringify(merged, null, 2));
+        if (merged.engine === "pyannote" || merged.engine === "sherpa") {
+          const cachePath = path.join(meetingDir, `transcript.${merged.engine}.json`);
+          if (fs.existsSync(cachePath)) {
+            try {
+              fs.copyFileSync(transcriptPath, cachePath);
+            } catch (cacheError) {
+              debugLogger.warn("Failed to sync engine cache on transcript save", { error: cacheError.message }, "meeting");
+            }
+          }
+        }
 
         debugLogger.info("Meeting transcript saved", {
           meetingId,
@@ -3003,11 +3026,15 @@ class IPCHandlers {
 
         const result = JSON.parse(fs.readFileSync(transcriptPath, "utf8"));
 
-        // Cache the labeled output per engine (transcript.pyannote.json /
+        // Tag the canonical file with the engine that produced it (rename
+        // syncing and the engine-flip UI need to know whose labels these are)
+        // and cache the labeled output per engine (transcript.pyannote.json /
         // transcript.sherpa.json) so flipping engines on a note is instant and
         // never destroys the other engine's result. transcript.json stays
         // canonical (renames keep applying to it as before).
+        result.engine = engine;
         try {
+          fs.writeFileSync(transcriptPath, JSON.stringify(result, null, 2));
           fs.copyFileSync(transcriptPath, path.join(meetingDir, `transcript.${engine}.json`));
         } catch (cacheError) {
           debugLogger.warn("Failed to write per-engine transcript cache", { engine, error: cacheError.message }, "meeting");
@@ -3117,10 +3144,80 @@ class IPCHandlers {
         }
         if (changes > 0 || Array.isArray(parsed?.speakers)) {
           fs.writeFileSync(transcriptPath, JSON.stringify(parsed, null, 2));
+          // Mirror the rename into the producing engine's cache so a later
+          // engine flip round-trip doesn't resurface the old label. Only that
+          // engine's cache: guest numbering differs per engine, so the same
+          // label can mean a different person in the other cache.
+          if (parsed.engine === "pyannote" || parsed.engine === "sherpa") {
+            const cachePath = path.join(
+              app.getPath("userData"),
+              "meetings",
+              String(meetingId),
+              `transcript.${parsed.engine}.json`
+            );
+            if (fs.existsSync(cachePath)) {
+              try {
+                fs.copyFileSync(transcriptPath, cachePath);
+              } catch (cacheError) {
+                debugLogger.warn("Failed to sync rename to engine cache", { error: cacheError.message }, "meeting");
+              }
+            }
+          }
         }
         return { success: true, changes };
       } catch (error) {
         debugLogger.error("meeting-update-speaker-label failed", { error: error.message }, "meeting");
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Which engines have cached diarization results for this meeting, and
+    // which engine produced the current canonical transcript.json — drives
+    // the engine-flip control in the transcript tab.
+    ipcMain.handle("meeting-get-diarization-caches", async (_event, meetingId) => {
+      try {
+        const meetingDir = path.join(app.getPath("userData"), "meetings", String(meetingId));
+        const engines = ["pyannote", "sherpa"].filter((eng) =>
+          fs.existsSync(path.join(meetingDir, `transcript.${eng}.json`))
+        );
+        let current = null;
+        const transcriptPath = path.join(meetingDir, "transcript.json");
+        if (fs.existsSync(transcriptPath)) {
+          try {
+            const parsed = JSON.parse(fs.readFileSync(transcriptPath, "utf8"));
+            if (parsed?.engine === "pyannote" || parsed?.engine === "sherpa") {
+              current = parsed.engine;
+            }
+          } catch {
+            // Unreadable canonical file — report caches only.
+          }
+        }
+        return { success: true, engines, current };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Instant, non-destructive engine flip: promote a cached engine result to
+    // the canonical transcript.json and return it (the renderer rewrites the
+    // note markdown from these segments, exactly like a re-run would).
+    ipcMain.handle("meeting-apply-cached-diarization", async (_event, { meetingId, engine } = {}) => {
+      try {
+        if (!meetingId || (engine !== "pyannote" && engine !== "sherpa")) {
+          return { success: false, error: "meetingId and a valid engine are required" };
+        }
+        const meetingDir = path.join(app.getPath("userData"), "meetings", String(meetingId));
+        const cachePath = path.join(meetingDir, `transcript.${engine}.json`);
+        if (!fs.existsSync(cachePath)) {
+          return { success: false, error: `No cached ${engine} result for this recording` };
+        }
+        const transcriptPath = path.join(meetingDir, "transcript.json");
+        fs.copyFileSync(cachePath, transcriptPath);
+        const result = JSON.parse(fs.readFileSync(transcriptPath, "utf8"));
+        debugLogger.info("Applied cached diarization", { meetingId, engine, segmentCount: result?.segments?.length }, "meeting");
+        return { success: true, transcript: result, engine };
+      } catch (error) {
+        debugLogger.error("meeting-apply-cached-diarization failed", { error: error.message }, "meeting");
         return { success: false, error: error.message };
       }
     });
@@ -3166,23 +3263,23 @@ class IPCHandlers {
       }
     });
 
-    ipcMain.handle("voicebank-list", async () => {
+    ipcMain.handle("voicebank-list", async (_event, { engine } = {}) => {
       try {
         const { listVoicePrints } = require("./voicebank");
-        return { success: true, voices: listVoicePrints(app) };
+        return { success: true, voices: listVoicePrints(app, engine) };
       } catch (error) {
         debugLogger.error("Voicebank list failed", { error: error.message }, "meeting");
         return { success: false, error: error.message };
       }
     });
 
-    ipcMain.handle("voicebank-rename", async (_event, { id, oldLabel, newLabel } = {}) => {
+    ipcMain.handle("voicebank-rename", async (_event, { id, oldLabel, newLabel, engine } = {}) => {
       try {
         const { renameVoicePrint } = require("./voicebank");
-        const result = renameVoicePrint(app, { id, oldLabel, newLabel });
+        const result = renameVoicePrint(app, { id, oldLabel, newLabel, engine });
         debugLogger.info(
           "Voicebank rename",
-          { id: id || null, oldLabel: oldLabel || null, changes: result.changes },
+          { id: id || null, oldLabel: oldLabel || null, engine: engine || "pyannote", changes: result.changes },
           "meeting"
         );
         return { success: true, changes: result.changes };
@@ -3192,10 +3289,10 @@ class IPCHandlers {
       }
     });
 
-    ipcMain.handle("voicebank-delete", async (_event, id) => {
+    ipcMain.handle("voicebank-delete", async (_event, id, engine) => {
       try {
         const { deleteVoicePrint } = require("./voicebank");
-        const result = deleteVoicePrint(app, id);
+        const result = deleteVoicePrint(app, id, engine);
         return { success: true, changes: result.changes };
       } catch (error) {
         debugLogger.error("Voicebank delete failed", { error: error.message }, "meeting");

@@ -1964,6 +1964,17 @@
     "rerunTooltip": "使用目前的比對設定重新辨識此錄音中的發言者",
     "rerunDone": "發言者已重新辨識",
     "rerunFailed": "發言者重新辨識失敗",
-    "rerunNoToken": "需要 HuggingFace 權杖。請在「整合」中新增。"
+    "rerunNoToken": "需要 HuggingFace 權杖。請在「整合」中新增。",
+    "panelTitle": "說話者識別",
+    "engineDescPyannote": "pyannote 引擎（Python）— 需要 HuggingFace 權杖",
+    "engineDescSherpa": "內建 sherpa-onnx 引擎 — 無需權杖或 Python",
+    "enginePyannote": "pyannote",
+    "engineSherpa": "sherpa",
+    "clusterThreshold": "聲音分組",
+    "clusterThresholdDesc": "語音片段需要多相似才會在命名前歸為同一說話者。若不同的人被合併請調高；若同一人被拆分為多位訪客請調低。",
+    "knownVoicesEngine": "已知聲音 — {{engine}}",
+    "showEngineResult": "顯示 {{engine}} 結果",
+    "showEngineTooltip": "將此逐字稿切換為已快取的 {{engine}} 說話者結果（即時，無需重新計算）",
+    "engineApplied": "已切換到 {{engine}} 結果"
   }
 }

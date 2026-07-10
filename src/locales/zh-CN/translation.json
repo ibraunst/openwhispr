@@ -1964,6 +1964,17 @@
     "rerunTooltip": "使用当前匹配设置重新识别此录音中的说话人",
     "rerunDone": "说话人已重新识别",
     "rerunFailed": "说话人重新识别失败",
-    "rerunNoToken": "需要 HuggingFace 令牌。请在“集成”中添加。"
+    "rerunNoToken": "需要 HuggingFace 令牌。请在“集成”中添加。",
+    "panelTitle": "说话人识别",
+    "engineDescPyannote": "pyannote 引擎（Python）— 需要 HuggingFace 令牌",
+    "engineDescSherpa": "内置 sherpa-onnx 引擎 — 无需令牌或 Python",
+    "enginePyannote": "pyannote",
+    "engineSherpa": "sherpa",
+    "clusterThreshold": "声音分组",
+    "clusterThresholdDesc": "语音片段需要多相似才会在命名前归为同一说话人。若不同的人被合并请调高；若同一人被拆分为多个访客请调低。",
+    "knownVoicesEngine": "已知声音 — {{engine}}",
+    "showEngineResult": "显示 {{engine}} 结果",
+    "showEngineTooltip": "将此转录切换为已缓存的 {{engine}} 说话人结果（即时，无需重新计算）",
+    "engineApplied": "已切换到 {{engine}} 结果"
   }
 }

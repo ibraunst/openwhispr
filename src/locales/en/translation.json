@@ -2031,6 +2031,17 @@
     "rerunTooltip": "Re-identify speakers in this recording using the current matching settings",
     "rerunDone": "Speakers re-identified",
     "rerunFailed": "Speaker re-identification failed",
-    "rerunNoToken": "A HuggingFace token is required. Add one in Integrations."
+    "rerunNoToken": "A HuggingFace token is required. Add one in Integrations.",
+    "panelTitle": "Speaker identification",
+    "engineDescPyannote": "pyannote engine (Python) — requires a HuggingFace token",
+    "engineDescSherpa": "Built-in sherpa-onnx engine — no token or Python needed",
+    "enginePyannote": "pyannote",
+    "engineSherpa": "sherpa",
+    "clusterThreshold": "Voice grouping",
+    "clusterThresholdDesc": "How similar raw voice segments must be to group into one speaker before naming. Raise it if different people get merged; lower it if one person splits into several guests.",
+    "knownVoicesEngine": "Known voices — {{engine}}",
+    "showEngineResult": "Show {{engine}} result",
+    "showEngineTooltip": "Switch this transcript to the cached {{engine}} speaker result (instant, nothing is recomputed)",
+    "engineApplied": "Switched to {{engine}} result"
   }
 }

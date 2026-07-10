@@ -2,9 +2,11 @@ const path = require("path");
 const Database = require("better-sqlite3");
 
 /**
- * Node-side access to the speaker voicebank (voiceprints learned by
- * python/speaker_engine.py). Connections are opened per operation and closed
- * immediately so we never hold a lock while the Python engine is writing.
+ * Node-side access to the speaker voicebanks (voiceprints learned by
+ * python/speaker_engine.py and the sherpa-onnx engine). Each engine has its
+ * own DB file — pyannote and CAM++ embeddings live in incompatible spaces
+ * and must never be mixed or migrated. Connections are opened per operation
+ * and closed immediately so we never hold a lock while an engine is writing.
  */
 
 const SCHEMA = `
@@ -18,12 +20,15 @@ const SCHEMA = `
   )
 `;
 
-function getVoicebankPath(app) {
-  return path.join(app.getPath("userData"), "voicebank.db");
+function getVoicebankPath(app, engine) {
+  return path.join(
+    app.getPath("userData"),
+    engine === "sherpa" ? "voicebank-sherpa.db" : "voicebank.db"
+  );
 }
 
-function withDb(app, fn) {
-  const db = new Database(getVoicebankPath(app), { timeout: 5000 });
+function withDb(app, engine, fn) {
+  const db = new Database(getVoicebankPath(app, engine), { timeout: 5000 });
   try {
     db.exec(SCHEMA);
     return fn(db);
@@ -32,8 +37,8 @@ function withDb(app, fn) {
   }
 }
 
-function listVoicePrints(app) {
-  return withDb(app, (db) =>
+function listVoicePrints(app, engine) {
+  return withDb(app, engine, (db) =>
     db
       .prepare(
         "SELECT id, label, meeting_count, created_at, updated_at FROM voice_prints ORDER BY meeting_count DESC, updated_at DESC"
@@ -49,11 +54,11 @@ function listVoicePrints(app) {
  * Returns the number of affected voiceprints (0 if nothing matched — e.g.
  * renaming "Me", which is never stored in the bank).
  */
-function renameVoicePrint(app, { id, oldLabel, newLabel }) {
+function renameVoicePrint(app, { id, oldLabel, newLabel, engine }) {
   const label = String(newLabel || "").trim();
   if (!label) throw new Error("New speaker name must not be empty");
 
-  return withDb(app, (db) => {
+  return withDb(app, engine, (db) => {
     const sources = id
       ? db.prepare("SELECT id, label, embedding, meeting_count FROM voice_prints WHERE id = ?").all(id)
       : db
@@ -110,8 +115,8 @@ function mergeEmbeddings(bufA, countA, bufB, countB) {
   return Buffer.from(out.buffer);
 }
 
-function deleteVoicePrint(app, id) {
-  return withDb(app, (db) => {
+function deleteVoicePrint(app, id, engine) {
+  return withDb(app, engine, (db) => {
     const result = db.prepare("DELETE FROM voice_prints WHERE id = ?").run(id);
     return { changes: result.changes };
   });

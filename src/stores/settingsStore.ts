@@ -90,9 +90,17 @@ const NUMERIC_SETTINGS = new Set(["audioRetentionDays"]);
 // closely it must match a saved voiceprint to reuse that person's name.
 export const DIARIZATION_ME_THRESHOLD_DEFAULT = 0.85;
 export const DIARIZATION_MATCH_THRESHOLD_DEFAULT = 0.82;
+// Sherpa engine thresholds live in a different (CAM++) embedding space and
+// sit far lower than the pyannote values — the two slider sets never mix.
+export const SHERPA_ME_THRESHOLD_DEFAULT = 0.5;
+export const SHERPA_MATCH_THRESHOLD_DEFAULT = 0.5;
+export const SHERPA_CLUSTER_THRESHOLD_DEFAULT = 0.85;
 const FLOAT_SETTINGS: Record<string, number> = {
   diarizationMeThreshold: DIARIZATION_ME_THRESHOLD_DEFAULT,
   diarizationMatchThreshold: DIARIZATION_MATCH_THRESHOLD_DEFAULT,
+  sherpaMeThreshold: SHERPA_ME_THRESHOLD_DEFAULT,
+  sherpaMatchThreshold: SHERPA_MATCH_THRESHOLD_DEFAULT,
+  sherpaClusterThreshold: SHERPA_CLUSTER_THRESHOLD_DEFAULT,
 };
 
 function readFloat(key: string, fallback: number): number {
@@ -199,6 +207,14 @@ export interface SettingsState
   diarizationMatchThreshold: number;
   setDiarizationMeThreshold: (value: number) => void;
   setDiarizationMatchThreshold: (value: number) => void;
+  diarizationEngine: "pyannote" | "sherpa";
+  setDiarizationEngine: (engine: "pyannote" | "sherpa") => void;
+  sherpaMeThreshold: number;
+  sherpaMatchThreshold: number;
+  sherpaClusterThreshold: number;
+  setSherpaMeThreshold: (value: number) => void;
+  setSherpaMatchThreshold: (value: number) => void;
+  setSherpaClusterThreshold: (value: number) => void;
   setPanelStartPosition: (position: "bottom-right" | "center" | "bottom-left") => void;
   setKeepTranscriptionInClipboard: (value: boolean) => void;
   setIsSignedIn: (value: boolean) => void;
@@ -316,6 +332,12 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     "diarizationMatchThreshold",
     DIARIZATION_MATCH_THRESHOLD_DEFAULT
   ),
+  diarizationEngine: (readString("diarizationEngine", "pyannote") === "sherpa"
+    ? "sherpa"
+    : "pyannote") as "pyannote" | "sherpa",
+  sherpaMeThreshold: readFloat("sherpaMeThreshold", SHERPA_ME_THRESHOLD_DEFAULT),
+  sherpaMatchThreshold: readFloat("sherpaMatchThreshold", SHERPA_MATCH_THRESHOLD_DEFAULT),
+  sherpaClusterThreshold: readFloat("sherpaClusterThreshold", SHERPA_CLUSTER_THRESHOLD_DEFAULT),
   customTranscriptionApiKey: readString("customTranscriptionApiKey", ""),
   customReasoningApiKey: readString("customReasoningApiKey", ""),
 
@@ -533,6 +555,22 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setDiarizationMatchThreshold: (value: number) => {
     if (isBrowser) localStorage.setItem("diarizationMatchThreshold", String(value));
     set({ diarizationMatchThreshold: value });
+  },
+  setDiarizationEngine: (engine: "pyannote" | "sherpa") => {
+    if (isBrowser) localStorage.setItem("diarizationEngine", engine);
+    set({ diarizationEngine: engine });
+  },
+  setSherpaMeThreshold: (value: number) => {
+    if (isBrowser) localStorage.setItem("sherpaMeThreshold", String(value));
+    set({ sherpaMeThreshold: value });
+  },
+  setSherpaMatchThreshold: (value: number) => {
+    if (isBrowser) localStorage.setItem("sherpaMatchThreshold", String(value));
+    set({ sherpaMatchThreshold: value });
+  },
+  setSherpaClusterThreshold: (value: number) => {
+    if (isBrowser) localStorage.setItem("sherpaClusterThreshold", String(value));
+    set({ sherpaClusterThreshold: value });
   },
   setCustomTranscriptionApiKey: (key: string) => {
     if (isBrowser) localStorage.setItem("customTranscriptionApiKey", key);

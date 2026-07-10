@@ -1964,6 +1964,17 @@
     "rerunTooltip": "現在のマッチング設定でこの録音の話者を再識別します",
     "rerunDone": "話者を再識別しました",
     "rerunFailed": "話者の再識別に失敗しました",
-    "rerunNoToken": "HuggingFace トークンが必要です。「連携」で追加してください。"
+    "rerunNoToken": "HuggingFace トークンが必要です。「連携」で追加してください。",
+    "panelTitle": "話者識別",
+    "engineDescPyannote": "pyannote エンジン（Python）— HuggingFace トークンが必要",
+    "engineDescSherpa": "内蔵 sherpa-onnx エンジン — トークンも Python も不要",
+    "enginePyannote": "pyannote",
+    "engineSherpa": "sherpa",
+    "clusterThreshold": "音声のグループ化",
+    "clusterThresholdDesc": "音声セグメントを命名前に同一話者としてまとめる際に必要な類似度。別人が統合される場合は上げ、同一人物が複数のゲストに分かれる場合は下げてください。",
+    "knownVoicesEngine": "既知の声 — {{engine}}",
+    "showEngineResult": "{{engine}} の結果を表示",
+    "showEngineTooltip": "この文字起こしをキャッシュ済みの {{engine}} 話者結果に切り替えます（即時、再計算なし）",
+    "engineApplied": "{{engine}} の結果に切り替えました"
   }
 }

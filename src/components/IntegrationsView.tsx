@@ -9,6 +9,9 @@ import {
   useSettingsStore,
   DIARIZATION_ME_THRESHOLD_DEFAULT,
   DIARIZATION_MATCH_THRESHOLD_DEFAULT,
+  SHERPA_ME_THRESHOLD_DEFAULT,
+  SHERPA_MATCH_THRESHOLD_DEFAULT,
+  SHERPA_CLUSTER_THRESHOLD_DEFAULT,
 } from "../stores/settingsStore";
 import { useSystemAudioPermission } from "../hooks/useSystemAudioPermission";
 import { formatSpeakerName } from "../utils/speakerNameFormatter";
@@ -27,6 +30,15 @@ export default function IntegrationsView() {
   const matchThreshold = useSettingsStore((s) => s.diarizationMatchThreshold);
   const setDiarizationMeThreshold = useSettingsStore((s) => s.setDiarizationMeThreshold);
   const setDiarizationMatchThreshold = useSettingsStore((s) => s.setDiarizationMatchThreshold);
+  const diarizationEngine = useSettingsStore((s) => s.diarizationEngine);
+  const setDiarizationEngine = useSettingsStore((s) => s.setDiarizationEngine);
+  const sherpaMeThreshold = useSettingsStore((s) => s.sherpaMeThreshold);
+  const sherpaMatchThreshold = useSettingsStore((s) => s.sherpaMatchThreshold);
+  const sherpaClusterThreshold = useSettingsStore((s) => s.sherpaClusterThreshold);
+  const setSherpaMeThreshold = useSettingsStore((s) => s.setSherpaMeThreshold);
+  const setSherpaMatchThreshold = useSettingsStore((s) => s.setSherpaMatchThreshold);
+  const setSherpaClusterThreshold = useSettingsStore((s) => s.setSherpaClusterThreshold);
+  const isSherpa = diarizationEngine === "sherpa";
   const [hfTokenInput, setHfTokenInput] = useState(hfToken);
   // State, not a ref: the "saved" flash drives render output, and a ref reset
   // by setTimeout never triggers the re-render that restores the check icon
@@ -50,9 +62,11 @@ export default function IntegrationsView() {
   const voiceRenameInputRef = useRef<HTMLInputElement>(null);
 
   const loadVoices = useCallback(async () => {
-    const result = await window.electronAPI?.voicebankList?.();
+    // Each engine has its own voice bank (incompatible embedding spaces) —
+    // the list always shows the bank of the selected engine.
+    const result = await window.electronAPI?.voicebankList?.({ engine: diarizationEngine });
     if (result?.success && result.voices) setVoices(result.voices);
-  }, []);
+  }, [diarizationEngine]);
 
   useEffect(() => {
     loadVoices();
@@ -70,16 +84,16 @@ export default function IntegrationsView() {
     if (!id || !name) return;
     const current = voices.find((v) => v.id === id);
     if (!current || current.label === name) return;
-    await window.electronAPI?.voicebankRename?.({ id, newLabel: name });
+    await window.electronAPI?.voicebankRename?.({ id, newLabel: name, engine: diarizationEngine });
     loadVoices();
-  }, [renamingVoiceId, voiceRenameValue, voices, loadVoices]);
+  }, [renamingVoiceId, voiceRenameValue, voices, loadVoices, diarizationEngine]);
 
   const handleVoiceDelete = useCallback(
     async (id: string) => {
-      await window.electronAPI?.voicebankDelete?.(id);
+      await window.electronAPI?.voicebankDelete?.(id, diarizationEngine);
       loadVoices();
     },
-    [loadVoices]
+    [loadVoices, diarizationEngine]
   );
 
   const startOAuth = useCallback(async () => {
@@ -385,7 +399,7 @@ export default function IntegrationsView() {
         </SettingsPanel>
       )}
 
-      {/* HuggingFace — speaker diarization */}
+      {/* Speaker identification — engine choice, matching thresholds, voice bank */}
       <div>
         <SettingsPanel>
           <SettingsPanelRow>
@@ -394,50 +408,87 @@ export default function IntegrationsView() {
                 <Users size={17} className="text-yellow-600 dark:text-yellow-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium text-foreground">HuggingFace</p>
-                <p className="text-[11px] text-muted-foreground/60 mt-0.5">Required for speaker identification in meeting transcripts</p>
+                <p className="text-[13px] font-medium text-foreground">{t("voicebank.panelTitle")}</p>
+                <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                  {isSherpa ? t("voicebank.engineDescSherpa") : t("voicebank.engineDescPyannote")}
+                </p>
               </div>
-              {hfToken && !hfJustSaved && (
-                <Check size={14} className="text-emerald-500 shrink-0" />
-              )}
+              <div className="flex rounded-md border border-border/40 overflow-hidden shrink-0">
+                {(
+                  [
+                    { key: "pyannote", label: t("voicebank.enginePyannote") },
+                    { key: "sherpa", label: t("voicebank.engineSherpa") },
+                  ] as const
+                ).map((option) => (
+                  <button
+                    key={option.key}
+                    onClick={() => setDiarizationEngine(option.key)}
+                    className={`h-7 px-2.5 text-[11px] font-medium transition-colors ${
+                      diarizationEngine === option.key
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </SettingsPanelRow>
-          <SettingsPanelRow>
-            <div className="flex gap-2 w-full">
-              <input
-                type="password"
-                value={hfTokenInput}
-                onChange={(e) => setHfTokenInput(e.target.value)}
-                placeholder="hf_..."
-                className="flex-1 h-8 px-3 text-xs rounded-md bg-background border border-border/40 focus:outline-none focus:ring-1 focus:ring-primary/40 font-mono"
-              />
-              <button
-                onClick={() => {
-                  setHfToken(hfTokenInput.trim());
-                  setHfJustSaved(true);
-                  setTimeout(() => setHfJustSaved(false), 2000);
-                }}
-                disabled={!hfTokenInput.trim() || hfTokenInput.trim() === hfToken}
-                className="h-8 px-3 text-xs rounded-md bg-primary text-primary-foreground font-medium disabled:opacity-40 hover:bg-primary/90 transition-colors"
-              >
-                Save
-              </button>
-            </div>
-          </SettingsPanelRow>
+          {!isSherpa && (
+            <SettingsPanelRow>
+              <div className="w-full space-y-2">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-medium text-muted-foreground/70">HuggingFace</p>
+                  {hfToken && !hfJustSaved && <Check size={14} className="text-emerald-500 shrink-0" />}
+                </div>
+                <div className="flex gap-2 w-full">
+                  <input
+                    type="password"
+                    value={hfTokenInput}
+                    onChange={(e) => setHfTokenInput(e.target.value)}
+                    placeholder="hf_..."
+                    className="flex-1 h-8 px-3 text-xs rounded-md bg-background border border-border/40 focus:outline-none focus:ring-1 focus:ring-primary/40 font-mono"
+                  />
+                  <button
+                    onClick={() => {
+                      setHfToken(hfTokenInput.trim());
+                      setHfJustSaved(true);
+                      setTimeout(() => setHfJustSaved(false), 2000);
+                    }}
+                    disabled={!hfTokenInput.trim() || hfTokenInput.trim() === hfToken}
+                    className="h-8 px-3 text-xs rounded-md bg-primary text-primary-foreground font-medium disabled:opacity-40 hover:bg-primary/90 transition-colors"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </SettingsPanelRow>
+          )}
 
-          {hfToken && (
+          {(isSherpa || hfToken) && (
             <SettingsPanelRow>
               <div className="w-full space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-medium text-muted-foreground/70">
                     {t("voicebank.tuningTitle")}
                   </p>
-                  {(meThreshold !== DIARIZATION_ME_THRESHOLD_DEFAULT ||
-                    matchThreshold !== DIARIZATION_MATCH_THRESHOLD_DEFAULT) && (
+                  {(isSherpa
+                    ? sherpaMeThreshold !== SHERPA_ME_THRESHOLD_DEFAULT ||
+                      sherpaMatchThreshold !== SHERPA_MATCH_THRESHOLD_DEFAULT ||
+                      sherpaClusterThreshold !== SHERPA_CLUSTER_THRESHOLD_DEFAULT
+                    : meThreshold !== DIARIZATION_ME_THRESHOLD_DEFAULT ||
+                      matchThreshold !== DIARIZATION_MATCH_THRESHOLD_DEFAULT) && (
                     <button
                       onClick={() => {
-                        setDiarizationMeThreshold(DIARIZATION_ME_THRESHOLD_DEFAULT);
-                        setDiarizationMatchThreshold(DIARIZATION_MATCH_THRESHOLD_DEFAULT);
+                        if (isSherpa) {
+                          setSherpaMeThreshold(SHERPA_ME_THRESHOLD_DEFAULT);
+                          setSherpaMatchThreshold(SHERPA_MATCH_THRESHOLD_DEFAULT);
+                          setSherpaClusterThreshold(SHERPA_CLUSTER_THRESHOLD_DEFAULT);
+                        } else {
+                          setDiarizationMeThreshold(DIARIZATION_ME_THRESHOLD_DEFAULT);
+                          setDiarizationMatchThreshold(DIARIZATION_MATCH_THRESHOLD_DEFAULT);
+                        }
                       }}
                       className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                     >
@@ -445,25 +496,56 @@ export default function IntegrationsView() {
                     </button>
                   )}
                 </div>
-                {(
-                  [
-                    {
-                      key: "me",
-                      label: t("voicebank.meThreshold"),
-                      desc: t("voicebank.meThresholdDesc"),
-                      value: meThreshold,
-                      defaultValue: DIARIZATION_ME_THRESHOLD_DEFAULT,
-                      onChange: setDiarizationMeThreshold,
-                    },
-                    {
-                      key: "match",
-                      label: t("voicebank.matchThreshold"),
-                      desc: t("voicebank.matchThresholdDesc"),
-                      value: matchThreshold,
-                      defaultValue: DIARIZATION_MATCH_THRESHOLD_DEFAULT,
-                      onChange: setDiarizationMatchThreshold,
-                    },
-                  ] as const
+                {(isSherpa
+                  ? [
+                      {
+                        key: "sherpa-me",
+                        label: t("voicebank.meThreshold"),
+                        desc: t("voicebank.meThresholdDesc"),
+                        value: sherpaMeThreshold,
+                        defaultValue: SHERPA_ME_THRESHOLD_DEFAULT,
+                        min: 0.2,
+                        onChange: setSherpaMeThreshold,
+                      },
+                      {
+                        key: "sherpa-match",
+                        label: t("voicebank.matchThreshold"),
+                        desc: t("voicebank.matchThresholdDesc"),
+                        value: sherpaMatchThreshold,
+                        defaultValue: SHERPA_MATCH_THRESHOLD_DEFAULT,
+                        min: 0.2,
+                        onChange: setSherpaMatchThreshold,
+                      },
+                      {
+                        key: "sherpa-cluster",
+                        label: t("voicebank.clusterThreshold"),
+                        desc: t("voicebank.clusterThresholdDesc"),
+                        value: sherpaClusterThreshold,
+                        defaultValue: SHERPA_CLUSTER_THRESHOLD_DEFAULT,
+                        min: 0.2,
+                        onChange: setSherpaClusterThreshold,
+                      },
+                    ]
+                  : [
+                      {
+                        key: "me",
+                        label: t("voicebank.meThreshold"),
+                        desc: t("voicebank.meThresholdDesc"),
+                        value: meThreshold,
+                        defaultValue: DIARIZATION_ME_THRESHOLD_DEFAULT,
+                        min: 0.5,
+                        onChange: setDiarizationMeThreshold,
+                      },
+                      {
+                        key: "match",
+                        label: t("voicebank.matchThreshold"),
+                        desc: t("voicebank.matchThresholdDesc"),
+                        value: matchThreshold,
+                        defaultValue: DIARIZATION_MATCH_THRESHOLD_DEFAULT,
+                        min: 0.5,
+                        onChange: setDiarizationMatchThreshold,
+                      },
+                    ]
                 ).map((slider) => (
                   <div key={slider.key} className="space-y-1">
                     <div className="flex items-center justify-between">
@@ -480,7 +562,7 @@ export default function IntegrationsView() {
                     </div>
                     <input
                       type="range"
-                      min={0.5}
+                      min={slider.min}
                       max={0.95}
                       step={0.01}
                       value={slider.value}
@@ -501,7 +583,9 @@ export default function IntegrationsView() {
             <SettingsPanelRow>
               <div className="w-full space-y-0.5">
                 <p className="text-xs font-medium text-muted-foreground/70 mb-2">
-                  {t("voicebank.knownVoices")}
+                  {t("voicebank.knownVoicesEngine", {
+                    engine: isSherpa ? t("voicebank.engineSherpa") : t("voicebank.enginePyannote"),
+                  })}
                 </p>
                 {voices.map((voice) => (
                   <div key={voice.id} className="group flex items-center gap-2.5 h-7">
@@ -555,7 +639,7 @@ export default function IntegrationsView() {
             </SettingsPanelRow>
           )}
 
-          {hfToken && voices.length === 0 && (
+          {(isSherpa || hfToken) && voices.length === 0 && (
             <SettingsPanelRow>
               <p className="text-xs text-muted-foreground/50">{t("voicebank.noVoices")}</p>
             </SettingsPanelRow>

@@ -492,9 +492,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("meeting-update-speaker-label", data),
   meetingResetParagraphSpeaker: (data) =>
     ipcRenderer.invoke("meeting-reset-paragraph-speaker", data),
-  voicebankList: () => ipcRenderer.invoke("voicebank-list"),
+  meetingGetDiarizationCaches: (meetingId) =>
+    ipcRenderer.invoke("meeting-get-diarization-caches", meetingId),
+  meetingApplyCachedDiarization: (data) =>
+    ipcRenderer.invoke("meeting-apply-cached-diarization", data),
+  voicebankList: (options) => ipcRenderer.invoke("voicebank-list", options),
   voicebankRename: (data) => ipcRenderer.invoke("voicebank-rename", data),
-  voicebankDelete: (id) => ipcRenderer.invoke("voicebank-delete", id),
+  voicebankDelete: (id, engine) => ipcRenderer.invoke("voicebank-delete", id, engine),
   getCalendarEventById: (eventId) => ipcRenderer.invoke("get-calendar-event-by-id", eventId),
   meetingTranscribeLocal: (audioBuffer, options) =>
     ipcRenderer.invoke("meeting-transcribe-local", audioBuffer, options),

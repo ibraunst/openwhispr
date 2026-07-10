@@ -1964,6 +1964,17 @@
     "rerunTooltip": "Reidentifica i parlanti di questa registrazione con le impostazioni di corrispondenza attuali",
     "rerunDone": "Parlanti reidentificati",
     "rerunFailed": "Reidentificazione dei parlanti non riuscita",
-    "rerunNoToken": "È richiesto un token HuggingFace. Aggiungine uno in Integrazioni."
+    "rerunNoToken": "È richiesto un token HuggingFace. Aggiungine uno in Integrazioni.",
+    "panelTitle": "Identificazione dei parlanti",
+    "engineDescPyannote": "Motore pyannote (Python) — richiede un token HuggingFace",
+    "engineDescSherpa": "Motore integrato sherpa-onnx — non servono token né Python",
+    "enginePyannote": "pyannote",
+    "engineSherpa": "sherpa",
+    "clusterThreshold": "Raggruppamento delle voci",
+    "clusterThresholdDesc": "Quanto devono essere simili i segmenti vocali per essere raggruppati in un unico parlante prima dell'assegnazione dei nomi. Aumenta se persone diverse vengono unite; diminuisci se una persona viene divisa in più ospiti.",
+    "knownVoicesEngine": "Voci conosciute — {{engine}}",
+    "showEngineResult": "Mostra risultato {{engine}}",
+    "showEngineTooltip": "Passa questa trascrizione al risultato {{engine}} in cache (istantaneo, nulla viene ricalcolato)",
+    "engineApplied": "Passato al risultato {{engine}}"
   }
 }

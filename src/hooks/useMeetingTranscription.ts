@@ -348,6 +348,8 @@ async function autoNameLoneGuest(
     const result = await window.electronAPI?.voicebankRename?.({
       id: guest.voiceprint_id!,
       newLabel: name,
+      // Rename in the bank of the engine that just enrolled this guest.
+      engine: getSettings().diarizationEngine === "sherpa" ? "sherpa" : "pyannote",
     });
     if (!result?.success) {
       logger.warn("Voicebank rename failed during auto-naming", { error: result?.error }, "meeting");
@@ -835,12 +837,27 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
 
           logger.info("Split audio saved, running speaker diarization…", { meetingId: currentMeetingId }, "meeting");
 
-          const { hfToken, diarizationMeThreshold, diarizationMatchThreshold } = getSettings() as {
+          const {
+            hfToken,
+            diarizationMeThreshold,
+            diarizationMatchThreshold,
+            diarizationEngine,
+            sherpaMeThreshold,
+            sherpaMatchThreshold,
+            sherpaClusterThreshold,
+          } = getSettings() as {
             hfToken?: string;
             diarizationMeThreshold?: number;
             diarizationMatchThreshold?: number;
+            diarizationEngine?: string;
+            sherpaMeThreshold?: number;
+            sherpaMatchThreshold?: number;
+            sherpaClusterThreshold?: number;
           };
-          if (!hfToken) {
+          const engine = diarizationEngine === "sherpa" ? "sherpa" : "pyannote";
+          // Only the pyannote engine needs a HuggingFace token — sherpa runs
+          // on bundled ONNX models.
+          if (engine === "pyannote" && !hfToken) {
             logger.warn("Skipping diarization: no HuggingFace token configured", {}, "meeting");
             setDiarizationError("No HuggingFace token configured. Add one in Settings → API Keys to enable speaker identification.");
             return;
@@ -867,6 +884,10 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
             maxSpeakers,
             meThreshold: diarizationMeThreshold,
             matchThreshold: diarizationMatchThreshold,
+            engine,
+            sherpaMeThreshold,
+            sherpaMatchThreshold,
+            sherpaClusterThreshold,
           });
 
           if (diarizeResult?.success && diarizeResult.transcript?.segments?.length) {
