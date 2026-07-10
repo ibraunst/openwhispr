@@ -699,7 +699,134 @@ function extractVoicedMicSamples(micWav) {
 // intervals ARE the user's turns: they join the merge as Me segments and
 // compete on overlap exactly like any diarized cluster. Skipped when the mic
 // was already the primary diarization source (solo recordings).
+//
+// Leak guard: the renderer's echo gate can miss speaker leak entirely
+// (measured on a real recording: open-speaker playback reached the mic at
+// 0.86-0.88 envelope correlation with system audio while the gate muted only
+// 160ms — every leaked interval became a false "Me"). Since the user's voice
+// is never in the tap, a mic interval whose energy envelope tracks the system
+// channel is leak, not the user. Genuine double-talk correlates far lower
+// (the mic is a mixture), so the 0.6 cutoff keeps it.
 // ---------------------------------------------------------------------------
+
+const LEAK_ENVELOPE_WINDOW_SEC = 0.05;
+const LEAK_MAX_LAG_WINDOWS = 8; // ±400ms — covers tap-vs-mic buffering skew
+// During a continuous remote monologue the envelope is nearly flat, so a
+// short-window correlation is noise — the estimate needs enough context to
+// include speech/pause structure. Measured on the leaked recording: ±0.5s
+// context let most leaked intervals under the cutoff; per-minute windows sat
+// at 0.86-0.88.
+const LEAK_CONTEXT_SEC = 4;
+const LEAK_CORRELATION_CUTOFF = 0.45;
+// Only mic intervals that overlap system-side diarized speech can be leak at
+// all (nothing was playing otherwise) — intervals in system silence are
+// always the user.
+const LEAK_MIN_SYSTEM_COVERAGE = 0.5;
+// Second-stage identity guard. Envelope correlation misses leak when the
+// playback path shifts (measured: leaked stretches at r≈0 whose mic-audio
+// CAM++ embeddings matched their source system cluster at 0.79-0.84). The
+// user's voice is never in the tap, so a mic chunk that sounds like ANY
+// system cluster is leak, full stop. Chunked so a long interval spanning a
+// remote turn change can't hide behind a blended embedding.
+const LEAK_IDENTITY_CUTOFF = 0.5;
+const LEAK_ID_CHUNK_SEC = 4;
+
+function computeEnvelope(wav, startSec, endSec) {
+  const win = Math.floor(LEAK_ENVELOPE_WINDOW_SEC * wav.sampleRate);
+  const first = Math.max(0, Math.floor((startSec * wav.sampleRate) / win));
+  const last = Math.min(
+    Math.floor(wav.numSamples / win),
+    Math.ceil((endSec * wav.sampleRate) / win)
+  );
+  const env = new Float64Array(Math.max(0, last - first));
+  for (let w = first; w < last; w++) {
+    const base = wav.dataOffset + w * win * 2;
+    let sum = 0;
+    for (let i = 0; i < win; i += 4) {
+      sum += Math.abs(wav.buf.readInt16LE(base + i * 2));
+    }
+    env[w - first] = sum / Math.ceil(win / 4);
+  }
+  return env;
+}
+
+function normalizedCorrelation(a, b, lag) {
+  let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, count = 0;
+  const n = Math.min(a.length, b.length);
+  for (let i = Math.max(0, -lag); i < n - Math.max(0, lag); i++) {
+    const x = a[i + Math.max(0, lag)];
+    const y = b[i + Math.max(0, -lag)];
+    sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y; count++;
+  }
+  if (count < 8) return 0;
+  const cov = sxy / count - (sx / count) * (sy / count);
+  const varA = sxx / count - (sx / count) ** 2;
+  const varB = syy / count - (sy / count) ** 2;
+  if (varA < 1e-9 || varB < 1e-9) return 0;
+  return cov / Math.sqrt(varA * varB);
+}
+
+/**
+ * Max envelope correlation between the system and mic channels over an
+ * interval plus wide context (small lag search in both directions). High
+ * correlation = the mic heard the speakers, not the user.
+ */
+function intervalLeakCorrelation(systemWav, micWav, interval) {
+  const start = Math.max(0, interval.start - LEAK_CONTEXT_SEC);
+  const end = interval.end + LEAK_CONTEXT_SEC;
+  const sysEnv = computeEnvelope(systemWav, start, end);
+  const micEnv = computeEnvelope(micWav, start, end);
+  // System silent during the interval → nothing to leak; correlation is noise.
+  let sysMean = 0;
+  for (const v of sysEnv) sysMean += v;
+  sysMean /= Math.max(1, sysEnv.length);
+  if (sysMean < 100) return 0;
+  let best = 0;
+  for (let lag = -LEAK_MAX_LAG_WINDOWS; lag <= LEAK_MAX_LAG_WINDOWS; lag++) {
+    const r = normalizedCorrelation(sysEnv, micEnv, lag);
+    if (r > best) best = r;
+  }
+  return best;
+}
+
+/**
+ * Concatenate mic audio from the given (leak-free) intervals for voiceprint
+ * extraction, longest intervals first, capped at the CAM++ input limit.
+ */
+function extractSamplesFromIntervals(micWav, intervals) {
+  if (!intervals || intervals.length === 0) return null;
+  const maxSamples = MAX_EMBEDDING_SECONDS * micWav.sampleRate;
+  const sorted = [...intervals].sort((a, b) => (b.end - b.start) - (a.end - a.start));
+  const chunks = [];
+  let total = 0;
+  for (const interval of sorted) {
+    if (total >= maxSamples) break;
+    const slice = sliceSamples(micWav, interval.start, interval.end);
+    const take = Math.min(slice.length, maxSamples - total);
+    chunks.push(slice.subarray(0, take));
+    total += take;
+  }
+  if (total < MIN_SEGMENT_DURATION * micWav.sampleRate) return null;
+  const out = new Float32Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return out;
+}
+
+/** Fraction of a mic interval covered by system-side diarized speech. */
+function systemSpeechCoverage(interval, systemSegments) {
+  const duration = interval.end - interval.start;
+  if (duration <= 0) return 0;
+  let covered = 0;
+  for (const seg of systemSegments) {
+    const overlap = Math.min(interval.end, seg.end) - Math.max(interval.start, seg.start);
+    if (overlap > 0) covered += overlap;
+  }
+  return Math.min(1, covered / duration);
+}
 
 function detectMicSpeechIntervals(micWav) {
   const windowSec = 0.3;
@@ -892,10 +1019,124 @@ async function main() {
   // 4. Mic voiceprint for is-me
   emit("stage", { stage: "mic-embedding" });
   let micEmbedding = null;
+  let meIntervals = null; // leak-guarded mic intervals; reused for Me injection
   try {
     const micWav = readWav(args["mic-audio"]);
-    const voicedSamples = extractVoicedMicSamples(micWav);
-    if (voicedSamples) micEmbedding = await embedder.extract(voicedSamples);
+    if (primaryIsMic) {
+      // Solo recording: the mic IS the diarized audio, no leak concept — use
+      // the loudest voiced windows.
+      const voicedSamples = extractVoicedMicSamples(micWav);
+      if (voicedSamples) micEmbedding = await embedder.extract(voicedSamples);
+    } else {
+      // Leak guards run BEFORE anything consumes the mic channel.
+      // Stage 1 (cheap): an interval is suspect only when remote speech was
+      // actually playing over it (system diarization coverage); drop it when
+      // the mic envelope tracks the system channel.
+      const candidates = detectMicSpeechIntervals(micWav);
+      const envelopeKept = [];
+      let envelopeDropped = 0;
+      for (const interval of candidates) {
+        const coverage = systemSpeechCoverage(interval, rawSegments);
+        const r =
+          coverage >= LEAK_MIN_SYSTEM_COVERAGE
+            ? intervalLeakCorrelation(systemWav, micWav, interval)
+            : 0;
+        if (r >= LEAK_CORRELATION_CUTOFF) {
+          envelopeDropped++;
+        } else {
+          envelopeKept.push(interval);
+        }
+      }
+      // Stage 2 (identity): a mic chunk whose CAM++ embedding matches ANY
+      // system cluster is that remote voice reaching the mic — the user is
+      // never in the tap. Catches leak the envelope check misses.
+      const centroids = [...new Set(clusterMapping.values())]
+        .map((label) => clusterEmbeddings.get(label))
+        .filter(Boolean);
+      const survivors = [];
+      let identityDropped = 0;
+      for (const interval of envelopeKept) {
+        const duration = interval.end - interval.start;
+        const numChunks = Math.max(1, Math.ceil(duration / LEAK_ID_CHUNK_SEC));
+        const chunkLen = duration / numChunks;
+        for (let c = 0; c < numChunks; c++) {
+          const chunk = {
+            start: interval.start + c * chunkLen,
+            end: interval.start + (c + 1) * chunkLen,
+          };
+          let isLeak = false;
+          if (centroids.length > 0) {
+            const samples = sliceSamples(micWav, chunk.start, chunk.end);
+            const emb =
+              samples.length >= MIN_SEGMENT_DURATION * micWav.sampleRate
+                ? await embedder.extract(samples)
+                : null;
+            if (emb) {
+              const normalized = normalizeEmbedding(emb);
+              for (const centroid of centroids) {
+                if (cosineSimilarity(normalized, centroid) >= LEAK_IDENTITY_CUTOFF) {
+                  isLeak = true;
+                  break;
+                }
+              }
+            }
+          }
+          if (isLeak) {
+            identityDropped++;
+          } else {
+            const previous = survivors[survivors.length - 1];
+            if (previous && chunk.start - previous.end < 0.05) {
+              previous.end = chunk.end;
+            } else {
+              survivors.push({ start: chunk.start, end: chunk.end });
+            }
+          }
+        }
+      }
+      meIntervals = survivors;
+
+      // Voiceprint from leak-free intervals ONLY. A whole-file extraction is
+      // poisoned by exactly the leak just filtered — measured: a leaked
+      // remote monologue cluster matched the poisoned voiceprint at 0.52 and
+      // the whole cluster became "Me". Two safety gates on the residue:
+      //  - too little clean audio (<5s) can't identify anyone — a 1s leak
+      //    fragment once built a voiceprint that flipped a whole remote
+      //    cluster to "Me"
+      //  - a voiceprint that itself sounds like a system cluster means the
+      //    "clean" residue is still leak → the mic channel is untrusted
+      //    entirely (no cluster is-me, no Me injection)
+      const cleanSec = meIntervals.reduce((sum, iv) => sum + (iv.end - iv.start), 0);
+      if (cleanSec >= 5) {
+        const voicedSamples = extractSamplesFromIntervals(micWav, meIntervals);
+        if (voicedSamples) micEmbedding = await embedder.extract(voicedSamples);
+        if (micEmbedding && centroids.length > 0) {
+          const normalized = normalizeEmbedding(micEmbedding);
+          for (const centroid of centroids) {
+            if (cosineSimilarity(normalized, centroid) >= LEAK_IDENTITY_CUTOFF) {
+              emit("warning", {
+                message:
+                  "Leak-filtered mic audio still sounds like a meeting speaker — mic channel untrusted, Me detection disabled; check speaker/headphone setup",
+              });
+              micEmbedding = null;
+              meIntervals = [];
+              break;
+            }
+          }
+        }
+      } else if (candidates.length > 0) {
+        emit("warning", {
+          message: `Only ${cleanSec.toFixed(1)}s of leak-free mic audio (${candidates.length} voiced intervals detected) — Me detection disabled for this recording`,
+        });
+        meIntervals = [];
+      }
+      emit("mic-me-intervals", {
+        count: meIntervals.length,
+        cleanSec: Math.round(cleanSec),
+        envelopeDropped,
+        identityDropped,
+        candidates: candidates.length,
+      });
+    }
   } catch (err) {
     emit("warning", { message: `Mic embedding failed: ${err.message}` });
   }
@@ -981,39 +1222,36 @@ async function main() {
     voiceBank.close();
   }
 
-  const diarizedSegments = rawSegments.map((seg) => ({
-    start: seg.start,
-    end: seg.end,
-    resolvedLabel: labelMap.get(seg.canonical) || `Unknown (${seg.speaker})`,
-  }));
+  // Clusters that never produced a labelable embedding (all segments <1s)
+  // stay out of the merge — a whisper segment near them falls back to the
+  // nearest labeled speaker instead of surfacing as "Unknown (speaker_XX)".
+  const diarizedSegments = rawSegments
+    .filter((seg) => labelMap.has(seg.canonical))
+    .map((seg) => ({
+      start: seg.start,
+      end: seg.end,
+      resolvedLabel: labelMap.get(seg.canonical),
+    }));
 
-  // Inject the user's own turns from the mic channel (see
-  // detectMicSpeechIntervals) — unless the mic was already diarized as the
-  // primary audio, where the embedding-based is-me above covers it.
-  if (!primaryIsMic) {
-    try {
-      const micWavForIntervals = readWav(args["mic-audio"]);
-      const meIntervals = detectMicSpeechIntervals(micWavForIntervals);
-      emit("mic-me-intervals", { count: meIntervals.length });
-      if (meIntervals.length > 0) {
-        for (const interval of meIntervals) {
-          diarizedSegments.push({
-            start: interval.start,
-            end: interval.end,
-            resolvedLabel: ME_LABEL,
-          });
-        }
-        if (!speakerMeta.has(ME_LABEL)) {
-          speakerMeta.set(ME_LABEL, {
-            label: ME_LABEL,
-            voiceprint_id: null,
-            is_new: false,
-            is_me: true,
-          });
-        }
-      }
-    } catch (err) {
-      emit("warning", { message: `Mic Me-interval detection failed: ${err.message}` });
+  // Inject the user's own turns from the mic channel — the leak-guarded
+  // intervals computed at the mic-embedding stage. Skipped for solo
+  // recordings (primaryIsMic), where the embedding-based is-me above covers
+  // it.
+  if (!primaryIsMic && meIntervals && meIntervals.length > 0) {
+    for (const interval of meIntervals) {
+      diarizedSegments.push({
+        start: interval.start,
+        end: interval.end,
+        resolvedLabel: ME_LABEL,
+      });
+    }
+    if (!speakerMeta.has(ME_LABEL)) {
+      speakerMeta.set(ME_LABEL, {
+        label: ME_LABEL,
+        voiceprint_id: null,
+        is_new: false,
+        is_me: true,
+      });
     }
   }
 
@@ -1062,6 +1300,7 @@ module.exports = {
   consolidateClusters,
   extractVoicedMicSamples,
   detectMicSpeechIntervals,
+  intervalLeakCorrelation,
   mergeTranscript,
   runDiarizeCli,
 };
