@@ -66,6 +66,23 @@ export default function ControlPanel() {
   // True while a meeting recording/transcription/diarization is in flight —
   // keeps PersonalNotesView mounted so navigation doesn't kill the recording
   const [meetingActivityActive, setMeetingActivityActive] = useState(false);
+
+  // A plain sidebar switch to the Notes tab clears the remembered selection
+  // so the view defaults back to the Meetings folder on remount. Skipped
+  // while meeting activity keeps the view mounted (nulling the selection
+  // would blank the note the live recording is attached to). Explicit
+  // navigations (Open Note, search, upload) set their presets directly and
+  // don't go through this handler.
+  const handleSidebarViewChange = useCallback(
+    (view: ControlPanelView) => {
+      if (view === "personal-notes" && activeView !== "personal-notes" && !meetingActivityActive) {
+        setActiveFolderId(null);
+        setActiveNoteId(null);
+      }
+      setActiveView(view);
+    },
+    [activeView, meetingActivityActive]
+  );
   const [meetingRecordingRequest, setMeetingRecordingRequest] = useState<{
     noteId: number;
     folderId: number;
@@ -612,7 +629,7 @@ export default function ControlPanel() {
         {!isMeetingMode && isWideEnough && (
           <ControlPanelSidebar
             activeView={activeView}
-            onViewChange={setActiveView}
+            onViewChange={handleSidebarViewChange}
             onCollapse={() => {}}
             onOpenSearch={() => setShowSearch(true)}
             onOpenSettings={() => {
@@ -653,7 +670,7 @@ export default function ControlPanel() {
             >
               <ControlPanelSidebar
                 activeView={activeView}
-                onViewChange={setActiveView}
+                onViewChange={handleSidebarViewChange}
                 onCollapse={() => setSidebarOpen(false)}
                 onOpenSearch={() => setShowSearch(true)}
                 onOpenSettings={() => {

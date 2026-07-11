@@ -8,6 +8,10 @@ export function findDefaultFolder(folders: FolderItem[]): FolderItem | undefined
   return folders.find((f) => f.name === DEFAULT_FOLDER_NAME && f.is_default);
 }
 
+export function findMeetingsFolder(folders: FolderItem[]): FolderItem | undefined {
+  return folders.find((f) => f.name === MEETINGS_FOLDER_NAME && f.is_default);
+}
+
 export const notesInputClass = cn(
   "w-full h-8 px-3 rounded-md text-xs",
   "bg-foreground/3 dark:bg-white/4 border border-border/30 dark:border-white/6",

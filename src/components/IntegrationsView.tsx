@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, Check, Info, Loader2, Mail, Pencil, Plus, Trash2, Unlink, UserRound, Users } from "lucide-react";
+import { CalendarDays, Check, Loader2, Mail, Pencil, Plus, Trash2, Unlink, UserRound, Users } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { SettingsPanel, SettingsPanelRow } from "./ui/SettingsSection";
@@ -167,16 +167,45 @@ export default function IntegrationsView() {
     }
   }, []);
 
-  const handleAcalCalendarToggle = useCallback(async (calendarId: string, isSelected: boolean) => {
+  // The same calendar can appear under several accounts (e.g. Holidays,
+  // subscribed calendars) — collapse them into one row per title. Toggling
+  // the row toggles every underlying calendar id.
+  const dedupedAppleCalendars = useMemo(() => {
+    const groups = new Map<
+      string,
+      { title: string; color: string | null; is_selected: number; ids: string[] }
+    >();
+    for (const cal of appleCalendars) {
+      const existing = groups.get(cal.title);
+      if (existing) {
+        existing.ids.push(cal.id);
+        if (cal.is_selected) existing.is_selected = 1;
+        if (!existing.color && cal.color) existing.color = cal.color;
+      } else {
+        groups.set(cal.title, {
+          title: cal.title,
+          color: cal.color,
+          is_selected: cal.is_selected,
+          ids: [cal.id],
+        });
+      }
+    }
+    return [...groups.values()];
+  }, [appleCalendars]);
+
+  const handleAcalCalendarToggle = useCallback(async (calendarIds: string[], isSelected: boolean) => {
     // Optimistic update
     setAppleCalendars((prev) =>
-      prev.map((c) => (c.id === calendarId ? { ...c, is_selected: isSelected ? 1 : 0 } : c))
+      prev.map((c) => (calendarIds.includes(c.id) ? { ...c, is_selected: isSelected ? 1 : 0 } : c))
     );
-    const result = await window.electronAPI?.acalSetCalendarSelected?.(calendarId, isSelected);
-    if (!result?.success) {
-      // Revert on failure
+    const results = await Promise.all(
+      calendarIds.map((id) => window.electronAPI?.acalSetCalendarSelected?.(id, isSelected))
+    );
+    const failedIds = calendarIds.filter((_, i) => !results[i]?.success);
+    if (failedIds.length > 0) {
+      // Revert failures
       setAppleCalendars((prev) =>
-        prev.map((c) => (c.id === calendarId ? { ...c, is_selected: isSelected ? 0 : 1 } : c))
+        prev.map((c) => (failedIds.includes(c.id) ? { ...c, is_selected: isSelected ? 0 : 1 } : c))
       );
     }
   }, []);
@@ -225,6 +254,101 @@ export default function IntegrationsView() {
         <h2 className="text-base font-semibold text-foreground">{t("integrations.title")}</h2>
         <p className="text-xs text-muted-foreground/70 mt-0.5">{t("integrations.description")}</p>
       </div>
+
+      {isMacOS && (
+        <SettingsPanel>
+          <SettingsPanelRow>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-white dark:bg-surface-raised shadow-[0_0_0_1px_rgba(0,0,0,0.04)] dark:shadow-none dark:border dark:border-white/5 flex items-center justify-center shrink-0">
+                <CalendarDays className="w-5 h-5 text-red-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground">
+                  {t("integrations.appleCalendar.title")}
+                </p>
+                <p className="text-xs text-muted-foreground/70 mt-0.5 leading-relaxed">
+                  {t("integrations.appleCalendar.description")}
+                </p>
+              </div>
+              {!appleCalendarConnected && (
+                <Button
+                  size="sm"
+                  onClick={handleAcalConnect}
+                  disabled={isConnectingAcal}
+                  className="shrink-0"
+                >
+                  {isConnectingAcal ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    t("integrations.appleCalendar.connect")
+                  )}
+                </Button>
+              )}
+              {appleCalendarConnected && (
+                <Badge variant="success" className="shrink-0">
+                  {t("integrations.appleCalendar.connected")}
+                </Badge>
+              )}
+            </div>
+          </SettingsPanelRow>
+
+          {appleCalendarConnected && appleCalendars.length > 0 && (
+            <SettingsPanelRow>
+              <div className="pl-12 space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground/70 mb-2">
+                  {t("integrations.appleCalendar.calendars")}
+                </p>
+                {dedupedAppleCalendars.map((cal) => (
+                  <button
+                    key={cal.title}
+                    onClick={() => handleAcalCalendarToggle(cal.ids, !cal.is_selected)}
+                    className="flex items-center gap-2.5 w-full text-left py-0.5 group"
+                  >
+                    <div
+                      className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${
+                        cal.is_selected
+                          ? "border-transparent"
+                          : "border-border/60 bg-transparent"
+                      }`}
+                      style={cal.is_selected && cal.color ? { backgroundColor: cal.color } : cal.is_selected ? { backgroundColor: "var(--color-primary)" } : undefined}
+                    >
+                      {cal.is_selected ? <Check className="h-3 w-3 text-white" /> : null}
+                    </div>
+                    <span className="text-xs text-foreground/80 truncate">{cal.title}</span>
+                    {cal.color && (
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0 ml-auto"
+                        style={{ backgroundColor: cal.color }}
+                      />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </SettingsPanelRow>
+          )}
+
+          {appleCalendarConnected && loadingAcalCalendars && appleCalendars.length === 0 && (
+            <SettingsPanelRow>
+              <div className="flex items-center gap-2 pl-12 text-xs text-muted-foreground/60">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {t("integrations.appleCalendar.loadingCalendars")}
+              </div>
+            </SettingsPanelRow>
+          )}
+
+          {appleCalendarConnected && (
+            <SettingsPanelRow>
+              <button
+                onClick={() => setConfirmDisconnectAcal(true)}
+                className="flex items-center gap-2 pl-12 text-xs text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <Unlink className="h-3.5 w-3.5" />
+                {t("integrations.appleCalendar.disconnect")}
+              </button>
+            </SettingsPanelRow>
+          )}
+        </SettingsPanel>
+      )}
 
       <SettingsPanel>
         <SettingsPanelRow>
@@ -303,101 +427,6 @@ export default function IntegrationsView() {
           </SettingsPanelRow>
         )}
       </SettingsPanel>
-
-      {isMacOS && (
-        <SettingsPanel>
-          <SettingsPanelRow>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-white dark:bg-surface-raised shadow-[0_0_0_1px_rgba(0,0,0,0.04)] dark:shadow-none dark:border dark:border-white/5 flex items-center justify-center shrink-0">
-                <CalendarDays className="w-5 h-5 text-red-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-foreground">
-                  {t("integrations.appleCalendar.title")}
-                </p>
-                <p className="text-xs text-muted-foreground/70 mt-0.5 leading-relaxed">
-                  {t("integrations.appleCalendar.description")}
-                </p>
-              </div>
-              {!appleCalendarConnected && (
-                <Button
-                  size="sm"
-                  onClick={handleAcalConnect}
-                  disabled={isConnectingAcal}
-                  className="shrink-0"
-                >
-                  {isConnectingAcal ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    t("integrations.appleCalendar.connect")
-                  )}
-                </Button>
-              )}
-              {appleCalendarConnected && (
-                <Badge variant="success" className="shrink-0">
-                  {t("integrations.appleCalendar.connected")}
-                </Badge>
-              )}
-            </div>
-          </SettingsPanelRow>
-
-          {appleCalendarConnected && appleCalendars.length > 0 && (
-            <SettingsPanelRow>
-              <div className="pl-12 space-y-1.5">
-                <p className="text-xs font-medium text-muted-foreground/70 mb-2">
-                  {t("integrations.appleCalendar.calendars")}
-                </p>
-                {appleCalendars.map((cal) => (
-                  <button
-                    key={cal.id}
-                    onClick={() => handleAcalCalendarToggle(cal.id, !cal.is_selected)}
-                    className="flex items-center gap-2.5 w-full text-left py-0.5 group"
-                  >
-                    <div
-                      className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${
-                        cal.is_selected
-                          ? "border-transparent"
-                          : "border-border/60 bg-transparent"
-                      }`}
-                      style={cal.is_selected && cal.color ? { backgroundColor: cal.color } : cal.is_selected ? { backgroundColor: "var(--color-primary)" } : undefined}
-                    >
-                      {cal.is_selected ? <Check className="h-3 w-3 text-white" /> : null}
-                    </div>
-                    <span className="text-xs text-foreground/80 truncate">{cal.title}</span>
-                    {cal.color && (
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0 ml-auto"
-                        style={{ backgroundColor: cal.color }}
-                      />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </SettingsPanelRow>
-          )}
-
-          {appleCalendarConnected && loadingAcalCalendars && appleCalendars.length === 0 && (
-            <SettingsPanelRow>
-              <div className="flex items-center gap-2 pl-12 text-xs text-muted-foreground/60">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                {t("integrations.appleCalendar.loadingCalendars")}
-              </div>
-            </SettingsPanelRow>
-          )}
-
-          {appleCalendarConnected && (
-            <SettingsPanelRow>
-              <button
-                onClick={() => setConfirmDisconnectAcal(true)}
-                className="flex items-center gap-2 pl-12 text-xs text-muted-foreground hover:text-destructive transition-colors"
-              >
-                <Unlink className="h-3.5 w-3.5" />
-                {t("integrations.appleCalendar.disconnect")}
-              </button>
-            </SettingsPanelRow>
-          )}
-        </SettingsPanel>
-      )}
 
       {/* Speaker identification — engine choice, matching thresholds, voice bank */}
       <div>
@@ -646,21 +675,6 @@ export default function IntegrationsView() {
           )}
         </SettingsPanel>
       </div>
-
-      {!hasAccounts && (
-        <div className="rounded-lg border border-border/40 dark:border-border-subtle/40 bg-muted/20 dark:bg-surface-2/30 p-4 flex items-start gap-3">
-          <Info size={15} className="text-primary/60 shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-foreground/80">
-              {t("integrations.notABot.title")}
-            </p>
-            <p className="text-xs text-muted-foreground/60 mt-0.5 leading-relaxed">
-              {t("integrations.notABot.description")}
-            </p>
-          </div>
-        </div>
-      )}
-
 
       <ConfirmDialog
         open={!!confirmDisconnectEmail}

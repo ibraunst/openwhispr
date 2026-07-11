@@ -109,7 +109,8 @@ export default function MeetingNotificationOverlay() {
             <div
               className="h-full bg-primary/30 rounded-full"
               style={{
-                animation: "shrinkWidth 15s linear forwards",
+                // Matches the 45s auto-dismiss timer in windowManager.js
+                animation: "shrinkWidth 45s linear forwards",
               }}
             />
           </div>

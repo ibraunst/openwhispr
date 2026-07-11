@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useToast } from "../components/ui/Toast";
 import logger from "../utils/logger";
 import type { FolderItem } from "../types/electron";
-import { findDefaultFolder } from "../components/notes/shared";
+import { findDefaultFolder, findMeetingsFolder } from "../components/notes/shared";
 import {
   useActiveFolderId,
   setActiveFolderId,
@@ -61,7 +61,12 @@ export function useFolderManagement(): UseFolderManagementReturn {
         window.electronAPI.getFolderNoteCounts(),
       ]);
       if (!isMountedRef.current) return items;
-      setFolders(items);
+      // Meetings folder always renders first in the sidebar
+      const meetings = findMeetingsFolder(items);
+      const ordered = meetings
+        ? [meetings, ...items.filter((f) => f.id !== meetings.id)]
+        : items;
+      setFolders(ordered);
       const countMap: Record<number, number> = {};
       counts.forEach((c) => {
         countMap[c.folder_id] = c.count;
@@ -87,9 +92,35 @@ export function useFolderManagement(): UseFolderManagementReturn {
         const presetFolderId = getActiveFolderIdValue();
         const isPresetValid = presetFolderId != null && items.some((f) => f.id === presetFolderId);
 
+        // A preset note without a folder preset (e.g. opened from search)
+        // should land in its own folder, not the default.
+        let presetNoteFolderId: number | null = null;
+        if (!isPresetValid) {
+          const presetNoteId = getActiveNoteIdValue();
+          if (presetNoteId != null) {
+            try {
+              const note = await window.electronAPI.getNote?.(presetNoteId);
+              if (note?.folder_id != null && items.some((f) => f.id === note.folder_id)) {
+                presetNoteFolderId = note.folder_id;
+              }
+            } catch (err) {
+              logger.warn(
+                "Failed to resolve preset note's folder",
+                { error: (err as Error).message },
+                "notes"
+              );
+            }
+            if (!isMountedRef.current) return;
+          }
+        }
+
         const initialFolderId = isPresetValid
           ? presetFolderId
-          : (findDefaultFolder(items)?.id ?? items[0]?.id ?? null);
+          : (presetNoteFolderId ??
+            findMeetingsFolder(items)?.id ??
+            findDefaultFolder(items)?.id ??
+            items[0]?.id ??
+            null);
 
         if (initialFolderId !== presetFolderId) {
           setActiveFolderId(initialFolderId);
