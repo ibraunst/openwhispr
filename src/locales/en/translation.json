@@ -2052,6 +2052,7 @@
     "mergeConfirm": "Merge",
     "forgotten": "Forgot “{{name}}” — future meetings will treat them as a new guest",
     "forgetFailed": "Could not forget voice",
-    "notInBank": "“{{name}}” has no saved voice"
+    "notInBank": "“{{name}}” has no saved voice",
+    "forgetNoteDescription": "Their lines in this note become an unnamed guest, their saved voice is deleted, and future meetings will treat them as a new guest."
   }
 }

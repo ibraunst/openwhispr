@@ -1985,6 +1985,7 @@
     "mergeConfirm": "合併",
     "forgotten": "已忘記「{{name}}」的聲音 — 之後的會議會將其視為新訪客",
     "forgetFailed": "無法忘記該聲音",
-    "notInBank": "「{{name}}」沒有已儲存的聲音"
+    "notInBank": "「{{name}}」沒有已儲存的聲音",
+    "forgetNoteDescription": "此人在本筆記中的發言將變為未命名訪客，其已儲存的聲音將被刪除，之後的會議會將其視為新訪客。"
   }
 }

@@ -1985,6 +1985,7 @@
     "mergeConfirm": "Combinar",
     "forgotten": "Voz de “{{name}}” esquecida — as próximas reuniões vão tratá-lo como um novo convidado",
     "forgetFailed": "Não foi possível esquecer a voz",
-    "notInBank": "“{{name}}” não tem voz salva"
+    "notInBank": "“{{name}}” não tem voz salva",
+    "forgetNoteDescription": "As falas dessa pessoa nesta nota passam a ser de um convidado sem nome, sua voz salva é excluída e as próximas reuniões a tratarão como um novo convidado."
   }
 }

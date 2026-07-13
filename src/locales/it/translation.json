@@ -1985,6 +1985,7 @@
     "mergeConfirm": "Unisci",
     "forgotten": "Voce di “{{name}}” dimenticata — le prossime riunioni lo tratteranno come un nuovo ospite",
     "forgetFailed": "Impossibile dimenticare la voce",
-    "notInBank": "“{{name}}” non ha una voce salvata"
+    "notInBank": "“{{name}}” non ha una voce salvata",
+    "forgetNoteDescription": "Le sue righe in questa nota diventano di un ospite senza nome, la voce salvata viene eliminata e le prossime riunioni lo tratteranno come un nuovo ospite."
   }
 }

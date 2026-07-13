@@ -1985,6 +1985,7 @@
     "mergeConfirm": "Fusionner",
     "forgotten": "Voix de « {{name}} » oubliée — les prochaines réunions le traiteront comme un nouvel invité",
     "forgetFailed": "Impossible d'oublier la voix",
-    "notInBank": "« {{name}} » n'a pas de voix enregistrée"
+    "notInBank": "« {{name}} » n'a pas de voix enregistrée",
+    "forgetNoteDescription": "Ses lignes dans cette note deviennent celles d'un invité anonyme, sa voix enregistrée est supprimée et les prochaines réunions le traiteront comme un nouvel invité."
   }
 }

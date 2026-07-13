@@ -1985,6 +1985,7 @@
     "mergeConfirm": "Zusammenführen",
     "forgotten": "Stimme von „{{name}}“ vergessen — künftige Meetings behandeln die Person als neuen Gast",
     "forgetFailed": "Stimme konnte nicht vergessen werden",
-    "notInBank": "„{{name}}“ hat keine gespeicherte Stimme"
+    "notInBank": "„{{name}}“ hat keine gespeicherte Stimme",
+    "forgetNoteDescription": "Die Zeilen dieser Person in dieser Notiz werden zu einem unbenannten Gast, ihre gespeicherte Stimme wird gelöscht und künftige Meetings behandeln sie als neuen Gast."
   }
 }

@@ -838,10 +838,12 @@ export default function PersonalNotesView({
     [applyParagraphSpeakerEdit]
   );
 
-  // Deletes a speaker's saved voiceprint from the active engine's bank (the
-  // transcript text is untouched — rename/assign handles that). The escape
-  // hatch for a polluted or misattributed voiceprint: once forgotten, future
-  // meetings treat the person as a new guest.
+  // Removes a speaker entirely: deletes their saved voiceprint from the
+  // active engine's bank AND demotes their lines in THIS note to a fresh
+  // "Guest N" (the chip row derives from the transcript text, so the name
+  // must leave the note too — a forgotten identity shouldn't keep labeling
+  // paragraphs). The escape hatch for a polluted or misattributed voice:
+  // future meetings treat the person as a brand-new guest.
   const [forgetConfirm, setForgetConfirm] = useState<{
     label: string;
     resolve: (ok: boolean) => void;
@@ -849,6 +851,10 @@ export default function PersonalNotesView({
 
   const handleForgetSpeakerVoice = useCallback(
     async (speaker: string) => {
+      const noteId = activeNoteId;
+      const currentTranscript = activeMeetingDiarized || activeNote?.transcript || "";
+      const marker = `**${speaker}:**`;
+      const inNote = noteId != null && currentTranscript.includes(marker);
       try {
         const engine =
           getSettings().diarizationEngine === "sherpa"
@@ -859,7 +865,7 @@ export default function PersonalNotesView({
           throw new Error(bank?.error || "Could not read the voicebank");
         }
         const prints = (bank.voices ?? []).filter((v) => v.label === speaker);
-        if (prints.length === 0) {
+        if (prints.length === 0 && !inNote) {
           toast({ title: t("voicebank.notInBank", { name: formatSpeakerName(speaker) }) });
           return;
         }
@@ -873,6 +879,41 @@ export default function PersonalNotesView({
             throw new Error(res?.error || "Delete failed");
           }
         }
+
+        if (inNote) {
+          // Fresh guest number, unique across this transcript AND the bank —
+          // colliding with another meeting's "Guest N" voiceprint would make
+          // a later "Rename everywhere" rewrite that other person's print.
+          let maxGuest = 0;
+          const guestRe = /\*\*Guest (\d+):\*\*/g;
+          let guestMatch;
+          while ((guestMatch = guestRe.exec(currentTranscript)) !== null) {
+            maxGuest = Math.max(maxGuest, parseInt(guestMatch[1], 10));
+          }
+          for (const v of bank.voices ?? []) {
+            const m = /^Guest (\d+)$/.exec(v.label);
+            if (m) maxGuest = Math.max(maxGuest, parseInt(m[1], 10));
+          }
+          const guestLabel = `Guest ${maxGuest + 1}`;
+          const updated = currentTranscript.split(marker).join(`**${guestLabel}:**`);
+          await window.electronAPI.updateNote(noteId, { transcript: updated });
+          if (activeMeetingDiarized) overrideDiarizedTranscript(updated);
+          if (lastExportRef.current && noteId === meetingNoteId) {
+            const { filename, directory, headerLines } = lastExportRef.current;
+            writeTranscriptExport(headerLines.join("\n") + updated, filename, directory);
+          } else if (activeNote?.export_path && activeNote?.export_header) {
+            window.electronAPI
+              .overwriteExportedFile?.(
+                activeNote.export_path,
+                formatTranscriptForExport(activeNote.export_header + updated)
+              )
+              .catch((err: Error) => {
+                logger.error("Transcript export rewrite failed", { error: err.message }, "notes");
+              });
+          }
+          await initializeNotes(null, 50, activeFolderId);
+        }
+
         toast({ title: t("voicebank.forgotten", { name: formatSpeakerName(speaker) }) });
       } catch (err) {
         logger.error("Forget voice failed", { error: (err as Error).message }, "notes");
@@ -883,7 +924,19 @@ export default function PersonalNotesView({
         });
       }
     },
-    [toast, t]
+    [
+      activeNoteId,
+      activeNote?.transcript,
+      activeNote?.export_path,
+      activeNote?.export_header,
+      activeFolderId,
+      activeMeetingDiarized,
+      overrideDiarizedTranscript,
+      meetingNoteId,
+      writeTranscriptExport,
+      toast,
+      t,
+    ]
   );
 
   // Re-run speaker identification on an already-recorded meeting using the
@@ -1925,7 +1978,7 @@ export default function PersonalNotesView({
               {t("voicebank.deleteConfirmTitle", { name: formatSpeakerName(forgetConfirm.label) })}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              {t("voicebank.deleteConfirmDescription")}
+              {t("voicebank.forgetNoteDescription")}
             </DialogDescription>
             <DialogFooter>
               <Button
