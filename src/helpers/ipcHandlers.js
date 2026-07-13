@@ -3262,6 +3262,117 @@ class IPCHandlers {
       }
     });
 
+    // "Learn voice from this recording": enrolls a voiceprint for ONE
+    // speaker of a meeting note using the note's current labels — the
+    // recovery path when a person's print was deleted (or never existed)
+    // but their labeled paragraphs and the audio are still on the note.
+    // Sherpa only: the pyannote bank lives in a different embedding space
+    // and would need the Python engine for extraction.
+    ipcMain.handle("voicebank-enroll-speaker", async (_event, { noteId, speaker, engine } = {}) => {
+      try {
+        if (noteId == null || !speaker) {
+          return { success: false, error: "noteId and speaker are required" };
+        }
+        if (engine !== "sherpa") {
+          return {
+            success: false,
+            error:
+              "Learning a voice from a recording requires the sherpa engine (Integrations → Speaker identification)",
+          };
+        }
+        const sherpaDiarization = require("./sherpaDiarization");
+        if (!sherpaDiarization.isAvailable()) {
+          return {
+            success: false,
+            error: `Sherpa diarization unavailable: ${sherpaDiarization.unavailableReason()}`,
+          };
+        }
+
+        const note = this.databaseManager.getNote(noteId);
+        const meetingId = note?.meeting_id;
+        if (!meetingId) {
+          return { success: false, error: "No recording linked to this note" };
+        }
+
+        const { listVoicePrints } = require("./voicebank");
+        if (listVoicePrints(app, "sherpa").some((v) => v.label === speaker)) {
+          return { success: false, error: `"${speaker}" already has a saved voice` };
+        }
+
+        const meetingDir = path.join(app.getPath("userData"), "meetings", String(meetingId));
+        const transcriptPath = path.join(meetingDir, "transcript.json");
+        if (!fs.existsSync(transcriptPath)) {
+          return { success: false, error: "No speaker-identified transcript for this recording" };
+        }
+        const parsed = JSON.parse(fs.readFileSync(transcriptPath, "utf8"));
+        if (!Array.isArray(parsed?.segments) || parsed.segments.length === 0) {
+          return { success: false, error: "No segments in this recording's transcript" };
+        }
+
+        // Map the engine's original labels onto the note's CURRENT names,
+        // then collect this speaker's time spans.
+        const segments = reconcileSegmentSpeakers(parsed.segments, note.transcript || "");
+        const spans = segments
+          .filter(
+            (s) => s.speaker === speaker && Number.isFinite(s.start) && Number.isFinite(s.end)
+          )
+          .map((s) => [s.start, s.end]);
+        const totalSeconds = spans.reduce((sum, [s, e]) => sum + (e - s), 0);
+        if (totalSeconds < 3) {
+          return {
+            success: false,
+            error: "Not enough of this speaker's audio to learn a voice from",
+          };
+        }
+
+        // Same audio-source rule as diarization: silent system audio (solo
+        // recording) falls back to the mic recording.
+        const { convertToWav, sampleWavRMS } = require("./ffmpegUtils");
+        const systemWavPath = path.join(meetingDir, "system_record.wav");
+        const micWavPath = path.join(meetingDir, "mic_record.wav");
+        if (!fs.existsSync(systemWavPath)) {
+          const webm = path.join(meetingDir, "system_record.webm");
+          if (!fs.existsSync(webm)) {
+            return { success: false, error: "Recording audio not found" };
+          }
+          await convertToWav(webm, systemWavPath);
+        }
+        let audioPath = systemWavPath;
+        try {
+          const rms = await sampleWavRMS(systemWavPath);
+          if (rms < 0.001) {
+            if (!fs.existsSync(micWavPath)) {
+              const webm = path.join(meetingDir, "mic_record.webm");
+              if (fs.existsSync(webm)) await convertToWav(webm, micWavPath);
+            }
+            if (fs.existsSync(micWavPath)) audioPath = micWavPath;
+          }
+        } catch (rmsError) {
+          debugLogger.warn(
+            "Enroll silence check failed, keeping system audio",
+            { error: rmsError.message },
+            "meeting"
+          );
+        }
+
+        const result = await sherpaDiarization.enrollVoice({
+          audioPath,
+          spans,
+          label: speaker,
+          voiceDbPath: path.join(app.getPath("userData"), "voicebank-sherpa.db"),
+        });
+        debugLogger.info(
+          "Voice enrolled from recording",
+          { noteId, meetingId, speaker, seconds: result.seconds, voiceprintId: result.voiceprint_id },
+          "meeting"
+        );
+        return { success: true, voiceprintId: result.voiceprint_id, seconds: result.seconds };
+      } catch (error) {
+        debugLogger.error("voicebank-enroll-speaker failed", { error: error.message }, "meeting");
+        return { success: false, error: error.message };
+      }
+    });
+
     ipcMain.handle("voicebank-delete", async (_event, id, engine) => {
       try {
         const { deleteVoicePrint } = require("./voicebank");

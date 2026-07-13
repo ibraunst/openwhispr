@@ -488,6 +488,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   meetingSaveTranscript: (data) => ipcRenderer.invoke("meeting-save-transcript", data),
   meetingRunDiarization: (data) => ipcRenderer.invoke("meeting-run-diarization", data),
   meetingGetPlayback: (noteId) => ipcRenderer.invoke("meeting-get-playback", noteId),
+  voicebankEnrollSpeaker: (data) =>
+    ipcRenderer.invoke("voicebank-enroll-speaker", data),
   meetingResetParagraphSpeaker: (data) =>
     ipcRenderer.invoke("meeting-reset-paragraph-speaker", data),
   meetingGetDiarizationCaches: (meetingId) =>

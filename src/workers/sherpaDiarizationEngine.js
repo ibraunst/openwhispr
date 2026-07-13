@@ -954,11 +954,83 @@ function mergeTranscript(transcript, diarizedSegments) {
 }
 
 // ---------------------------------------------------------------------------
+// Enroll-only mode — "Learn voice from this recording": extract a CAM++
+// voiceprint for ONE speaker from known time spans of an existing recording
+// and upsert it into the bank. No diarization CLI run, no transcript write.
+// Used when a person's print was deleted (or never existed) but their
+// labeled paragraphs — and the audio — are still on the note.
+// ---------------------------------------------------------------------------
+
+async function runEnrollMode(args) {
+  for (const key of ["system-audio", "voice-db", "emb-model", "enroll-label", "enroll-spans"]) {
+    if (!args[key]) throw new Error(`Missing required argument --${key}`);
+  }
+  for (const key of ["system-audio", "emb-model"]) {
+    if (!fs.existsSync(args[key])) throw new Error(`File not found for --${key}: ${args[key]}`);
+  }
+  const label = String(args["enroll-label"]).trim();
+  if (!label) throw new Error("Enroll label must not be empty");
+  const spans = JSON.parse(args["enroll-spans"]);
+  if (!Array.isArray(spans) || spans.length === 0) {
+    throw new Error("No speech spans provided for enrollment");
+  }
+
+  emit("stage", { stage: "enroll" });
+  const embedder = new Embedder();
+  await embedder.load(args["emb-model"]);
+  const wav = readWav(args["system-audio"]);
+
+  const embeddings = [];
+  let seconds = 0;
+  for (const span of spans) {
+    const start = Number(span?.[0]);
+    const end = Number(span?.[1]);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+    if (end - start < EMBED_MIN_SEGMENT_SECONDS) continue;
+    const samples = sliceSamples(wav, start, end);
+    const emb = await embedder.extract(samples);
+    if (!emb) continue;
+    embeddings.push(normalizeEmbedding(emb));
+    seconds += Math.min(end - start, MAX_EMBEDDING_SECONDS);
+  }
+  if (embeddings.length === 0) {
+    throw new Error("No usable speech found in this speaker's segments");
+  }
+
+  const voiceBank = new VoiceBank(args["voice-db"]);
+  try {
+    const voiceprintId = crypto.randomUUID();
+    voiceBank.upsert({
+      id: voiceprintId,
+      label,
+      embedding: averageEmbeddings(embeddings),
+      meetingCount: 1,
+    });
+    process.stdout.write(
+      JSON.stringify({
+        ok: true,
+        voiceprint_id: voiceprintId,
+        label,
+        seconds: Math.round(seconds),
+        segments: embeddings.length,
+      }) + "\n"
+    );
+  } finally {
+    voiceBank.close();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+
+  if (args["enroll-spans"]) {
+    await runEnrollMode(args);
+    return;
+  }
 
   const required = [
     "system-audio",

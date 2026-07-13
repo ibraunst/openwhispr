@@ -213,10 +213,99 @@ function run({
   });
 }
 
+const ENROLL_TIMEOUT_MS = 3 * 60 * 1000;
+
+/**
+ * "Learn voice from this recording": extract a voiceprint for ONE speaker
+ * from known time spans of an existing recording and upsert it into the
+ * bank. Runs the same worker script in enroll-only mode — no diarization
+ * CLI, no transcript write. Resolves with the worker's result JSON
+ * ({ voiceprint_id, label, seconds, segments }).
+ */
+function enrollVoice({ audioPath, spans, label, voiceDbPath }) {
+  const modelsDir = getModelsDir();
+  if (!modelsDir) {
+    return Promise.reject(new Error(unavailableReason() || "sherpa engine unavailable"));
+  }
+
+  const args = [
+    "--system-audio",
+    audioPath,
+    "--voice-db",
+    voiceDbPath,
+    "--emb-model",
+    path.join(modelsDir, EMBEDDING_MODEL_FILE),
+    "--enroll-label",
+    label,
+    "--enroll-spans",
+    JSON.stringify(spans),
+  ];
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let stdout = "";
+    let stderrTail = "";
+
+    const child = utilityProcess.fork(getEngineScriptPath(), args, {
+      serviceName: "customwhispr-voice-enroll",
+      stdio: "pipe",
+    });
+
+    const finish = (err, result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (err) reject(err);
+      else resolve(result);
+    };
+
+    const timeout = setTimeout(() => {
+      try {
+        child.kill();
+      } catch {
+        // Best effort.
+      }
+      finish(new Error("Voice enrollment timed out"));
+    }, ENROLL_TIMEOUT_MS);
+
+    child.stdout?.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+
+    child.stderr?.on("data", (chunk) => {
+      const text = chunk.toString();
+      stderrTail = (stderrTail + text).slice(-4000);
+      for (const line of text.split(/\r?\n/)) {
+        if (line.trim()) debugLogger.debug("voice enroll event", { line }, "meeting");
+      }
+    });
+
+    child.on("exit", (code) => {
+      if (code !== 0) {
+        const tail = stderrTail.trim().split("\n").slice(-6).join("\n");
+        finish(new Error(tail || `Voice enrollment worker exited with code ${code}`));
+        return;
+      }
+      try {
+        const result = JSON.parse(stdout.trim().split("\n").pop() || "{}");
+        if (!result.ok) throw new Error(result.error || "Enrollment produced no result");
+        finish(null, result);
+      } catch (err) {
+        finish(new Error(`Unreadable enrollment result: ${err.message}`));
+      }
+    });
+
+    child.on("error", (err) => {
+      finish(new Error(`Failed to start voice enrollment worker: ${err.message}`));
+    });
+  });
+}
+
 module.exports = {
   isAvailable,
   unavailableReason,
   run,
+  enrollVoice,
   getDiarizeBinaryPath,
   getModelsDir,
 };

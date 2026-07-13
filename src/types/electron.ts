@@ -1284,6 +1284,11 @@ declare global {
         id: string,
         engine?: "pyannote" | "sherpa"
       ) => Promise<{ success: boolean; changes?: number; error?: string }>;
+      voicebankEnrollSpeaker?: (data: {
+        noteId: number;
+        speaker: string;
+        engine: "pyannote" | "sherpa";
+      }) => Promise<{ success: boolean; voiceprintId?: string; seconds?: number; error?: string }>;
       onMeetingTranscriptionPartial?: (callback: (text: string) => void) => () => void;
       onMeetingTranscriptionFinal?: (callback: (text: string) => void) => () => void;
       onMeetingTranscriptionError?: (callback: (error: string) => void) => () => void;

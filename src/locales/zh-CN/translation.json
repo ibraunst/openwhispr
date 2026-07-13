@@ -1986,6 +1986,9 @@
     "forgotten": "已忘记“{{name}}”的声音 — 之后的会议会将其视为新访客",
     "forgetFailed": "无法忘记该声音",
     "notInBank": "“{{name}}”没有已保存的声音",
-    "forgetNoteDescription": "此人在本笔记中的发言将变为未命名访客，其已保存的声音将被删除，之后的会议会将其视为新访客。"
+    "forgetNoteDescription": "此人在本笔记中的发言将变为未命名访客，其已保存的声音将被删除，之后的会议会将其视为新访客。",
+    "learnVoice": "从此录音学习声音",
+    "learned": "已学习 {{name}} 的声音 — 之后的会议将能识别此人",
+    "learnFailed": "无法学习声音"
   }
 }

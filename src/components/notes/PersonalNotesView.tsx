@@ -871,6 +871,44 @@ export default function PersonalNotesView({
     resolve: (ok: boolean) => void;
   } | null>(null);
 
+  // "Learn voice from this recording": enrolls a voiceprint for a speaker
+  // whose print was deleted (or never saved) but whose labeled paragraphs
+  // and audio are still on this note — closes the forget→rename gap where a
+  // person stayed unrecognized until their next meeting.
+  const [learningSpeaker, setLearningSpeaker] = useState<string | null>(null);
+  const handleLearnSpeakerVoice = useCallback(
+    async (speaker: string) => {
+      const noteId = activeNoteId;
+      if (noteId == null || learningSpeaker != null) return;
+      setLearningSpeaker(speaker);
+      try {
+        const engine =
+          getSettings().diarizationEngine === "sherpa"
+            ? ("sherpa" as const)
+            : ("pyannote" as const);
+        const result = await window.electronAPI?.voicebankEnrollSpeaker?.({
+          noteId,
+          speaker,
+          engine,
+        });
+        if (!result?.success) {
+          throw new Error(result?.error || "Enrollment failed");
+        }
+        toast({ title: t("voicebank.learned", { name: formatSpeakerName(speaker) }) });
+      } catch (err) {
+        logger.error("Learn voice failed", { error: (err as Error).message }, "notes");
+        toast({
+          title: t("voicebank.learnFailed"),
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+      } finally {
+        setLearningSpeaker(null);
+      }
+    },
+    [activeNoteId, learningSpeaker, toast, t]
+  );
+
   const handleForgetSpeakerVoice = useCallback(
     async (speaker: string) => {
       const noteId = activeNoteId;
@@ -1801,6 +1839,7 @@ export default function PersonalNotesView({
               onRenameSpeaker={handleRenameSpeaker}
               onAssignParagraph={handleAssignParagraphSpeaker}
               onForgetSpeakerVoice={handleForgetSpeakerVoice}
+              onLearnSpeakerVoice={handleLearnSpeakerVoice}
               speakerSuggestions={speakerSuggestions}
               onResetParagraph={handleResetParagraphSpeaker}
               onRerunSpeakerRecognition={

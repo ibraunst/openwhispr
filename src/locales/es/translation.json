@@ -1986,6 +1986,9 @@
     "forgotten": "Se olvidó la voz de “{{name}}” — en próximas reuniones se tratará como un invitado nuevo",
     "forgetFailed": "No se pudo olvidar la voz",
     "notInBank": "“{{name}}” no tiene una voz guardada",
-    "forgetNoteDescription": "Sus líneas en esta nota pasan a ser de un invitado sin nombre, su voz guardada se elimina y las próximas reuniones lo tratarán como un invitado nuevo."
+    "forgetNoteDescription": "Sus líneas en esta nota pasan a ser de un invitado sin nombre, su voz guardada se elimina y las próximas reuniones lo tratarán como un invitado nuevo.",
+    "learnVoice": "Aprender la voz de esta grabación",
+    "learned": "Voz de {{name}} aprendida — las próximas reuniones lo reconocerán",
+    "learnFailed": "No se pudo aprender la voz"
   }
 }

@@ -1986,6 +1986,9 @@
     "forgotten": "Stimme von „{{name}}“ vergessen — künftige Meetings behandeln die Person als neuen Gast",
     "forgetFailed": "Stimme konnte nicht vergessen werden",
     "notInBank": "„{{name}}“ hat keine gespeicherte Stimme",
-    "forgetNoteDescription": "Die Zeilen dieser Person in dieser Notiz werden zu einem unbenannten Gast, ihre gespeicherte Stimme wird gelöscht und künftige Meetings behandeln sie als neuen Gast."
+    "forgetNoteDescription": "Die Zeilen dieser Person in dieser Notiz werden zu einem unbenannten Gast, ihre gespeicherte Stimme wird gelöscht und künftige Meetings behandeln sie als neuen Gast.",
+    "learnVoice": "Stimme aus dieser Aufnahme lernen",
+    "learned": "Stimme von {{name}} gelernt — künftige Meetings erkennen die Person",
+    "learnFailed": "Stimme konnte nicht gelernt werden"
   }
 }

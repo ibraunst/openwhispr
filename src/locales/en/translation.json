@@ -2053,6 +2053,9 @@
     "forgotten": "Forgot “{{name}}” — future meetings will treat them as a new guest",
     "forgetFailed": "Could not forget voice",
     "notInBank": "“{{name}}” has no saved voice",
-    "forgetNoteDescription": "Their lines in this note become an unnamed guest, their saved voice is deleted, and future meetings will treat them as a new guest."
+    "forgetNoteDescription": "Their lines in this note become an unnamed guest, their saved voice is deleted, and future meetings will treat them as a new guest.",
+    "learnVoice": "Learn voice from this recording",
+    "learned": "Learned {{name}}'s voice — future meetings will recognize them",
+    "learnFailed": "Could not learn voice"
   }
 }

@@ -90,6 +90,7 @@ interface NoteEditorProps {
   onRenameSpeaker?: (oldLabel: string, newLabel: string) => Promise<void>;
   onAssignParagraph?: (paragraphIndex: number, newLabel: string) => Promise<void>;
   onForgetSpeakerVoice?: (speaker: string) => Promise<void>;
+  onLearnSpeakerVoice?: (speaker: string) => Promise<void>;
   speakerSuggestions?: string[];
   onResetParagraph?: (paragraphIndex: number) => Promise<void>;
   onRerunSpeakerRecognition?: () => void;
@@ -204,6 +205,7 @@ export default function NoteEditor({
   onRenameSpeaker,
   onAssignParagraph,
   onForgetSpeakerVoice,
+  onLearnSpeakerVoice,
   speakerSuggestions,
   onResetParagraph,
   onRerunSpeakerRecognition,
@@ -952,16 +954,27 @@ export default function NoteEditor({
                             <Pencil size={12} className="text-foreground/40" />
                             {t("voicebank.customName")}
                           </DropdownMenuItem>
-                          {onForgetSpeakerVoice && speaker !== "Me" && (
+                          {(onForgetSpeakerVoice || onLearnSpeakerVoice) && speaker !== "Me" && (
                             <>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => void onForgetSpeakerVoice(speaker)}
-                                className="text-xs gap-2 text-destructive focus:text-destructive"
-                              >
-                                <Trash2 size={12} className="opacity-60" />
-                                {t("voicebank.deleteVoice")}
-                              </DropdownMenuItem>
+                              {onLearnSpeakerVoice && !!note.meeting_id && (
+                                <DropdownMenuItem
+                                  onClick={() => void onLearnSpeakerVoice(speaker)}
+                                  className="text-xs gap-2"
+                                >
+                                  <Radio size={12} className="text-foreground/40" />
+                                  {t("voicebank.learnVoice")}
+                                </DropdownMenuItem>
+                              )}
+                              {onForgetSpeakerVoice && (
+                                <DropdownMenuItem
+                                  onClick={() => void onForgetSpeakerVoice(speaker)}
+                                  className="text-xs gap-2 text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 size={12} className="opacity-60" />
+                                  {t("voicebank.deleteVoice")}
+                                </DropdownMenuItem>
+                              )}
                             </>
                           )}
                         </DropdownMenuContent>
