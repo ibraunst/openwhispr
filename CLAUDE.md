@@ -192,15 +192,16 @@ Speaker diarization engine:
 - [x] Speaker voice learning (VoiceBank)
   - Persistent voiceprints in `{userData}/voicebank.db` — speakers recognized across meetings
   - Guest numbering is globally unique (seeded from voicebank, never resets per meeting)
-  - Speaker chips in Transcript tab are dropdowns: one-click assignment from the meeting's calendar attendees (own accounts excluded, already-assigned names filtered) + "Custom name…" free-text dialog; rename updates voiceprint + rewrites note transcript
+  - Speaker chips in Transcript tab are dropdowns: one-click GLOBAL rename from the meeting's calendar attendees (own accounts excluded, already-assigned names filtered) + "Custom name…" free-text dialog; rename updates voiceprint + rewrites note transcript
+  - Inline speaker labels in the transcript body are PARAGRAPH-SCOPED: picking a name assigns only that paragraph (`meeting-reset-paragraph-speaker` IPC with `newLabel`, no voicebank write); the cluster-wide rename lives behind a "Rename everywhere" submenu; "Not this speaker — reset line" sends the paragraph to a fresh Guest N
   - Auto-naming: 1 new guest + 1 non-user calendar attendee → guest auto-renamed to attendee
   - Known voices managed (rename/forget) in Integrations view under HuggingFace panel
-  - Renaming to an existing name merges the two voiceprints (weighted embedding average)
+  - Renaming to an existing name merges the two voiceprints (weighted embedding average) — gated by a confirmation dialog in `PersonalNotesView.handleRenameSpeaker` (checks `voicebank-list` for a label collision first); the merge is irreversible
 - [x] Meeting audio playback with karaoke transcript (`TranscriptPlayer.tsx`)
   - Notes link to their recording via `notes.meeting_id` (set after split audio saves)
   - `meeting-get-playback` IPC lazily mixes system+mic webm → `playback.m4a` (ffmpeg amix, cached in meeting folder) and returns timestamped segments from transcript.json
   - Transcript tab shows a sticky player bar (play/pause, seek slider, time); words color along with playback (per-word linear interpolation inside whisper segments); click any word to seek; active segment auto-scrolls
-  - `transcript.json` is the label source for the karaoke view — speaker renames (manual + auto-name) are synced to it (`meeting-update-speaker-label` IPC / re-save after `autoNameLoneGuest`)
+  - `transcript.json` keeps the engine's ORIGINAL labels and is NEVER rewritten by renames — `reconcileSegmentSpeakers` (meeting-get-playback) maps runs positionally onto the note markdown's labeled paragraphs on every read, stamping each segment with the paragraph's BLOCK index (unlabeled preamble blocks from resumed meetings shift the numbering). Rewriting labels in place fuses adjacent runs and permanently breaks that mapping (the 2026-07-13 rename-cascade incident); the only writer is `meetingSaveTranscript` at recording time (incl. the `autoNameLoneGuest` re-save, which happens BEFORE markdown generation so the invariant holds)
   - Fallback when audio/segments missing: static scrollable transcript render (the old disabled-`MarkdownTextarea` view couldn't scroll long transcripts at all — its textarea was the only scrollable element and had `pointer-events-none`)
 - [x] Calendar-aware notifications
 
@@ -267,7 +268,7 @@ Speaker diarization engine:
 - **VoiceBank**: `python/speaker_engine.py` persists per-speaker embeddings to `{userData}/voicebank.db` and matches new meetings against them. Node reads the same SQLite file via `src/helpers/voicebank.js` (short-lived connections only — never hold a lock while Python writes). IPC: `voicebank-list` / `voicebank-rename` / `voicebank-delete`.
 - Engine output (`transcript.json` + stdout) includes a `speakers` array (`{label, voiceprint_id, is_new, is_me}`) so the app can map labels → voiceprints.
 - `diarizationAttendeesRef` lives inside `useMeetingTranscription` (like `diarizationNoteIdRef`) and feeds `autoNameLoneGuest`: exactly 1 new guest + exactly 1 non-user attendee → voiceprint renamed + segments relabeled before formatting. Any ambiguity skips auto-naming.
-- Speaker rename flow: `PersonalNotesView.handleRenameSpeaker` renames the voiceprint by label, rewrites `**Old:**` → `**New:**` in the note transcript, and syncs the hook state via `overrideDiarizedTranscript`.
+- Speaker rename flow: `PersonalNotesView.handleRenameSpeaker` (GLOBAL — chips + "Rename everywhere" submenu only) renames the voiceprint by label, rewrites `**Old:**` → `**New:**` in the note transcript, and syncs the hook state via `overrideDiarizedTranscript`; it never touches transcript.json. Per-paragraph corrections go through `applyParagraphSpeakerEdit` → `meeting-reset-paragraph-speaker` (optional `newLabel`), which edits only the note markdown.
 
 ### Build & Quality
 - Node 20/22 LTS (pinned in `.nvmrc`)

@@ -1975,6 +1975,13 @@
     "knownVoicesEngine": "Voix connues — {{engine}}",
     "showEngineResult": "Afficher le résultat {{engine}}",
     "showEngineTooltip": "Basculer cette transcription vers le résultat {{engine}} en cache (instantané, aucun recalcul)",
-    "engineApplied": "Résultat {{engine}} appliqué"
+    "engineApplied": "Résultat {{engine}} appliqué",
+    "renameEverywhere": "Renommer « {{name}} » partout",
+    "lineAssigned": "Ligne attribuée à {{name}}",
+    "assignLineTitle": "Attribuer cette ligne",
+    "assignLineDescription": "Seul ce paragraphe change — les autres lignes de l'intervenant conservent leur nom actuel.",
+    "mergeTitle": "Fusionner les voix ?",
+    "mergeDescription": "« {{oldName}} » et « {{newName}} » ont tous deux une empreinte vocale enregistrée. Le renommage les fusionnera en une seule voix et les prochaines réunions les traiteront comme la même personne. Cette action est irréversible.",
+    "mergeConfirm": "Fusionner"
   }
 }

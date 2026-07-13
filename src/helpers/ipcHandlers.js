@@ -49,17 +49,23 @@ function reconcileSegmentSpeakers(rawSegments, markdownTranscript) {
     segRunIndex.push(runs.length - 1);
   }
 
-  const mdLabels = [];
-  const speakerLineRe = /^\*\*(.+?):\*\*/gm;
-  let match;
-  while ((match = speakerLineRe.exec(markdownTranscript)) !== null) {
-    mdLabels.push(match[1].trim());
-  }
+  // Parse the markdown into blocks exactly the way the per-paragraph edit
+  // handler does (split on blank lines), keeping each labeled paragraph's
+  // BLOCK index. A resumed meeting can carry unlabeled preamble blocks, so
+  // the Nth labeled paragraph is not necessarily the Nth block — using the
+  // run index directly as paragraphIndex would make per-paragraph edits
+  // land N blocks early.
+  const blocks = markdownTranscript.split(/\n{2,}/);
+  const mdParas = [];
+  blocks.forEach((block, blockIndex) => {
+    const m = /^\*\*(.+?):\*\*/.exec(block);
+    if (m) mdParas.push({ label: m[1].trim(), blockIndex });
+  });
 
   // Run/paragraph counts only line up when reconciliation is trustworthy —
   // that's also the only time a raw segment's run index can be trusted as
   // the markdown paragraph index for a later per-paragraph edit.
-  if (mdLabels.length !== runs.length) return rawSegments;
+  if (mdParas.length !== runs.length) return rawSegments;
 
   // Map each segment to its run's markdown label BY RUN INDEX, not by raw
   // label — the same raw diarization speaker id commonly recurs in separate,
@@ -68,10 +74,11 @@ function reconcileSegmentSpeakers(rawSegments, markdownTranscript) {
   // that raw id, misattributing whole stretches of the karaoke view.
   return rawSegments.map((seg, i) => {
     const runIndex = segRunIndex[i];
-    const mdLabel = runs[runIndex].label != null ? mdLabels[runIndex] : null;
+    const para = mdParas[runIndex];
+    const mdLabel = runs[runIndex].label != null ? para.label : null;
     return mdLabel != null
-      ? { ...seg, speaker: mdLabel, paragraphIndex: runIndex }
-      : { ...seg, paragraphIndex: runIndex };
+      ? { ...seg, speaker: mdLabel, paragraphIndex: para.blockIndex }
+      : { ...seg, paragraphIndex: para.blockIndex };
   });
 }
 
@@ -3068,10 +3075,11 @@ class IPCHandlers {
           try {
             const parsed = JSON.parse(fs.readFileSync(transcriptPath, "utf8"));
             if (Array.isArray(parsed?.segments)) {
-              // transcript.json keeps the ORIGINAL diarization labels — it's
-              // never guaranteed to reflect renames made afterward. Reconcile
-              // against the note's markdown (the actual current names) on
-              // every read so playback always shows the latest labels.
+              // transcript.json keeps the ORIGINAL diarization labels and is
+              // never rewritten by renames (see the note above the
+              // diarization-cache handlers). Reconcile against the note's
+              // markdown (the actual current names) on every read so
+              // playback always shows the latest labels.
               segments = reconcileSegmentSpeakers(parsed.segments, note.transcript || "");
             }
           } catch (parseError) {
@@ -3110,66 +3118,14 @@ class IPCHandlers {
       }
     });
 
-    // Keep transcript.json speaker labels in sync when the user renames a
-    // speaker from the note view — the karaoke transcript renders from these
-    // segments, so a stale label here would resurface the old name.
-    ipcMain.handle("meeting-update-speaker-label", async (_event, { meetingId, oldLabel, newLabel } = {}) => {
-      try {
-        if (!meetingId || !oldLabel || !newLabel) {
-          return { success: false, error: "meetingId, oldLabel and newLabel are required" };
-        }
-        const transcriptPath = path.join(
-          app.getPath("userData"),
-          "meetings",
-          String(meetingId),
-          "transcript.json"
-        );
-        if (!fs.existsSync(transcriptPath)) {
-          return { success: true, changes: 0 };
-        }
-        const parsed = JSON.parse(fs.readFileSync(transcriptPath, "utf8"));
-        let changes = 0;
-        if (Array.isArray(parsed?.segments)) {
-          for (const seg of parsed.segments) {
-            if (seg?.speaker === oldLabel) {
-              seg.speaker = newLabel;
-              changes++;
-            }
-          }
-        }
-        if (Array.isArray(parsed?.speakers)) {
-          for (const sp of parsed.speakers) {
-            if (sp?.label === oldLabel) sp.label = newLabel;
-          }
-        }
-        if (changes > 0 || Array.isArray(parsed?.speakers)) {
-          fs.writeFileSync(transcriptPath, JSON.stringify(parsed, null, 2));
-          // Mirror the rename into the producing engine's cache so a later
-          // engine flip round-trip doesn't resurface the old label. Only that
-          // engine's cache: guest numbering differs per engine, so the same
-          // label can mean a different person in the other cache.
-          if (parsed.engine === "pyannote" || parsed.engine === "sherpa") {
-            const cachePath = path.join(
-              app.getPath("userData"),
-              "meetings",
-              String(meetingId),
-              `transcript.${parsed.engine}.json`
-            );
-            if (fs.existsSync(cachePath)) {
-              try {
-                fs.copyFileSync(transcriptPath, cachePath);
-              } catch (cacheError) {
-                debugLogger.warn("Failed to sync rename to engine cache", { error: cacheError.message }, "meeting");
-              }
-            }
-          }
-        }
-        return { success: true, changes };
-      } catch (error) {
-        debugLogger.error("meeting-update-speaker-label failed", { error: error.message }, "meeting");
-        return { success: false, error: error.message };
-      }
-    });
+    // NOTE: there is deliberately NO handler that rewrites speaker labels
+    // inside transcript.json after a rename. Its segment labels must stay
+    // exactly as the diarization engine wrote them: reconcileSegmentSpeakers
+    // maps runs of ORIGINAL labels positionally onto the note's markdown
+    // paragraphs, and renaming two adjacent runs to the same name in place
+    // would fuse them into one run, break the run↔paragraph invariant, and
+    // disable reconciliation (renames stop showing, paragraphs merge in the
+    // karaoke view). Renames live in the note markdown + voicebank only.
 
     // Which engines have cached diarization results for this meeting, and
     // which engine produced the current canonical transcript.json — drives
@@ -3223,12 +3179,13 @@ class IPCHandlers {
     });
 
     // Corrects a single misattributed paragraph without touching the
-    // speaker's global rename/voiceprint — sends just that paragraph back to
-    // a fresh generic label so the user can re-identify it separately (or
-    // leave it as unknown). paragraphIndex must be the reconciled run index
-    // (see reconcileSegmentSpeakers) so it lines up with the Nth "**X:**"
-    // paragraph in the note's markdown.
-    ipcMain.handle("meeting-reset-paragraph-speaker", async (_event, { noteId, paragraphIndex } = {}) => {
+    // speaker's global rename/voiceprint. With `newLabel` it assigns just
+    // that paragraph to the given name; without it, it sends the paragraph
+    // back to a fresh generic label so the user can re-identify it
+    // separately (or leave it as unknown). paragraphIndex is the paragraph's
+    // block index in the blank-line split of the note's markdown — the same
+    // index reconcileSegmentSpeakers stamps on playback segments.
+    ipcMain.handle("meeting-reset-paragraph-speaker", async (_event, { noteId, paragraphIndex, newLabel } = {}) => {
       try {
         if (noteId == null || paragraphIndex == null) {
           return { success: false, error: "noteId and paragraphIndex are required" };
@@ -3244,19 +3201,23 @@ class IPCHandlers {
           return { success: false, error: "Target paragraph has no speaker label" };
         }
 
-        let maxGuestNum = 0;
-        const guestRe = /\*\*Guest (\d+):\*\*/g;
-        let guestMatch;
-        while ((guestMatch = guestRe.exec(transcript)) !== null) {
-          maxGuestNum = Math.max(maxGuestNum, parseInt(guestMatch[1], 10));
+        // "*" would corrupt the **Name:** marker this paragraph is parsed by.
+        let label = typeof newLabel === "string" ? newLabel.replace(/\*/g, "").trim() : "";
+        if (!label) {
+          let maxGuestNum = 0;
+          const guestRe = /\*\*Guest (\d+):\*\*/g;
+          let guestMatch;
+          while ((guestMatch = guestRe.exec(transcript)) !== null) {
+            maxGuestNum = Math.max(maxGuestNum, parseInt(guestMatch[1], 10));
+          }
+          label = `Guest ${maxGuestNum + 1}`;
         }
-        const newLabel = `Guest ${maxGuestNum + 1}`;
 
-        blocks[paragraphIndex] = block.replace(/^\*\*(.+?):\*\*/, `**${newLabel}:**`);
+        blocks[paragraphIndex] = block.replace(/^\*\*(.+?):\*\*/, () => `**${label}:**`);
         const updatedTranscript = blocks.join("\n\n");
 
         this.databaseManager.updateNote(noteId, { transcript: updatedTranscript });
-        return { success: true, transcript: updatedTranscript, newLabel };
+        return { success: true, transcript: updatedTranscript, newLabel: label };
       } catch (error) {
         debugLogger.error("meeting-reset-paragraph-speaker failed", { error: error.message }, "meeting");
         return { success: false, error: error.message };

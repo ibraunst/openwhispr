@@ -1975,6 +1975,13 @@
     "knownVoicesEngine": "Vozes conhecidas — {{engine}}",
     "showEngineResult": "Mostrar resultado de {{engine}}",
     "showEngineTooltip": "Alternar esta transcrição para o resultado de falantes em cache de {{engine}} (instantâneo, nada é recalculado)",
-    "engineApplied": "Alternado para o resultado de {{engine}}"
+    "engineApplied": "Alternado para o resultado de {{engine}}",
+    "renameEverywhere": "Renomear “{{name}}” em todos os lugares",
+    "lineAssigned": "Linha atribuída a {{name}}",
+    "assignLineTitle": "Atribuir esta linha",
+    "assignLineDescription": "Apenas este parágrafo muda — as outras falas do participante mantêm o nome atual.",
+    "mergeTitle": "Combinar vozes?",
+    "mergeDescription": "“{{oldName}}” e “{{newName}}” têm impressões de voz salvas. Renomear vai combiná-las em uma única voz e as próximas reuniões as tratarão como a mesma pessoa. Isso não pode ser desfeito.",
+    "mergeConfirm": "Combinar"
   }
 }

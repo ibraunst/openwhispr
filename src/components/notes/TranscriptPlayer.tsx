@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 import { useTranslation } from "react-i18next";
-import { Play, Pause, ChevronDown, UserRound, Pencil } from "lucide-react";
+import { Play, Pause, ChevronDown, UserRound, Users, Pencil } from "lucide-react";
 import { cn } from "../lib/utils";
 import logger from "../../utils/logger";
 import { formatSpeakerName } from "../../utils/speakerNameFormatter";
@@ -10,22 +10,32 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "../ui/dropdown-menu";
 
 interface SpeakerRenameProps {
   onRenameSpeaker?: (oldLabel: string, newLabel: string) => Promise<void>;
+  onAssignParagraph?: (paragraphIndex: number, newLabel: string) => Promise<void>;
   speakerSuggestions?: string[];
-  onRequestCustomName?: (speaker: string) => void;
+  onRequestCustomName?: (speaker: string, paragraphIndex?: number | null) => void;
   onResetParagraph?: (paragraphIndex: number) => Promise<void>;
 }
 
 const GENERIC_SPEAKER_RE = /^Guest \d+$/i;
 
-/** A speaker name inline in the transcript, clickable to rename everywhere it appears. */
+/**
+ * A speaker name inline in the transcript. Picking a name changes ONLY this
+ * paragraph — correcting one misattributed line must never ripple across the
+ * transcript. The cluster-wide rename ("this voice is person X everywhere")
+ * lives behind an explicit "Rename everywhere" submenu.
+ */
 function SpeakerLabel({
   speaker,
   paragraphIndex,
   onRenameSpeaker,
+  onAssignParagraph,
   speakerSuggestions,
   onRequestCustomName,
   onResetParagraph,
@@ -36,10 +46,22 @@ function SpeakerLabel({
     return <span className="font-semibold text-foreground/90">{displayName}: </span>;
   }
   const availableNames = (speakerSuggestions ?? []).filter((name) => name !== speaker);
+  // Paragraph-scoped actions need a reconciled paragraph index; without one
+  // (reconciliation unavailable) the menu falls back to global rename only.
+  const canScope = !!onAssignParagraph && paragraphIndex != null;
   // Only a paragraph already identified as a real person is worth "undoing" —
   // a still-generic "Guest N" has nothing to reset back to.
   const canReset =
     !!onResetParagraph && paragraphIndex != null && !GENERIC_SPEAKER_RE.test(speaker);
+
+  const nameItems = (onPick: (name: string) => void) =>
+    availableNames.map((name) => (
+      <DropdownMenuItem key={name} onClick={() => onPick(name)} className="text-xs gap-2">
+        <UserRound size={12} className="text-foreground/40" />
+        {formatSpeakerName(name)}
+      </DropdownMenuItem>
+    ));
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -55,33 +77,54 @@ function SpeakerLabel({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" sideOffset={4} className="min-w-40">
-        {availableNames.map((name) => (
-          <DropdownMenuItem
-            key={name}
-            onClick={() => void onRenameSpeaker(speaker, name)}
-            className="text-xs gap-2"
-          >
-            <UserRound size={12} className="text-foreground/40" />
-            {formatSpeakerName(name)}
-          </DropdownMenuItem>
-        ))}
-        {availableNames.length > 0 && <DropdownMenuSeparator />}
-        <DropdownMenuItem
-          onClick={() => onRequestCustomName?.(speaker)}
-          className="text-xs gap-2"
-        >
-          <Pencil size={12} className="text-foreground/40" />
-          {t("voicebank.customName")}
-        </DropdownMenuItem>
-        {canReset && (
+        {canScope ? (
           <>
-            <DropdownMenuSeparator />
+            {nameItems((name) => void onAssignParagraph!(paragraphIndex!, name))}
             <DropdownMenuItem
-              onClick={() => void onResetParagraph!(paragraphIndex!)}
+              onClick={() => onRequestCustomName?.(speaker, paragraphIndex)}
               className="text-xs gap-2"
             >
-              <UserRound size={12} className="text-foreground/40" />
-              {t("voicebank.resetLine")}
+              <Pencil size={12} className="text-foreground/40" />
+              {t("voicebank.customName")}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="text-xs gap-2">
+                <Users size={12} className="text-foreground/40" />
+                {t("voicebank.renameEverywhere", { name: displayName })}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-40">
+                {nameItems((name) => void onRenameSpeaker(speaker, name))}
+                {availableNames.length > 0 && <DropdownMenuSeparator />}
+                <DropdownMenuItem
+                  onClick={() => onRequestCustomName?.(speaker, null)}
+                  className="text-xs gap-2"
+                >
+                  <Pencil size={12} className="text-foreground/40" />
+                  {t("voicebank.customName")}
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            {canReset && (
+              <DropdownMenuItem
+                onClick={() => void onResetParagraph!(paragraphIndex!)}
+                className="text-xs gap-2"
+              >
+                <UserRound size={12} className="text-foreground/40" />
+                {t("voicebank.resetLine")}
+              </DropdownMenuItem>
+            )}
+          </>
+        ) : (
+          <>
+            {nameItems((name) => void onRenameSpeaker(speaker, name))}
+            {availableNames.length > 0 && <DropdownMenuSeparator />}
+            <DropdownMenuItem
+              onClick={() => onRequestCustomName?.(speaker, null)}
+              className="text-xs gap-2"
+            >
+              <Pencil size={12} className="text-foreground/40" />
+              {t("voicebank.customName")}
             </DropdownMenuItem>
           </>
         )}
@@ -100,9 +143,9 @@ interface PlaybackSegment {
 
 interface SpeakerBlock {
   speaker: string | null;
-  // Null when the block spans segments from more than one markdown
-  // paragraph (two adjacent diarization runs renamed to the same name) —
-  // resetting would be ambiguous, so the reset option is hidden in that case.
+  // The paragraph's block index in the note markdown (stamped on segments
+  // by reconciliation); null when reconciliation is unavailable — the
+  // per-paragraph menu actions are hidden in that case.
   paragraphIndex: number | null;
   segments: { segIndex: number; start: number; end: number; words: string[] }[];
 }
@@ -126,37 +169,35 @@ function toFileUrl(p: string): string {
   return `file://${encodeURI(withLeadingSlash)}`;
 }
 
-/** Group consecutive same-speaker segments into paragraph blocks. */
+/**
+ * Group consecutive segments into paragraph blocks — by markdown paragraph
+ * when reconciliation stamped indexes (so adjacent paragraphs renamed to the
+ * same person stay separate blocks with their own per-paragraph menu), and
+ * by speaker alone otherwise.
+ */
 function buildSpeakerBlocks(segments: PlaybackSegment[]): SpeakerBlock[] {
-  const blocks: (SpeakerBlock & { _paragraphIndexes: Set<number> })[] = [];
+  const blocks: SpeakerBlock[] = [];
   segments.forEach((seg, segIndex) => {
     const text = seg.text.trim();
     if (!text) return;
     const speaker = seg.speaker || null;
+    const paragraphIndex = seg.paragraphIndex ?? null;
     const last = blocks[blocks.length - 1];
     const entry = { segIndex, start: seg.start, end: seg.end, words: text.split(/\s+/) };
-    if (last && last.speaker === speaker) {
+    if (last && last.speaker === speaker && last.paragraphIndex === paragraphIndex) {
       last.segments.push(entry);
-      if (seg.paragraphIndex != null) last._paragraphIndexes.add(seg.paragraphIndex);
     } else {
-      blocks.push({
-        speaker,
-        paragraphIndex: null,
-        segments: [entry],
-        _paragraphIndexes: new Set(seg.paragraphIndex != null ? [seg.paragraphIndex] : []),
-      });
+      blocks.push({ speaker, paragraphIndex, segments: [entry] });
     }
   });
-  return blocks.map(({ _paragraphIndexes, ...block }) => ({
-    ...block,
-    paragraphIndex: _paragraphIndexes.size === 1 ? [..._paragraphIndexes][0] : null,
-  }));
+  return blocks;
 }
 
 /** Fallback rendering of the stored markdown transcript (`**Speaker:** text` paragraphs). */
 function StaticTranscript({
   transcript,
   onRenameSpeaker,
+  onAssignParagraph,
   speakerSuggestions,
   onRequestCustomName,
   onResetParagraph,
@@ -186,6 +227,7 @@ function StaticTranscript({
               speaker={p.speaker}
               paragraphIndex={p.paragraphIndex}
               onRenameSpeaker={onRenameSpeaker}
+              onAssignParagraph={onAssignParagraph}
               speakerSuggestions={speakerSuggestions}
               onRequestCustomName={onRequestCustomName}
               onResetParagraph={onResetParagraph}
@@ -244,6 +286,7 @@ export default function TranscriptPlayer({
   hasRecording,
   transcript,
   onRenameSpeaker,
+  onAssignParagraph,
   speakerSuggestions,
   onRequestCustomName,
   onResetParagraph,
@@ -409,6 +452,7 @@ export default function TranscriptPlayer({
       <StaticTranscript
         transcript={transcript}
         onRenameSpeaker={onRenameSpeaker}
+        onAssignParagraph={onAssignParagraph}
         speakerSuggestions={speakerSuggestions}
         onRequestCustomName={onRequestCustomName}
         onResetParagraph={onResetParagraph}
@@ -471,6 +515,7 @@ export default function TranscriptPlayer({
                   speaker={block.speaker}
                   paragraphIndex={block.paragraphIndex}
                   onRenameSpeaker={onRenameSpeaker}
+                  onAssignParagraph={onAssignParagraph}
                   speakerSuggestions={speakerSuggestions}
                   onRequestCustomName={onRequestCustomName}
                   onResetParagraph={onResetParagraph}

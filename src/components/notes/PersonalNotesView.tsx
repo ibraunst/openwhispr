@@ -38,7 +38,8 @@ import { useMeetingTranscription, formatDiarizedTranscript } from "../../hooks/u
 import { useSystemAudioPermission } from "../../hooks/useSystemAudioPermission";
 import { useNotesOnboarding } from "../../hooks/useNotesOnboarding";
 import NotesOnboarding from "./NotesOnboarding";
-import { formatTranscriptForExport } from "../../utils/speakerNameFormatter";
+import { formatSpeakerName, formatTranscriptForExport } from "../../utils/speakerNameFormatter";
+import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from "../ui/dialog";
 
 const FOLDER_INPUT_CLASS =
   "w-full h-6 bg-foreground/5 dark:bg-white/5 rounded px-2 text-xs text-foreground outline-none border border-primary/30 focus:border-primary/50";
@@ -651,19 +652,45 @@ export default function PersonalNotesView({
     };
   }, [activeNoteId, activeNote?.calendar_event_id, meetingDiarizedTranscript]);
 
+  // Renaming a speaker to a name that already has a saved voiceprint MERGES
+  // the two prints (weighted embedding average, irreversible) — easy to hit
+  // by accident when correcting a misattribution, so it needs an explicit
+  // go-ahead. The pending rename's resolve is stashed here for the dialog.
+  const [mergeConfirm, setMergeConfirm] = useState<{
+    oldLabel: string;
+    newLabel: string;
+    resolve: (ok: boolean) => void;
+  } | null>(null);
+
   const handleRenameSpeaker = useCallback(
     async (oldLabel: string, newLabel: string) => {
       const noteId = activeNoteId;
       const currentTranscript = activeMeetingDiarized || activeNote?.transcript || "";
       try {
-        // Rename the stored voiceprint so future meetings use the new name.
-        // 0 changes is fine — "Me" and manually relabeled speakers aren't in the bank.
         // Targets the active engine's bank: guest numbering is per-bank, so a
         // label like "Guest 3" means a different person in the other bank.
+        const engine =
+          getSettings().diarizationEngine === "sherpa"
+            ? ("sherpa" as const)
+            : ("pyannote" as const);
+
+        const bank = await window.electronAPI?.voicebankList?.({ engine });
+        const voices = bank?.voices ?? [];
+        const wouldMergeVoices =
+          voices.some((v) => v.label === oldLabel) && voices.some((v) => v.label === newLabel);
+        if (wouldMergeVoices) {
+          const ok = await new Promise<boolean>((resolve) =>
+            setMergeConfirm({ oldLabel, newLabel, resolve })
+          );
+          if (!ok) return;
+        }
+
+        // Rename the stored voiceprint so future meetings use the new name.
+        // 0 changes is fine — "Me" and manually relabeled speakers aren't in the bank.
         const vbResult = await window.electronAPI?.voicebankRename?.({
           oldLabel,
           newLabel,
-          engine: getSettings().diarizationEngine === "sherpa" ? "sherpa" : "pyannote",
+          engine,
         });
         if (!vbResult?.success) {
           throw new Error(vbResult?.error || "Voicebank update failed");
@@ -674,32 +701,10 @@ export default function PersonalNotesView({
           const updated = currentTranscript.split(marker).join(`**${newLabel}:**`);
           await window.electronAPI.updateNote(noteId, { transcript: updated });
           if (activeMeetingDiarized) overrideDiarizedTranscript(updated);
-          // Keep the recording's transcript.json in sync — the playback view
-          // renders speaker labels from its segments, not the note markdown.
-          if (activeNote?.meeting_id) {
-            window.electronAPI
-              .meetingUpdateSpeakerLabel?.({
-                meetingId: activeNote.meeting_id,
-                oldLabel,
-                newLabel,
-              })
-              ?.then((res) => {
-                if (res && !res.success) {
-                  logger.error(
-                    "Failed to sync speaker rename to recording transcript",
-                    { error: res.error },
-                    "notes"
-                  );
-                }
-              })
-              .catch((err: Error) => {
-                logger.error(
-                  "Failed to sync speaker rename to recording transcript",
-                  { error: err.message },
-                  "notes"
-                );
-              });
-          }
+          // The recording's transcript.json is deliberately NOT touched —
+          // its original labels are what lets the playback view reconcile
+          // segments against the renamed markdown positionally (rewriting
+          // them can fuse adjacent runs and break that mapping for good).
           // Rewrite the exported file with the new speaker name. Prefer the
           // live in-session pointer (current meeting); fall back to what's
           // persisted on the note itself so renames on older meetings —
@@ -743,7 +748,6 @@ export default function PersonalNotesView({
       activeNote?.transcript,
       activeNote?.export_path,
       activeNote?.export_header,
-      activeNote?.meeting_id,
       activeFolderId,
       activeMeetingDiarized,
       overrideDiarizedTranscript,
@@ -754,17 +758,18 @@ export default function PersonalNotesView({
     ]
   );
 
-  // Corrects one misattributed paragraph without renaming the speaker
-  // everywhere — sends that single paragraph back to a fresh "Guest N",
-  // leaving the voiceprint and every other paragraph with that name intact.
-  const handleResetParagraphSpeaker = useCallback(
-    async (paragraphIndex: number) => {
+  // Edits ONE paragraph's speaker label, leaving the voiceprint and every
+  // other paragraph intact. With a name it assigns the paragraph to that
+  // person; without one it resets the paragraph to a fresh "Guest N".
+  const applyParagraphSpeakerEdit = useCallback(
+    async (paragraphIndex: number, newLabel: string | null) => {
       const noteId = activeNoteId;
       if (noteId == null) return;
       try {
         const result = await window.electronAPI?.meetingResetParagraphSpeaker?.({
           noteId,
           paragraphIndex,
+          ...(newLabel ? { newLabel } : {}),
         });
         if (!result?.success || !result.transcript) {
           throw new Error(result?.error || "Reset failed");
@@ -794,9 +799,13 @@ export default function PersonalNotesView({
             });
         }
         await initializeNotes(null, 50, activeFolderId);
-        toast({ title: t("voicebank.lineReset") });
+        toast({
+          title: newLabel
+            ? t("voicebank.lineAssigned", { name: formatSpeakerName(newLabel) })
+            : t("voicebank.lineReset"),
+        });
       } catch (err) {
-        logger.error("Paragraph speaker reset failed", { error: (err as Error).message }, "notes");
+        logger.error("Paragraph speaker edit failed", { error: (err as Error).message }, "notes");
         toast({
           title: t("voicebank.resetFailed"),
           description: (err as Error).message,
@@ -816,6 +825,17 @@ export default function PersonalNotesView({
       toast,
       t,
     ]
+  );
+
+  const handleResetParagraphSpeaker = useCallback(
+    (paragraphIndex: number) => applyParagraphSpeakerEdit(paragraphIndex, null),
+    [applyParagraphSpeakerEdit]
+  );
+
+  const handleAssignParagraphSpeaker = useCallback(
+    (paragraphIndex: number, newLabel: string) =>
+      applyParagraphSpeakerEdit(paragraphIndex, newLabel),
+    [applyParagraphSpeakerEdit]
   );
 
   // Re-run speaker identification on an already-recorded meeting using the
@@ -1633,6 +1653,7 @@ export default function PersonalNotesView({
               onGenerateNotes={handleGenerateNotes}
               liveTranscript={liveTranscript}
               onRenameSpeaker={handleRenameSpeaker}
+              onAssignParagraph={handleAssignParagraphSpeaker}
               speakerSuggestions={speakerSuggestions}
               onResetParagraph={handleResetParagraphSpeaker}
               onRerunSpeakerRecognition={
@@ -1815,6 +1836,49 @@ export default function PersonalNotesView({
           targetFolderId={activeFolderId}
           onNotesAdded={handleNotesAdded}
         />
+      )}
+
+      {mergeConfirm && (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              mergeConfirm.resolve(false);
+              setMergeConfirm(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogTitle className="text-sm">{t("voicebank.mergeTitle")}</DialogTitle>
+            <DialogDescription className="text-xs">
+              {t("voicebank.mergeDescription", {
+                oldName: formatSpeakerName(mergeConfirm.oldLabel),
+                newName: formatSpeakerName(mergeConfirm.newLabel),
+              })}
+            </DialogDescription>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  mergeConfirm.resolve(false);
+                  setMergeConfirm(null);
+                }}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  mergeConfirm.resolve(true);
+                  setMergeConfirm(null);
+                }}
+              >
+                {t("voicebank.mergeConfirm")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

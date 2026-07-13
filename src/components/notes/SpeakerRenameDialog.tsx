@@ -7,6 +7,9 @@ import { cn } from "../lib/utils";
 
 interface SpeakerRenameDialogProps {
   speaker: string | null;
+  // "speaker" renames this voice everywhere it appears (and in the
+  // voicebank); "line" assigns only the clicked paragraph.
+  scope?: "speaker" | "line";
   suggestions: string[];
   onOpenChange: (open: boolean) => void;
   onRename: (oldLabel: string, newLabel: string) => Promise<void>;
@@ -14,6 +17,7 @@ interface SpeakerRenameDialogProps {
 
 export default function SpeakerRenameDialog({
   speaker,
+  scope = "speaker",
   suggestions,
   onOpenChange,
   onRename,
@@ -54,10 +58,14 @@ export default function SpeakerRenameDialog({
     <Dialog open={!!speaker} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogTitle className="text-sm">
-          {t("voicebank.renameTitle", { name: speaker ?? "" })}
+          {scope === "line"
+            ? t("voicebank.assignLineTitle")
+            : t("voicebank.renameTitle", { name: speaker ?? "" })}
         </DialogTitle>
         <DialogDescription className="text-xs">
-          {t("voicebank.renameDescription")}
+          {scope === "line"
+            ? t("voicebank.assignLineDescription")
+            : t("voicebank.renameDescription")}
         </DialogDescription>
 
         <input

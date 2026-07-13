@@ -1975,6 +1975,13 @@
     "knownVoicesEngine": "Voci conosciute — {{engine}}",
     "showEngineResult": "Mostra risultato {{engine}}",
     "showEngineTooltip": "Passa questa trascrizione al risultato {{engine}} in cache (istantaneo, nulla viene ricalcolato)",
-    "engineApplied": "Passato al risultato {{engine}}"
+    "engineApplied": "Passato al risultato {{engine}}",
+    "renameEverywhere": "Rinomina “{{name}}” ovunque",
+    "lineAssigned": "Riga assegnata a {{name}}",
+    "assignLineTitle": "Assegna questa riga",
+    "assignLineDescription": "Cambia solo questo paragrafo — le altre righe dell'oratore mantengono il nome attuale.",
+    "mergeTitle": "Unire le voci?",
+    "mergeDescription": "“{{oldName}}” e “{{newName}}” hanno entrambi un'impronta vocale salvata. Rinominando verranno unite in un'unica voce e le prossime riunioni le tratteranno come la stessa persona. L'operazione è irreversibile.",
+    "mergeConfirm": "Unisci"
   }
 }

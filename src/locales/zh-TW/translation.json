@@ -1975,6 +1975,13 @@
     "knownVoicesEngine": "已知聲音 — {{engine}}",
     "showEngineResult": "顯示 {{engine}} 結果",
     "showEngineTooltip": "將此逐字稿切換為已快取的 {{engine}} 說話者結果（即時，無需重新計算）",
-    "engineApplied": "已切換到 {{engine}} 結果"
+    "engineApplied": "已切換到 {{engine}} 結果",
+    "renameEverywhere": "在所有位置重新命名「{{name}}」",
+    "lineAssigned": "該行已指定為 {{name}}",
+    "assignLineTitle": "指定此行發言人",
+    "assignLineDescription": "僅變更此段落 — 該發言人的其他段落保持目前名稱。",
+    "mergeTitle": "合併聲音？",
+    "mergeDescription": "「{{oldName}}」和「{{newName}}」都有已儲存的聲紋。重新命名會將它們合併為同一個聲音，之後的會議會將他們視為同一個人。此操作無法復原。",
+    "mergeConfirm": "合併"
   }
 }

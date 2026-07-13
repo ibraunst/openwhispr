@@ -1975,6 +1975,13 @@
     "knownVoicesEngine": "已知声音 — {{engine}}",
     "showEngineResult": "显示 {{engine}} 结果",
     "showEngineTooltip": "将此转录切换为已缓存的 {{engine}} 说话人结果（即时，无需重新计算）",
-    "engineApplied": "已切换到 {{engine}} 结果"
+    "engineApplied": "已切换到 {{engine}} 结果",
+    "renameEverywhere": "在所有位置重命名“{{name}}”",
+    "lineAssigned": "该行已指定为 {{name}}",
+    "assignLineTitle": "指定此行发言人",
+    "assignLineDescription": "仅更改此段落 — 该发言人的其他段落保持当前名称。",
+    "mergeTitle": "合并声音？",
+    "mergeDescription": "“{{oldName}}”和“{{newName}}”都有已保存的声纹。重命名会将它们合并为同一个声音，之后的会议会将他们视为同一个人。此操作无法撤销。",
+    "mergeConfirm": "合并"
   }
 }

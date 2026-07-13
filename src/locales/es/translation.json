@@ -1975,6 +1975,13 @@
     "knownVoicesEngine": "Voces conocidas — {{engine}}",
     "showEngineResult": "Ver resultado de {{engine}}",
     "showEngineTooltip": "Cambiar esta transcripción al resultado de hablantes en caché de {{engine}} (instantáneo, no se recalcula nada)",
-    "engineApplied": "Cambiado al resultado de {{engine}}"
+    "engineApplied": "Cambiado al resultado de {{engine}}",
+    "renameEverywhere": "Renombrar “{{name}}” en todas partes",
+    "lineAssigned": "Línea asignada a {{name}}",
+    "assignLineTitle": "Asignar esta línea",
+    "assignLineDescription": "Solo cambia este párrafo — las demás líneas del hablante conservan su nombre actual.",
+    "mergeTitle": "¿Combinar voces?",
+    "mergeDescription": "“{{oldName}}” y “{{newName}}” tienen huellas de voz guardadas. Renombrar las combinará en una sola voz y las próximas reuniones las tratarán como la misma persona. Esto no se puede deshacer.",
+    "mergeConfirm": "Combinar"
   }
 }

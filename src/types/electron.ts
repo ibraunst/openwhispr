@@ -1265,14 +1265,10 @@ declare global {
         }>;
         error?: string;
       }>;
-      meetingUpdateSpeakerLabel?: (data: {
-        meetingId: string;
-        oldLabel: string;
-        newLabel: string;
-      }) => Promise<{ success: boolean; changes?: number; error?: string }>;
       meetingResetParagraphSpeaker?: (data: {
         noteId: number;
         paragraphIndex: number;
+        newLabel?: string;
       }) => Promise<{ success: boolean; transcript?: string; newLabel?: string; error?: string }>;
       voicebankList?: (options?: {
         engine?: "pyannote" | "sherpa";

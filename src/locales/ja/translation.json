@@ -1975,6 +1975,13 @@
     "knownVoicesEngine": "既知の声 — {{engine}}",
     "showEngineResult": "{{engine}} の結果を表示",
     "showEngineTooltip": "この文字起こしをキャッシュ済みの {{engine}} 話者結果に切り替えます（即時、再計算なし）",
-    "engineApplied": "{{engine}} の結果に切り替えました"
+    "engineApplied": "{{engine}} の結果に切り替えました",
+    "renameEverywhere": "「{{name}}」をすべて変更",
+    "lineAssigned": "この行を {{name}} に割り当てました",
+    "assignLineTitle": "この行の話者を指定",
+    "assignLineDescription": "変更されるのはこの段落だけです — この話者の他の発言は現在の名前のままです。",
+    "mergeTitle": "声を統合しますか？",
+    "mergeDescription": "「{{oldName}}」と「{{newName}}」はどちらも声紋が保存されています。名前を変更すると1つの声に統合され、今後の会議では同一人物として扱われます。この操作は取り消せません。",
+    "mergeConfirm": "統合"
   }
 }

@@ -87,6 +87,7 @@ interface NoteEditorProps {
   onGenerateNotes?: () => void;
   liveTranscript?: string;
   onRenameSpeaker?: (oldLabel: string, newLabel: string) => Promise<void>;
+  onAssignParagraph?: (paragraphIndex: number, newLabel: string) => Promise<void>;
   speakerSuggestions?: string[];
   onResetParagraph?: (paragraphIndex: number) => Promise<void>;
   onRerunSpeakerRecognition?: () => void;
@@ -199,6 +200,7 @@ export default function NoteEditor({
   onGenerateNotes,
   liveTranscript,
   onRenameSpeaker,
+  onAssignParagraph,
   speakerSuggestions,
   onResetParagraph,
   onRerunSpeakerRecognition,
@@ -416,7 +418,12 @@ export default function NoteEditor({
   // this note's existing transcript.
   const hasMeetingTranscript = !isMeetingRecordingThisNote && !!effectiveTranscript;
 
-  const [renameSpeakerTarget, setRenameSpeakerTarget] = useState<string | null>(null);
+  // paragraphIndex scopes the custom-name dialog: a number assigns just that
+  // paragraph, null renames the speaker everywhere (chips, submenu).
+  const [renameSpeakerTarget, setRenameSpeakerTarget] = useState<{
+    speaker: string;
+    paragraphIndex: number | null;
+  } | null>(null);
   const transcriptSpeakers = useMemo(() => {
     if (!hasMeetingTranscript) return [];
     const speakers: string[] = [];
@@ -927,7 +934,9 @@ export default function NoteEditor({
                           ))}
                           {availableNames.length > 0 && <DropdownMenuSeparator />}
                           <DropdownMenuItem
-                            onClick={() => setRenameSpeakerTarget(speaker)}
+                            onClick={() =>
+                              setRenameSpeakerTarget({ speaker, paragraphIndex: null })
+                            }
                             className="text-xs gap-2"
                           >
                             <Pencil size={12} className="text-foreground/40" />
@@ -986,8 +995,11 @@ export default function NoteEditor({
                 hasRecording={!!note.meeting_id}
                 transcript={effectiveTranscript}
                 onRenameSpeaker={onRenameSpeaker}
+                onAssignParagraph={onAssignParagraph}
                 speakerSuggestions={speakerSuggestions}
-                onRequestCustomName={setRenameSpeakerTarget}
+                onRequestCustomName={(speaker, paragraphIndex) =>
+                  setRenameSpeakerTarget({ speaker, paragraphIndex: paragraphIndex ?? null })
+                }
                 onResetParagraph={onResetParagraph}
               />
             </>
@@ -1014,12 +1026,18 @@ export default function NoteEditor({
         />
         {onRenameSpeaker && (
           <SpeakerRenameDialog
-            speaker={renameSpeakerTarget}
+            speaker={renameSpeakerTarget?.speaker ?? null}
+            scope={renameSpeakerTarget?.paragraphIndex != null ? "line" : "speaker"}
             suggestions={speakerSuggestions ?? []}
             onOpenChange={(open) => {
               if (!open) setRenameSpeakerTarget(null);
             }}
-            onRename={onRenameSpeaker}
+            onRename={(oldLabel, newLabel) => {
+              const paragraphIndex = renameSpeakerTarget?.paragraphIndex;
+              return paragraphIndex != null && onAssignParagraph
+                ? onAssignParagraph(paragraphIndex, newLabel)
+                : onRenameSpeaker(oldLabel, newLabel);
+            }}
           />
         )}
         {!!isMeetingRecording && !!meetingTranscript && (
