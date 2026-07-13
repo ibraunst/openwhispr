@@ -148,8 +148,24 @@ for event in events {
         return String(format: "#%02x%02x%02x", r, g, b)
     }()
 
+    // EventKit gives every occurrence of a recurring series the SAME
+    // eventIdentifier — only detached (individually modified) occurrences
+    // get a unique "/RID=" suffix. Emitting it verbatim collapses the whole
+    // series into one row downstream (INSERT OR REPLACE keyed on this id),
+    // leaving only the last occurrence in the sync window. Disambiguate
+    // normal recurring occurrences with their start timestamp; single
+    // events and already-unique detached occurrences stay verbatim so
+    // their ids remain stable across syncs.
+    let baseId = event.eventIdentifier ?? UUID().uuidString
+    let uid: String
+    if event.hasRecurrenceRules && !baseId.contains("/RID=") {
+        uid = "\(baseId)/OD=\(Int(event.startDate.timeIntervalSince1970))"
+    } else {
+        uid = baseId
+    }
+
     let e = EventData(
-        uid: event.eventIdentifier ?? UUID().uuidString,
+        uid: uid,
         title: event.title ?? "Untitled Event",
         startTimestamp: Int(event.startDate.timeIntervalSince1970 * 1000),
         endTimestamp: Int(event.endDate.timeIntervalSince1970 * 1000),
