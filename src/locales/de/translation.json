@@ -1982,6 +1982,9 @@
     "assignLineDescription": "Nur dieser Absatz ändert sich — die anderen Zeilen des Sprechers behalten ihren aktuellen Namen.",
     "mergeTitle": "Stimmen zusammenführen?",
     "mergeDescription": "„{{oldName}}“ und „{{newName}}“ haben beide gespeicherte Stimmprofile. Beim Umbenennen werden sie zu einer Stimme zusammengeführt und künftige Meetings behandeln sie als dieselbe Person. Dies kann nicht rückgängig gemacht werden.",
-    "mergeConfirm": "Zusammenführen"
+    "mergeConfirm": "Zusammenführen",
+    "forgotten": "Stimme von „{{name}}“ vergessen — künftige Meetings behandeln die Person als neuen Gast",
+    "forgetFailed": "Stimme konnte nicht vergessen werden",
+    "notInBank": "„{{name}}“ hat keine gespeicherte Stimme"
   }
 }

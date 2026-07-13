@@ -89,6 +89,7 @@ function run({
   clusterThreshold,
   readOnlyBank,
   primaryIsMic,
+  allowedSpeakers,
 }) {
   const binPath = getDiarizeBinaryPath();
   const modelsDir = getModelsDir();
@@ -125,6 +126,11 @@ function run({
   }
   if (readOnlyBank) args.push("--read-only-bank");
   if (primaryIsMic) args.push("--primary-is-mic");
+  // Attendee names/emails — named voiceprints outside this list must not
+  // label clusters (a saved voice can't belong to someone not in the room).
+  if (Array.isArray(allowedSpeakers) && allowedSpeakers.length > 0) {
+    args.push("--allowed-speakers", JSON.stringify(allowedSpeakers));
+  }
 
   return new Promise((resolve, reject) => {
     let settled = false;

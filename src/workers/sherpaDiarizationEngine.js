@@ -402,6 +402,21 @@ const VOICEBANK_SCHEMA = `
   )
 `;
 
+// Anonymous auto-assigned labels — carry no identity, so the attendee
+// constraint never applies to them.
+const GENERIC_LABEL_RE = /^guest \d+$/i;
+
+// Fold a display name or email into a comparable key: emails drop the
+// domain, dots/underscores become spaces, case is ignored — so
+// "paul.timmermann@toptal.com", "Paul Timmermann" and "paul_timmermann"
+// all collapse to "paul timmermann".
+function normalizeSpeakerKey(value) {
+  let v = String(value || "").trim().toLowerCase();
+  const at = v.indexOf("@");
+  if (at > 0) v = v.slice(0, at);
+  return v.replace(/[._\s]+/g, " ").trim();
+}
+
 class VoiceBank {
   constructor(dbPath) {
     const Database = require("better-sqlite3");
@@ -425,17 +440,40 @@ class VoiceBank {
       }));
   }
 
-  findMatch(embedding, threshold) {
+  // allowedKeys (Set of normalized attendee keys, or null = no constraint):
+  // a NAMED voiceprint may only match when its owner is on the meeting's
+  // attendee list — a saved voice must never label someone who isn't even
+  // in the meeting. Anonymous "Guest N" prints stay matchable everywhere.
+  findMatch(embedding, threshold, allowedKeys) {
     let best = null;
     let bestSim = -1;
+    let blocked = null;
+    let blockedSim = -1;
     for (const vp of this.getAll()) {
       const sim = cosineSimilarity(embedding, vp.embedding);
-      if (sim > threshold && sim > bestSim) {
-        bestSim = sim;
-        best = vp;
+      if (sim <= threshold) continue;
+      const isAllowed =
+        !allowedKeys ||
+        GENERIC_LABEL_RE.test(vp.label) ||
+        allowedKeys.has(normalizeSpeakerKey(vp.label));
+      if (isAllowed) {
+        if (sim > bestSim) {
+          bestSim = sim;
+          best = vp;
+        }
+      } else if (sim > blockedSim) {
+        blockedSim = sim;
+        blocked = vp;
       }
     }
     if (best) emit("voicebank-match", { label: best.label, similarity: Number(bestSim.toFixed(3)) });
+    if (blocked && blockedSim > bestSim) {
+      emit("voicebank-match-blocked", {
+        label: blocked.label,
+        similarity: Number(blockedSim.toFixed(3)),
+        reason: "not-an-attendee",
+      });
+    }
     return best;
   }
 
@@ -948,6 +986,21 @@ async function main() {
   const readOnlyBank = Boolean(args["read-only-bank"]);
   const primaryIsMic = Boolean(args["primary-is-mic"]);
 
+  // Meeting attendees (JSON array of names/emails). When present, named
+  // voiceprints outside this list are excluded from bank matching.
+  let allowedKeys = null;
+  if (args["allowed-speakers"]) {
+    try {
+      const parsed = JSON.parse(args["allowed-speakers"]);
+      if (Array.isArray(parsed)) {
+        const keys = parsed.map(normalizeSpeakerKey).filter(Boolean);
+        if (keys.length > 0) allowedKeys = new Set(keys);
+      }
+    } catch (err) {
+      emit("warning", { message: `Unparseable --allowed-speakers, constraint skipped: ${err.message}` });
+    }
+  }
+
   const transcript = JSON.parse(fs.readFileSync(args.transcript, "utf8"));
 
   // 1. Diarize
@@ -1175,7 +1228,7 @@ async function main() {
         continue;
       }
 
-      const match = voiceBank.findMatch(avgEmb, matchThreshold);
+      const match = voiceBank.findMatch(avgEmb, matchThreshold, allowedKeys);
       if (match) {
         if (!readOnlyBank) {
           match.meetingCount += 1;

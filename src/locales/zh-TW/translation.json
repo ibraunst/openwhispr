@@ -1982,6 +1982,9 @@
     "assignLineDescription": "僅變更此段落 — 該發言人的其他段落保持目前名稱。",
     "mergeTitle": "合併聲音？",
     "mergeDescription": "「{{oldName}}」和「{{newName}}」都有已儲存的聲紋。重新命名會將它們合併為同一個聲音，之後的會議會將他們視為同一個人。此操作無法復原。",
-    "mergeConfirm": "合併"
+    "mergeConfirm": "合併",
+    "forgotten": "已忘記「{{name}}」的聲音 — 之後的會議會將其視為新訪客",
+    "forgetFailed": "無法忘記該聲音",
+    "notInBank": "「{{name}}」沒有已儲存的聲音"
   }
 }

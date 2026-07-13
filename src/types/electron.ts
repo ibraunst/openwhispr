@@ -1226,6 +1226,7 @@ declare global {
         sherpaMeThreshold?: number;
         sherpaMatchThreshold?: number;
         sherpaClusterThreshold?: number;
+        attendees?: string[];
       }) => Promise<{
         success: boolean;
         transcript?: {

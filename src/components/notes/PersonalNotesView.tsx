@@ -838,6 +838,54 @@ export default function PersonalNotesView({
     [applyParagraphSpeakerEdit]
   );
 
+  // Deletes a speaker's saved voiceprint from the active engine's bank (the
+  // transcript text is untouched — rename/assign handles that). The escape
+  // hatch for a polluted or misattributed voiceprint: once forgotten, future
+  // meetings treat the person as a new guest.
+  const [forgetConfirm, setForgetConfirm] = useState<{
+    label: string;
+    resolve: (ok: boolean) => void;
+  } | null>(null);
+
+  const handleForgetSpeakerVoice = useCallback(
+    async (speaker: string) => {
+      try {
+        const engine =
+          getSettings().diarizationEngine === "sherpa"
+            ? ("sherpa" as const)
+            : ("pyannote" as const);
+        const bank = await window.electronAPI?.voicebankList?.({ engine });
+        if (!bank?.success) {
+          throw new Error(bank?.error || "Could not read the voicebank");
+        }
+        const prints = (bank.voices ?? []).filter((v) => v.label === speaker);
+        if (prints.length === 0) {
+          toast({ title: t("voicebank.notInBank", { name: formatSpeakerName(speaker) }) });
+          return;
+        }
+        const ok = await new Promise<boolean>((resolve) =>
+          setForgetConfirm({ label: speaker, resolve })
+        );
+        if (!ok) return;
+        for (const p of prints) {
+          const res = await window.electronAPI?.voicebankDelete?.(p.id, engine);
+          if (!res?.success) {
+            throw new Error(res?.error || "Delete failed");
+          }
+        }
+        toast({ title: t("voicebank.forgotten", { name: formatSpeakerName(speaker) }) });
+      } catch (err) {
+        logger.error("Forget voice failed", { error: (err as Error).message }, "notes");
+        toast({
+          title: t("voicebank.forgetFailed"),
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+      }
+    },
+    [toast, t]
+  );
+
   // Re-run speaker identification on an already-recorded meeting using the
   // CURRENT threshold sliders (Integrations → HuggingFace) — the tuning loop
   // for a diarization that came out wrong. Read-only against the voicebank:
@@ -869,6 +917,27 @@ export default function PersonalNotesView({
     }
     setRerunningNoteId(noteId);
     try {
+      // Attendee names/emails constrain voicebank matching on re-runs too —
+      // a saved voice must never label someone who isn't in the meeting.
+      let attendeeNames: string[] | undefined;
+      if (activeNote?.calendar_event_id) {
+        try {
+          const eventResult = await window.electronAPI?.getCalendarEventById?.(
+            activeNote.calendar_event_id
+          );
+          const parsed = eventResult?.event?.attendees
+            ? JSON.parse(eventResult.event.attendees)
+            : null;
+          if (Array.isArray(parsed)) {
+            const names = parsed
+              .flatMap((a: { name?: string; email?: string }) => [a?.name, a?.email])
+              .filter((v): v is string => typeof v === "string" && !!v.trim());
+            if (names.length > 0) attendeeNames = names;
+          }
+        } catch {
+          // No attendee list → the re-run simply stays unconstrained.
+        }
+      }
       const result = await window.electronAPI?.meetingRunDiarization?.({
         meetingId,
         hfToken,
@@ -879,6 +948,7 @@ export default function PersonalNotesView({
         sherpaMatchThreshold,
         sherpaClusterThreshold,
         readOnlyBank: true,
+        attendees: attendeeNames,
       });
       if (!result?.success || !result.transcript?.segments?.length) {
         throw new Error(result?.error || "Speaker identification produced no segments");
@@ -915,6 +985,7 @@ export default function PersonalNotesView({
   }, [
     activeNoteId,
     activeNote?.meeting_id,
+    activeNote?.calendar_event_id,
     activeNote?.export_path,
     activeNote?.export_header,
     activeFolderId,
@@ -1654,6 +1725,7 @@ export default function PersonalNotesView({
               liveTranscript={liveTranscript}
               onRenameSpeaker={handleRenameSpeaker}
               onAssignParagraph={handleAssignParagraphSpeaker}
+              onForgetSpeakerVoice={handleForgetSpeakerVoice}
               speakerSuggestions={speakerSuggestions}
               onResetParagraph={handleResetParagraphSpeaker}
               onRerunSpeakerRecognition={
@@ -1836,6 +1908,49 @@ export default function PersonalNotesView({
           targetFolderId={activeFolderId}
           onNotesAdded={handleNotesAdded}
         />
+      )}
+
+      {forgetConfirm && (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              forgetConfirm.resolve(false);
+              setForgetConfirm(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogTitle className="text-sm">
+              {t("voicebank.deleteConfirmTitle", { name: formatSpeakerName(forgetConfirm.label) })}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {t("voicebank.deleteConfirmDescription")}
+            </DialogDescription>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  forgetConfirm.resolve(false);
+                  setForgetConfirm(null);
+                }}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  forgetConfirm.resolve(true);
+                  setForgetConfirm(null);
+                }}
+              >
+                {t("voicebank.deleteVoice")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {mergeConfirm && (

@@ -1982,6 +1982,9 @@
     "assignLineDescription": "Cambia solo questo paragrafo — le altre righe dell'oratore mantengono il nome attuale.",
     "mergeTitle": "Unire le voci?",
     "mergeDescription": "“{{oldName}}” e “{{newName}}” hanno entrambi un'impronta vocale salvata. Rinominando verranno unite in un'unica voce e le prossime riunioni le tratteranno come la stessa persona. L'operazione è irreversibile.",
-    "mergeConfirm": "Unisci"
+    "mergeConfirm": "Unisci",
+    "forgotten": "Voce di “{{name}}” dimenticata — le prossime riunioni lo tratteranno come un nuovo ospite",
+    "forgetFailed": "Impossibile dimenticare la voce",
+    "notInBank": "“{{name}}” non ha una voce salvata"
   }
 }

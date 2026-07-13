@@ -12,6 +12,7 @@ import {
   ChevronDown,
   UserRound,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import SpeakerRenameDialog from "./SpeakerRenameDialog";
 import { MarkdownTextarea } from "../ui/MarkdownTextarea";
@@ -88,6 +89,7 @@ interface NoteEditorProps {
   liveTranscript?: string;
   onRenameSpeaker?: (oldLabel: string, newLabel: string) => Promise<void>;
   onAssignParagraph?: (paragraphIndex: number, newLabel: string) => Promise<void>;
+  onForgetSpeakerVoice?: (speaker: string) => Promise<void>;
   speakerSuggestions?: string[];
   onResetParagraph?: (paragraphIndex: number) => Promise<void>;
   onRerunSpeakerRecognition?: () => void;
@@ -201,6 +203,7 @@ export default function NoteEditor({
   liveTranscript,
   onRenameSpeaker,
   onAssignParagraph,
+  onForgetSpeakerVoice,
   speakerSuggestions,
   onResetParagraph,
   onRerunSpeakerRecognition,
@@ -942,6 +945,18 @@ export default function NoteEditor({
                             <Pencil size={12} className="text-foreground/40" />
                             {t("voicebank.customName")}
                           </DropdownMenuItem>
+                          {onForgetSpeakerVoice && speaker !== "Me" && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => void onForgetSpeakerVoice(speaker)}
+                                className="text-xs gap-2 text-destructive focus:text-destructive"
+                              >
+                                <Trash2 size={12} className="opacity-60" />
+                                {t("voicebank.deleteVoice")}
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     );

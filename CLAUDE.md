@@ -195,7 +195,8 @@ Speaker diarization engine:
   - Speaker chips in Transcript tab are dropdowns: one-click GLOBAL rename from the meeting's calendar attendees (own accounts excluded, already-assigned names filtered) + "Custom name…" free-text dialog; rename updates voiceprint + rewrites note transcript
   - Inline speaker labels in the transcript body are PARAGRAPH-SCOPED: picking a name assigns only that paragraph (`meeting-reset-paragraph-speaker` IPC with `newLabel`, no voicebank write); the cluster-wide rename lives behind a "Rename everywhere" submenu; "Not this speaker — reset line" sends the paragraph to a fresh Guest N
   - Auto-naming: 1 new guest + 1 non-user calendar attendee → guest auto-renamed to attendee
-  - Known voices managed (rename/forget) in Integrations view under HuggingFace panel
+  - ATTENDEE-CONSTRAINED matching (both engines): a NAMED voiceprint only matches when its owner is on the meeting's calendar attendee list (`--allowed-speakers` JSON arg; normalized compare: emails drop domain, dots/underscores→spaces, case-insensitive). Anonymous "Guest N" prints match everywhere; unscheduled meetings (no attendee list) stay unconstrained. Blocked matches are logged (`voicebank-match-blocked`). Applies to auto-diarization AND re-runs.
+  - Known voices managed (rename/forget) in Integrations view under HuggingFace panel; speaker chips in the transcript tab also carry a "Forget voice" item (confirm dialog → `voicebank-delete`) for killing a polluted/misattributed voiceprint without leaving the note
   - Renaming to an existing name merges the two voiceprints (weighted embedding average) — gated by a confirmation dialog in `PersonalNotesView.handleRenameSpeaker` (checks `voicebank-list` for a label collision first); the merge is irreversible
 - [x] Meeting audio playback with karaoke transcript (`TranscriptPlayer.tsx`)
   - Notes link to their recording via `notes.meeting_id` (set after split audio saves)

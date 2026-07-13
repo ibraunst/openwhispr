@@ -2049,6 +2049,9 @@
     "assignLineDescription": "Only this paragraph changes — the speaker's other lines keep their current name.",
     "mergeTitle": "Merge voices?",
     "mergeDescription": "“{{oldName}}” and “{{newName}}” both have saved voiceprints. Renaming merges them into one voice, and future meetings will treat them as the same person. This cannot be undone.",
-    "mergeConfirm": "Merge"
+    "mergeConfirm": "Merge",
+    "forgotten": "Forgot “{{name}}” — future meetings will treat them as a new guest",
+    "forgetFailed": "Could not forget voice",
+    "notInBank": "“{{name}}” has no saved voice"
   }
 }

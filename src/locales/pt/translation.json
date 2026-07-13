@@ -1982,6 +1982,9 @@
     "assignLineDescription": "Apenas este parágrafo muda — as outras falas do participante mantêm o nome atual.",
     "mergeTitle": "Combinar vozes?",
     "mergeDescription": "“{{oldName}}” e “{{newName}}” têm impressões de voz salvas. Renomear vai combiná-las em uma única voz e as próximas reuniões as tratarão como a mesma pessoa. Isso não pode ser desfeito.",
-    "mergeConfirm": "Combinar"
+    "mergeConfirm": "Combinar",
+    "forgotten": "Voz de “{{name}}” esquecida — as próximas reuniões vão tratá-lo como um novo convidado",
+    "forgetFailed": "Não foi possível esquecer a voz",
+    "notInBank": "“{{name}}” não tem voz salva"
   }
 }

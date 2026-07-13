@@ -1982,6 +1982,9 @@
     "assignLineDescription": "Solo cambia este párrafo — las demás líneas del hablante conservan su nombre actual.",
     "mergeTitle": "¿Combinar voces?",
     "mergeDescription": "“{{oldName}}” y “{{newName}}” tienen huellas de voz guardadas. Renombrar las combinará en una sola voz y las próximas reuniones las tratarán como la misma persona. Esto no se puede deshacer.",
-    "mergeConfirm": "Combinar"
+    "mergeConfirm": "Combinar",
+    "forgotten": "Se olvidó la voz de “{{name}}” — en próximas reuniones se tratará como un invitado nuevo",
+    "forgetFailed": "No se pudo olvidar la voz",
+    "notInBank": "“{{name}}” no tiene una voz guardada"
   }
 }

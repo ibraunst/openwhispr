@@ -864,15 +864,24 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
           }
 
           // Calendar attendee count caps the diarization cluster count
-          // (max, never exact — no-shows are common). Only for scheduled
+          // (max, never exact — no-shows are common), and the attendee
+          // names/emails constrain voicebank matching: a saved voice must
+          // never label someone who isn't in the meeting. Only for scheduled
           // meetings: attendeesJson exists only when a calendar event was
-          // matched, so unscheduled recordings stay uncapped.
+          // matched, so unscheduled recordings stay uncapped/unconstrained.
           let maxSpeakers: number | undefined;
+          let attendeeNames: string[] | undefined;
           if (attendeesJson) {
             try {
               const attendees = JSON.parse(attendeesJson);
-              if (Array.isArray(attendees) && attendees.length >= 2) {
-                maxSpeakers = attendees.length;
+              if (Array.isArray(attendees)) {
+                if (attendees.length >= 2) {
+                  maxSpeakers = attendees.length;
+                }
+                const names = attendees
+                  .flatMap((a: { name?: string; email?: string }) => [a?.name, a?.email])
+                  .filter((v): v is string => typeof v === "string" && !!v.trim());
+                if (names.length > 0) attendeeNames = names;
               }
             } catch {}
           }
@@ -882,6 +891,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
             meetingId: currentMeetingId,
             hfToken,
             maxSpeakers,
+            attendees: attendeeNames,
             meThreshold: diarizationMeThreshold,
             matchThreshold: diarizationMatchThreshold,
             engine,

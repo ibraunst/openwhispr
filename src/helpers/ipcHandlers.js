@@ -2877,7 +2877,7 @@ class IPCHandlers {
     // Both rewrite transcript.json in place (segments[].speaker + speakers[])
     // and the result is read from the file, never from stdout. The
     // CUSTOMWHISPR_DIARIZATION env var overrides the requested engine.
-    ipcMain.handle("meeting-run-diarization", async (_event, { meetingId, hfToken: providedToken, numSpeakers, maxSpeakers, meThreshold, matchThreshold, readOnlyBank, engine: requestedEngine, sherpaMeThreshold, sherpaMatchThreshold, sherpaClusterThreshold }) => {
+    ipcMain.handle("meeting-run-diarization", async (_event, { meetingId, hfToken: providedToken, numSpeakers, maxSpeakers, meThreshold, matchThreshold, readOnlyBank, engine: requestedEngine, sherpaMeThreshold, sherpaMatchThreshold, sherpaClusterThreshold, attendees }) => {
       const envEngine = (process.env.CUSTOMWHISPR_DIARIZATION || "").toLowerCase();
       const engine =
         envEngine === "sherpa" || envEngine === "pyannote"
@@ -2926,6 +2926,14 @@ class IPCHandlers {
           debugLogger.warn("System-audio silence check failed, keeping system audio", { error: rmsError.message }, "meeting");
         }
 
+        // Attendee names/emails from the calendar event — named voiceprints
+        // outside this list must never label a cluster (a saved voice can't
+        // belong to someone who isn't in the meeting). Absent for
+        // unscheduled recordings, which stay unconstrained.
+        const allowedSpeakers = Array.isArray(attendees)
+          ? attendees.filter((a) => typeof a === "string" && a.trim()).slice(0, 200)
+          : null;
+
         if (engine === "sherpa") {
           const sherpaDiarization = require("./sherpaDiarization");
           if (!sherpaDiarization.isAvailable()) {
@@ -2961,6 +2969,7 @@ class IPCHandlers {
             // duplicate guest voiceprints, inflated meeting counts).
             readOnlyBank: Boolean(readOnlyBank),
             primaryIsMic: primaryAudioPath === micWavPath,
+            allowedSpeakers,
           });
         } else {
           const speakerEnginePath = app.isPackaged
@@ -3006,6 +3015,9 @@ class IPCHandlers {
           // Re-runs must never mutate the voicebank (embedding drift, duplicate
           // guest voiceprints, inflated meeting counts on every tuning pass).
           if (readOnlyBank) args.push("--read-only-bank");
+          if (allowedSpeakers && allowedSpeakers.length > 0) {
+            args.push("--allowed-speakers", JSON.stringify(allowedSpeakers));
+          }
 
           // The engine writes the labeled transcript (with the speakers array) to
           // transcript.json — read the result from the file rather than parsing

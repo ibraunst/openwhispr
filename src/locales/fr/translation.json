@@ -1982,6 +1982,9 @@
     "assignLineDescription": "Seul ce paragraphe change — les autres lignes de l'intervenant conservent leur nom actuel.",
     "mergeTitle": "Fusionner les voix ?",
     "mergeDescription": "« {{oldName}} » et « {{newName}} » ont tous deux une empreinte vocale enregistrée. Le renommage les fusionnera en une seule voix et les prochaines réunions les traiteront comme la même personne. Cette action est irréversible.",
-    "mergeConfirm": "Fusionner"
+    "mergeConfirm": "Fusionner",
+    "forgotten": "Voix de « {{name}} » oubliée — les prochaines réunions le traiteront comme un nouvel invité",
+    "forgetFailed": "Impossible d'oublier la voix",
+    "notInBank": "« {{name}} » n'a pas de voix enregistrée"
   }
 }

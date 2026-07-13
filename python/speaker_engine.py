@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sqlite3
 import uuid
 from dataclasses import dataclass
@@ -60,6 +61,22 @@ ME_LABEL = "Me"
 SIMILARITY_THRESHOLD = 0.85
 VOICEBANK_MATCH_THRESHOLD = 0.82
 MIN_SEGMENT_DURATION = 0.5  # seconds — skip segments too short for reliable embedding
+
+# Anonymous auto-assigned labels — carry no identity, so the attendee
+# constraint never applies to them.
+_GENERIC_LABEL_RE = re.compile(r"^guest \d+$", re.IGNORECASE)
+
+
+def normalize_speaker_key(value: str) -> str:
+    """Fold a display name or email into a comparable key: emails drop the
+    domain, dots/underscores become spaces, case is ignored — so
+    'paul.timmermann@toptal.com', 'Paul Timmermann' and 'paul_timmermann'
+    all collapse to 'paul timmermann'."""
+    v = (value or "").strip().lower()
+    at = v.find("@")
+    if at > 0:
+        v = v[:at]
+    return re.sub(r"[._\s]+", " ", v).strip()
 
 
 # ---------------------------------------------------------------------------
@@ -137,17 +154,43 @@ class VoiceBank:
         ]
 
     def find_match(
-        self, embedding: np.ndarray, threshold: float = VOICEBANK_MATCH_THRESHOLD
+        self,
+        embedding: np.ndarray,
+        threshold: float = VOICEBANK_MATCH_THRESHOLD,
+        allowed_keys: Optional[set] = None,
     ) -> Optional[VoicePrint]:
+        """allowed_keys (set of normalize_speaker_key results, or None for no
+        constraint): a NAMED voiceprint may only match when its owner is on
+        the meeting's attendee list — a saved voice must never label someone
+        who isn't even in the meeting. Anonymous 'Guest N' prints stay
+        matchable everywhere (they carry no identity to misattribute)."""
         best: Optional[VoicePrint] = None
         best_sim = -1.0
+        blocked: Optional[VoicePrint] = None
+        blocked_sim = -1.0
         for vp in self.get_all():
             sim = _cosine_similarity(embedding, vp.embedding)
-            if sim > threshold and sim > best_sim:
-                best_sim = sim
-                best = vp
+            if sim <= threshold:
+                continue
+            is_allowed = (
+                allowed_keys is None
+                or _GENERIC_LABEL_RE.match(vp.label) is not None
+                or normalize_speaker_key(vp.label) in allowed_keys
+            )
+            if is_allowed:
+                if sim > best_sim:
+                    best_sim = sim
+                    best = vp
+            elif sim > blocked_sim:
+                blocked_sim = sim
+                blocked = vp
         if best is not None:
             logger.info("VoiceBank match: '%s' (sim=%.3f)", best.label, best_sim)
+        if blocked is not None and blocked_sim > best_sim:
+            logger.info(
+                "VoiceBank match blocked (not an attendee): '%s' (sim=%.3f)",
+                blocked.label, blocked_sim,
+            )
         return best
 
     def upsert(self, vp: VoicePrint) -> None:
@@ -230,11 +273,20 @@ class SpeakerEngine:
         similarity_threshold: float = SIMILARITY_THRESHOLD,
         voicebank_threshold: float = VOICEBANK_MATCH_THRESHOLD,
         update_bank: bool = True,
+        allowed_speakers: Optional[list] = None,
     ):
         self.hf_token = hf_token
         self.device = _select_device()
         self.similarity_threshold = similarity_threshold
         self.voicebank_threshold = voicebank_threshold
+        # Meeting attendees (names/emails). When present, named voiceprints
+        # outside this list are excluded from bank matching.
+        self.allowed_keys: Optional[set] = None
+        if allowed_speakers:
+            keys = {normalize_speaker_key(s) for s in allowed_speakers}
+            keys.discard("")
+            if keys:
+                self.allowed_keys = keys
         # Re-runs (threshold tuning on an already-processed meeting) must not
         # write to the voicebank: every pass would inflate meeting counts,
         # drift stored embeddings, and enroll duplicate guest voiceprints.
@@ -384,7 +436,9 @@ class SpeakerEngine:
                 })
                 continue
 
-            match = self.voice_bank.find_match(avg_emb, threshold=self.voicebank_threshold)
+            match = self.voice_bank.find_match(
+                avg_emb, threshold=self.voicebank_threshold, allowed_keys=self.allowed_keys
+            )
             if match is not None:
                 if self.update_bank:
                     match.meeting_count += 1
@@ -560,7 +614,21 @@ def main() -> None:
         action="store_true",
         help="Match against the voicebank but never write to it (re-runs/tuning)",
     )
+    parser.add_argument(
+        "--allowed-speakers",
+        default=None,
+        help="JSON array of attendee names/emails; named voiceprints outside this list are never matched",
+    )
     args = parser.parse_args()
+
+    allowed_speakers = None
+    if args.allowed_speakers:
+        try:
+            parsed = json.loads(args.allowed_speakers)
+            if isinstance(parsed, list):
+                allowed_speakers = [str(s) for s in parsed]
+        except (ValueError, TypeError) as exc:
+            logger.warning("Unparseable --allowed-speakers, constraint skipped: %s", exc)
 
     engine = SpeakerEngine(
         hf_token=args.hf_token,
@@ -568,6 +636,7 @@ def main() -> None:
         similarity_threshold=args.similarity,
         voicebank_threshold=args.voicebank_threshold,
         update_bank=not args.read_only_bank,
+        allowed_speakers=allowed_speakers,
     )
     try:
         result = engine.process(

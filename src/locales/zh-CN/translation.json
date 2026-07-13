@@ -1982,6 +1982,9 @@
     "assignLineDescription": "仅更改此段落 — 该发言人的其他段落保持当前名称。",
     "mergeTitle": "合并声音？",
     "mergeDescription": "“{{oldName}}”和“{{newName}}”都有已保存的声纹。重命名会将它们合并为同一个声音，之后的会议会将他们视为同一个人。此操作无法撤销。",
-    "mergeConfirm": "合并"
+    "mergeConfirm": "合并",
+    "forgotten": "已忘记“{{name}}”的声音 — 之后的会议会将其视为新访客",
+    "forgetFailed": "无法忘记该声音",
+    "notInBank": "“{{name}}”没有已保存的声音"
   }
 }

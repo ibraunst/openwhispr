@@ -1982,6 +1982,9 @@
     "assignLineDescription": "変更されるのはこの段落だけです — この話者の他の発言は現在の名前のままです。",
     "mergeTitle": "声を統合しますか？",
     "mergeDescription": "「{{oldName}}」と「{{newName}}」はどちらも声紋が保存されています。名前を変更すると1つの声に統合され、今後の会議では同一人物として扱われます。この操作は取り消せません。",
-    "mergeConfirm": "統合"
+    "mergeConfirm": "統合",
+    "forgotten": "「{{name}}」の声を削除しました — 今後の会議では新しいゲストとして扱われます",
+    "forgetFailed": "声を削除できませんでした",
+    "notInBank": "「{{name}}」の保存された声はありません"
   }
 }
