@@ -46,6 +46,11 @@ function SpeakerLabel({
     return <span className="font-semibold text-foreground/90">{displayName}: </span>;
   }
   const availableNames = (speakerSuggestions ?? []).filter((name) => name !== speaker);
+  // "Me" is always offered first — the user's own lines are the most common
+  // misattribution target, and the attendee suggestions exclude the user's
+  // own accounts by design, so it can't come from there.
+  const pickNames =
+    speaker === "Me" ? availableNames : ["Me", ...availableNames.filter((n) => n !== "Me")];
   // Paragraph-scoped actions need a reconciled paragraph index; without one
   // (reconciliation unavailable) the menu falls back to global rename only.
   const canScope = !!onAssignParagraph && paragraphIndex != null;
@@ -55,7 +60,7 @@ function SpeakerLabel({
     !!onResetParagraph && paragraphIndex != null && !GENERIC_SPEAKER_RE.test(speaker);
 
   const nameItems = (onPick: (name: string) => void) =>
-    availableNames.map((name) => (
+    pickNames.map((name) => (
       <DropdownMenuItem key={name} onClick={() => onPick(name)} className="text-xs gap-2">
         <UserRound size={12} className="text-foreground/40" />
         {formatSpeakerName(name)}
@@ -95,7 +100,7 @@ function SpeakerLabel({
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="min-w-40">
                 {nameItems((name) => void onRenameSpeaker(speaker, name))}
-                {availableNames.length > 0 && <DropdownMenuSeparator />}
+                {pickNames.length > 0 && <DropdownMenuSeparator />}
                 <DropdownMenuItem
                   onClick={() => onRequestCustomName?.(speaker, null)}
                   className="text-xs gap-2"
@@ -118,7 +123,7 @@ function SpeakerLabel({
         ) : (
           <>
             {nameItems((name) => void onRenameSpeaker(speaker, name))}
-            {availableNames.length > 0 && <DropdownMenuSeparator />}
+            {pickNames.length > 0 && <DropdownMenuSeparator />}
             <DropdownMenuItem
               onClick={() => onRequestCustomName?.(speaker, null)}
               className="text-xs gap-2"

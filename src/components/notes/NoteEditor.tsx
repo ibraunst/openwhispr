@@ -904,6 +904,13 @@ export default function NoteEditor({
                     const availableNames = (speakerSuggestions ?? []).filter(
                       (name) => name !== speaker && !transcriptSpeakers.includes(name)
                     );
+                    // "Me" is always offerable (a whole cluster can be the
+                    // user) — the attendee suggestions exclude the user's own
+                    // accounts by design, so it can't come from there.
+                    const pickNames =
+                      speaker === "Me"
+                        ? availableNames
+                        : ["Me", ...availableNames.filter((n) => n !== "Me")];
                     return (
                       <DropdownMenu key={speaker}>
                         <DropdownMenuTrigger asChild>
@@ -925,7 +932,7 @@ export default function NoteEditor({
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" sideOffset={4} className="min-w-40">
-                          {availableNames.map((name) => (
+                          {pickNames.map((name) => (
                             <DropdownMenuItem
                               key={name}
                               onClick={() => void onRenameSpeaker(speaker, name)}
@@ -935,7 +942,7 @@ export default function NoteEditor({
                               {formatSpeakerName(name)}
                             </DropdownMenuItem>
                           ))}
-                          {availableNames.length > 0 && <DropdownMenuSeparator />}
+                          {pickNames.length > 0 && <DropdownMenuSeparator />}
                           <DropdownMenuItem
                             onClick={() =>
                               setRenameSpeakerTarget({ speaker, paragraphIndex: null })
@@ -1043,7 +1050,7 @@ export default function NoteEditor({
           <SpeakerRenameDialog
             speaker={renameSpeakerTarget?.speaker ?? null}
             scope={renameSpeakerTarget?.paragraphIndex != null ? "line" : "speaker"}
-            suggestions={speakerSuggestions ?? []}
+            suggestions={["Me", ...(speakerSuggestions ?? []).filter((n) => n !== "Me")]}
             onOpenChange={(open) => {
               if (!open) setRenameSpeakerTarget(null);
             }}

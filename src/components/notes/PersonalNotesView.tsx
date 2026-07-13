@@ -57,7 +57,11 @@ const EXPORT_TITLE_SEPARATOR = navigator.platform?.toLowerCase().includes("win")
 function parseAttendeeNames(attendeesJson: string | null): string[] {
   if (!attendeesJson) return [];
   try {
-    const attendees: { name?: string | null; email?: string | null }[] = JSON.parse(attendeesJson);
+    const attendees: {
+      name?: string | null;
+      email?: string | null;
+      isCurrentUser?: boolean;
+    }[] = JSON.parse(attendeesJson);
     if (!Array.isArray(attendees)) return [];
     const ownEmails = new Set(
       (getSettings().gcalAccounts || [])
@@ -70,6 +74,10 @@ function parseAttendeeNames(attendeesJson: string | null): string[] {
       const entry =
         typeof attendee === "string" ? { name: attendee, email: null } : attendee;
       if (!entry) continue;
+      // Apple Calendar events flag the user's own entry directly — the
+      // gcal-account email check alone misses accounts that only exist on
+      // the Apple side, leaking the user into their own suggestion list.
+      if ((entry as { isCurrentUser?: boolean }).isCurrentUser) continue;
       if (entry.email && ownEmails.has(entry.email.toLowerCase())) continue;
       const name = (entry.name || entry.email || "").trim();
       if (name && !seen.has(name)) {
@@ -81,6 +89,15 @@ function parseAttendeeNames(attendeesJson: string | null): string[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * The signed-in user's identity for baking the app-internal "Me" label
+ * into exported files. Empty string → exports keep "Me" verbatim.
+ */
+function getExportMeName(): string {
+  const s = getSettings();
+  return s.gcalEmail || s.gcalAccounts?.[0]?.email || "";
 }
 
 interface PersonalNotesViewProps {
@@ -184,7 +201,7 @@ export default function PersonalNotesView({
       persistTo?: { noteId: number; header: string }
     ) => {
       window.electronAPI
-        .saveTranscriptToFile?.(formatTranscriptForExport(content), filename, directory)
+        .saveTranscriptToFile?.(formatTranscriptForExport(content, getExportMeName()), filename, directory)
         .then((result?: { success?: boolean; filePath?: string; error?: string }) => {
           if (result && result.success === false) {
             throw new Error(result.error || "Write failed");
@@ -667,33 +684,38 @@ export default function PersonalNotesView({
       const noteId = activeNoteId;
       const currentTranscript = activeMeetingDiarized || activeNote?.transcript || "";
       try {
-        // Targets the active engine's bank: guest numbering is per-bank, so a
-        // label like "Guest 3" means a different person in the other bank.
-        const engine =
-          getSettings().diarizationEngine === "sherpa"
-            ? ("sherpa" as const)
-            : ("pyannote" as const);
+        // "Me" is the engine's acoustic self-label (mic-based detection
+        // re-emits it every meeting) — a voiceprint must never be stored
+        // under it, so renaming a speaker TO "Me" is a markdown-only edit.
+        if (newLabel !== "Me") {
+          // Targets the active engine's bank: guest numbering is per-bank, so a
+          // label like "Guest 3" means a different person in the other bank.
+          const engine =
+            getSettings().diarizationEngine === "sherpa"
+              ? ("sherpa" as const)
+              : ("pyannote" as const);
 
-        const bank = await window.electronAPI?.voicebankList?.({ engine });
-        const voices = bank?.voices ?? [];
-        const wouldMergeVoices =
-          voices.some((v) => v.label === oldLabel) && voices.some((v) => v.label === newLabel);
-        if (wouldMergeVoices) {
-          const ok = await new Promise<boolean>((resolve) =>
-            setMergeConfirm({ oldLabel, newLabel, resolve })
-          );
-          if (!ok) return;
-        }
+          const bank = await window.electronAPI?.voicebankList?.({ engine });
+          const voices = bank?.voices ?? [];
+          const wouldMergeVoices =
+            voices.some((v) => v.label === oldLabel) && voices.some((v) => v.label === newLabel);
+          if (wouldMergeVoices) {
+            const ok = await new Promise<boolean>((resolve) =>
+              setMergeConfirm({ oldLabel, newLabel, resolve })
+            );
+            if (!ok) return;
+          }
 
-        // Rename the stored voiceprint so future meetings use the new name.
-        // 0 changes is fine — "Me" and manually relabeled speakers aren't in the bank.
-        const vbResult = await window.electronAPI?.voicebankRename?.({
-          oldLabel,
-          newLabel,
-          engine,
-        });
-        if (!vbResult?.success) {
-          throw new Error(vbResult?.error || "Voicebank update failed");
+          // Rename the stored voiceprint so future meetings use the new name.
+          // 0 changes is fine — "Me" and manually relabeled speakers aren't in the bank.
+          const vbResult = await window.electronAPI?.voicebankRename?.({
+            oldLabel,
+            newLabel,
+            engine,
+          });
+          if (!vbResult?.success) {
+            throw new Error(vbResult?.error || "Voicebank update failed");
+          }
         }
 
         const marker = `**${oldLabel}:**`;
@@ -716,7 +738,7 @@ export default function PersonalNotesView({
             window.electronAPI
               .overwriteExportedFile?.(
                 activeNote.export_path,
-                formatTranscriptForExport(activeNote.export_header + updated)
+                formatTranscriptForExport(activeNote.export_header + updated, getExportMeName())
               )
               .then((res: { success?: boolean; error?: string } | void) => {
                 if (res && res.success === false) throw new Error(res.error || "Write failed");
@@ -784,7 +806,7 @@ export default function PersonalNotesView({
           window.electronAPI
             .overwriteExportedFile?.(
               activeNote.export_path,
-              formatTranscriptForExport(activeNote.export_header + updated)
+              formatTranscriptForExport(activeNote.export_header + updated, getExportMeName())
             )
             .then((res: { success?: boolean; error?: string } | void) => {
               if (res && res.success === false) throw new Error(res.error || "Write failed");
@@ -905,7 +927,7 @@ export default function PersonalNotesView({
             window.electronAPI
               .overwriteExportedFile?.(
                 activeNote.export_path,
-                formatTranscriptForExport(activeNote.export_header + updated)
+                formatTranscriptForExport(activeNote.export_header + updated, getExportMeName())
               )
               .catch((err: Error) => {
                 logger.error("Transcript export rewrite failed", { error: err.message }, "notes");
@@ -1014,7 +1036,7 @@ export default function PersonalNotesView({
         window.electronAPI
           .overwriteExportedFile?.(
             activeNote.export_path,
-            formatTranscriptForExport(activeNote.export_header + updated)
+            formatTranscriptForExport(activeNote.export_header + updated, getExportMeName())
           )
           .then((res: { success?: boolean; error?: string } | void) => {
             if (res && res.success === false) throw new Error(res.error || "Write failed");
@@ -1091,7 +1113,7 @@ export default function PersonalNotesView({
           window.electronAPI
             .overwriteExportedFile?.(
               activeNote.export_path,
-              formatTranscriptForExport(activeNote.export_header + updated)
+              formatTranscriptForExport(activeNote.export_header + updated, getExportMeName())
             )
             .catch((err: Error) => {
               logger.error("Transcript export rewrite failed", { error: err.message }, "notes");
