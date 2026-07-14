@@ -1994,6 +1994,14 @@
     "forgetNoteDescription": "Die Zeilen dieser Person in dieser Notiz werden zu einem unbenannten Gast, ihre gespeicherte Stimme wird gelöscht und künftige Meetings behandeln sie als neuen Gast.",
     "learnVoice": "Stimme aus dieser Aufnahme lernen",
     "learned": "Stimme von {{name}} gelernt — künftige Meetings erkennen die Person",
-    "learnFailed": "Stimme konnte nicht gelernt werden"
+    "learnFailed": "Stimme konnte nicht gelernt werden",
+    "retranscribe": "Neu transkribieren",
+    "retranscribeRunning": "Transkribiere…",
+    "retranscribeTooltip": "Dieses Meeting aus der gespeicherten Aufnahme neu transkribieren (behebt eine fehlerhafte oder wiederholte Transkription) und Sprecher neu erkennen",
+    "retranscribeTitle": "Aus Audio neu transkribieren?",
+    "retranscribeDescription": "Dies ersetzt das gesamte Transkript durch eine Neutranskription der gespeicherten Aufnahme und erkennt die Sprecher neu. Manuelle Sprecheränderungen an dieser Notiz gehen verloren. Die Aufnahme bleibt unverändert.",
+    "retranscribeConfirm": "Neu transkribieren",
+    "retranscribeDone": "Meeting neu transkribiert",
+    "retranscribeFailed": "Neutranskription fehlgeschlagen"
   }
 }

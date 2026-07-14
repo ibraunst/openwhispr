@@ -1020,32 +1020,29 @@ export default function PersonalNotesView({
   // REPLACES the note's transcript with this recording's newly labeled one —
   // any earlier appended session (interrupted-meeting resume) is dropped.
   const [rerunningNoteId, setRerunningNoteId] = useState<number | null>(null);
-  const handleRerunSpeakerRecognition = useCallback(async () => {
-    const noteId = activeNoteId;
-    const meetingId = activeNote?.meeting_id;
-    if (noteId == null || !meetingId || rerunningNoteId != null) return;
-    const {
-      hfToken,
-      diarizationMeThreshold,
-      diarizationMatchThreshold,
-      diarizationEngine,
-      sherpaMeThreshold,
-      sherpaMatchThreshold,
-      sherpaClusterThreshold,
-    } = getSettings();
-    const engine = diarizationEngine === "sherpa" ? "sherpa" : "pyannote";
-    if (engine === "pyannote" && !hfToken) {
-      toast({
-        title: t("voicebank.rerunFailed"),
-        description: t("voicebank.rerunNoToken"),
-        variant: "destructive",
-      });
-      return;
-    }
-    setRerunningNoteId(noteId);
-    try {
-      // Attendee names/emails constrain voicebank matching on re-runs too —
-      // a saved voice must never label someone who isn't in the meeting.
+
+  // Diarize the meeting's CURRENT transcript.json and rebuild the note from
+  // the labeled result. Shared by "Re-run speaker ID" and "Re-transcribe"
+  // (which re-transcribes first, then calls this). Read-only against the
+  // voicebank; attendee-constrained. Throws on failure — callers own the
+  // spinner and toasts.
+  const diarizeAndRebuildNote = useCallback(
+    async (noteId: number, meetingId: string) => {
+      const {
+        hfToken,
+        diarizationMeThreshold,
+        diarizationMatchThreshold,
+        diarizationEngine,
+        sherpaMeThreshold,
+        sherpaMatchThreshold,
+        sherpaClusterThreshold,
+      } = getSettings();
+      const engine = diarizationEngine === "sherpa" ? "sherpa" : "pyannote";
+      if (engine === "pyannote" && !hfToken) {
+        throw new Error(t("voicebank.rerunNoToken"));
+      }
+      // Attendee names/emails constrain voicebank matching — a saved voice
+      // must never label someone who isn't in the meeting.
       let attendeeNames: string[] | undefined;
       if (activeNote?.calendar_event_id) {
         try {
@@ -1062,7 +1059,7 @@ export default function PersonalNotesView({
             if (names.length > 0) attendeeNames = names;
           }
         } catch {
-          // No attendee list → the re-run simply stays unconstrained.
+          // No attendee list → the run simply stays unconstrained.
         }
       }
       const result = await window.electronAPI?.meetingRunDiarization?.({
@@ -1098,6 +1095,25 @@ export default function PersonalNotesView({
           });
       }
       await initializeNotes(null, 50, activeFolderId);
+    },
+    [
+      activeNote?.calendar_event_id,
+      activeNote?.export_path,
+      activeNote?.export_header,
+      activeFolderId,
+      activeMeetingDiarized,
+      overrideDiarizedTranscript,
+      t,
+    ]
+  );
+
+  const handleRerunSpeakerRecognition = useCallback(async () => {
+    const noteId = activeNoteId;
+    const meetingId = activeNote?.meeting_id;
+    if (noteId == null || !meetingId || rerunningNoteId != null) return;
+    setRerunningNoteId(noteId);
+    try {
+      await diarizeAndRebuildNote(noteId, meetingId);
       toast({ title: t("voicebank.rerunDone") });
     } catch (err) {
       logger.error("Speaker re-run failed", { error: (err as Error).message }, "notes");
@@ -1109,19 +1125,67 @@ export default function PersonalNotesView({
     } finally {
       setRerunningNoteId(null);
     }
-  }, [
-    activeNoteId,
-    activeNote?.meeting_id,
-    activeNote?.calendar_event_id,
-    activeNote?.export_path,
-    activeNote?.export_header,
-    activeFolderId,
-    activeMeetingDiarized,
-    overrideDiarizedTranscript,
-    rerunningNoteId,
-    toast,
-    t,
-  ]);
+  }, [activeNoteId, activeNote?.meeting_id, rerunningNoteId, diarizeAndRebuildNote, toast, t]);
+
+  // Re-transcribe the meeting from its SAVED audio, then diarize + rebuild.
+  // The recovery path when the transcription itself came out wrong (e.g. a
+  // whisper repetition loop) — replaces the note's transcript entirely, so it
+  // takes an explicit confirmation.
+  const [retranscribeConfirm, setRetranscribeConfirm] = useState<{
+    noteId: number;
+    meetingId: string;
+    resolve: (ok: boolean) => void;
+  } | null>(null);
+  const [retranscribingNoteId, setRetranscribingNoteId] = useState<number | null>(null);
+
+  const handleRetranscribe = useCallback(async () => {
+    const noteId = activeNoteId;
+    const meetingId = activeNote?.meeting_id;
+    if (noteId == null || !meetingId || rerunningNoteId != null) return;
+
+    const ok = await new Promise<boolean>((resolve) =>
+      setRetranscribeConfirm({ noteId, meetingId, resolve })
+    );
+    if (!ok) return;
+
+    const {
+      whisperModel,
+      parakeetModel,
+      meetingTranscriptionProvider,
+      localTranscriptionProvider,
+    } = getSettings();
+    const localProvider =
+      meetingTranscriptionProvider && meetingTranscriptionProvider !== "same"
+        ? meetingTranscriptionProvider
+        : localTranscriptionProvider || "whisper";
+
+    setRerunningNoteId(noteId);
+    setRetranscribingNoteId(noteId);
+    try {
+      const result = await window.electronAPI?.meetingRetranscribe?.({
+        noteId,
+        localProvider,
+        whisperModel,
+        parakeetModel,
+      });
+      if (!result?.success) {
+        throw new Error(result?.error || "Re-transcription failed");
+      }
+      // Fresh transcript.json now on disk → diarize it and rebuild the note.
+      await diarizeAndRebuildNote(noteId, meetingId);
+      toast({ title: t("voicebank.retranscribeDone") });
+    } catch (err) {
+      logger.error("Re-transcribe failed", { error: (err as Error).message }, "notes");
+      toast({
+        title: t("voicebank.retranscribeFailed"),
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setRerunningNoteId(null);
+      setRetranscribingNoteId(null);
+    }
+  }, [activeNoteId, activeNote?.meeting_id, rerunningNoteId, diarizeAndRebuildNote, toast, t]);
 
   // Per-engine cached diarization results for the active note's recording —
   // drives the instant engine-flip control in the transcript tab (Tier 6 A/B).
@@ -1861,7 +1925,11 @@ export default function PersonalNotesView({
                   ? handleRerunSpeakerRecognition
                   : undefined
               }
+              onRetranscribe={
+                activeNote?.meeting_id && !isMeetingRecording ? handleRetranscribe : undefined
+              }
               isRerunningSpeakerRecognition={rerunningNoteId === activeNoteId}
+              isRetranscribing={retranscribingNoteId === activeNoteId}
               diarizationCacheEngines={
                 activeNote?.meeting_id && !isMeetingRecording ? diarizationCaches.engines : []
               }
@@ -2075,6 +2143,46 @@ export default function PersonalNotesView({
                 }}
               >
                 {t("notes.deleteMeetingConfirm.confirm")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {retranscribeConfirm && (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              retranscribeConfirm.resolve(false);
+              setRetranscribeConfirm(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogTitle className="text-sm">{t("voicebank.retranscribeTitle")}</DialogTitle>
+            <DialogDescription className="text-xs">
+              {t("voicebank.retranscribeDescription")}
+            </DialogDescription>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  retranscribeConfirm.resolve(false);
+                  setRetranscribeConfirm(null);
+                }}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  retranscribeConfirm.resolve(true);
+                  setRetranscribeConfirm(null);
+                }}
+              >
+                {t("voicebank.retranscribeConfirm")}
               </Button>
             </DialogFooter>
           </DialogContent>

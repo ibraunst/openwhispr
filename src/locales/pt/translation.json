@@ -1994,6 +1994,14 @@
     "forgetNoteDescription": "As falas dessa pessoa nesta nota passam a ser de um convidado sem nome, sua voz salva é excluída e as próximas reuniões a tratarão como um novo convidado.",
     "learnVoice": "Aprender a voz desta gravação",
     "learned": "Voz de {{name}} aprendida — as próximas reuniões vão reconhecê-lo",
-    "learnFailed": "Não foi possível aprender a voz"
+    "learnFailed": "Não foi possível aprender a voz",
+    "retranscribe": "Retranscrever",
+    "retranscribeRunning": "Transcrevendo…",
+    "retranscribeTooltip": "Retranscreva esta reunião a partir do áudio salvo (corrige uma transcrição confusa ou repetida) e reidentifique os participantes",
+    "retranscribeTitle": "Retranscrever a partir do áudio?",
+    "retranscribeDescription": "Isto substitui toda a transcrição retranscrevendo a gravação salva e reidentifica os participantes. Edições manuais de participantes nesta nota são descartadas. O áudio não muda.",
+    "retranscribeConfirm": "Retranscrever",
+    "retranscribeDone": "Reunião retranscrita",
+    "retranscribeFailed": "Falha na retranscrição"
   }
 }

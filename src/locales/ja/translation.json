@@ -1994,6 +1994,14 @@
     "forgetNoteDescription": "このノート内の発言は名前のないゲストに変わり、保存された声は削除され、今後の会議では新しいゲストとして扱われます。",
     "learnVoice": "この録音から声を学習",
     "learned": "{{name}} の声を学習しました — 今後の会議で認識されます",
-    "learnFailed": "声を学習できませんでした"
+    "learnFailed": "声を学習できませんでした",
+    "retranscribe": "再文字起こし",
+    "retranscribeRunning": "文字起こし中…",
+    "retranscribeTooltip": "保存された音声からこの会議を再文字起こしし（乱れた・繰り返しの文字起こしを修正）、話者を再識別します",
+    "retranscribeTitle": "音声から再文字起こししますか？",
+    "retranscribeDescription": "保存された録音を再文字起こしして文字起こし全体を置き換え、話者を再識別します。このノートの手動の話者編集は破棄されます。音声は変更されません。",
+    "retranscribeConfirm": "再文字起こし",
+    "retranscribeDone": "会議を再文字起こししました",
+    "retranscribeFailed": "再文字起こしに失敗しました"
   }
 }

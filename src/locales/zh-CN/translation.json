@@ -1994,6 +1994,14 @@
     "forgetNoteDescription": "此人在本笔记中的发言将变为未命名访客，其已保存的声音将被删除，之后的会议会将其视为新访客。",
     "learnVoice": "从此录音学习声音",
     "learned": "已学习 {{name}} 的声音 — 之后的会议将能识别此人",
-    "learnFailed": "无法学习声音"
+    "learnFailed": "无法学习声音",
+    "retranscribe": "重新转录",
+    "retranscribeRunning": "转录中…",
+    "retranscribeTooltip": "从保存的音频重新转录此会议（修复错乱或重复的转录），然后重新识别发言人",
+    "retranscribeTitle": "从音频重新转录？",
+    "retranscribeDescription": "这将通过重新转录已保存的录音替换整个转录，并重新识别发言人。此笔记上的手动发言人编辑将被丢弃。音频不变。",
+    "retranscribeConfirm": "重新转录",
+    "retranscribeDone": "会议已重新转录",
+    "retranscribeFailed": "重新转录失败"
   }
 }

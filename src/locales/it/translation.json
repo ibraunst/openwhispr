@@ -1994,6 +1994,14 @@
     "forgetNoteDescription": "Le sue righe in questa nota diventano di un ospite senza nome, la voce salvata viene eliminata e le prossime riunioni lo tratteranno come un nuovo ospite.",
     "learnVoice": "Apprendi la voce da questa registrazione",
     "learned": "Voce di {{name}} appresa — le prossime riunioni lo riconosceranno",
-    "learnFailed": "Impossibile apprendere la voce"
+    "learnFailed": "Impossibile apprendere la voce",
+    "retranscribe": "Ritrascrivi",
+    "retranscribeRunning": "Trascrizione…",
+    "retranscribeTooltip": "Ritrascrivi questa riunione dall'audio salvato (corregge una trascrizione confusa o ripetuta) e re-identifica gli oratori",
+    "retranscribeTitle": "Ritrascrivere dall'audio?",
+    "retranscribeDescription": "Questo sostituisce l'intera trascrizione ritrascrivendo la registrazione salvata e re-identifica gli oratori. Le modifiche manuali agli oratori su questa nota vengono scartate. L'audio non cambia.",
+    "retranscribeConfirm": "Ritrascrivi",
+    "retranscribeDone": "Riunione ritrascritta",
+    "retranscribeFailed": "Ritrascrizione non riuscita"
   }
 }

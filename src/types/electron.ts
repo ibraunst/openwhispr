@@ -1236,6 +1236,12 @@ declare global {
         engine?: string;
         error?: string;
       }>;
+      meetingRetranscribe?: (data: {
+        noteId: number;
+        localProvider?: string;
+        whisperModel?: string;
+        parakeetModel?: string;
+      }) => Promise<{ success: boolean; segmentCount?: number; error?: string }>;
       meetingGetDiarizationCaches?: (meetingId: string) => Promise<{
         success: boolean;
         engines?: string[];

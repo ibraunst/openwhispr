@@ -2948,6 +2948,120 @@ class IPCHandlers {
       }
     });
 
+    // Re-transcribe an already-recorded meeting from its SAVED audio, replacing
+    // transcript.json's segments. The recovery path for a transcription that
+    // came out wrong (e.g. a whisper repetition loop): the loop fires on the
+    // ephemeral live-mixed blob transcribed at stop time, but the saved split
+    // recordings mix down and transcribe cleanly. Writes only the fresh
+    // segments (no speaker labels) — the caller runs diarization next to
+    // re-label and rebuild the note. Mirrors meeting-transcribe-local's engine
+    // selection so the re-transcription matches how the meeting was recorded.
+    ipcMain.handle("meeting-retranscribe", async (_event, { noteId, localProvider, whisperModel, parakeetModel } = {}) => {
+      const fs = require("fs");
+      try {
+        if (noteId == null) {
+          return { success: false, error: "noteId is required" };
+        }
+        const note = this.databaseManager.getNote(noteId);
+        const meetingId = note?.meeting_id;
+        if (!meetingId) {
+          return { success: false, error: "No recording linked to this note" };
+        }
+        const meetingDir = path.join(app.getPath("userData"), "meetings", String(meetingId));
+
+        // Mix the saved split recordings the same way the karaoke playback is
+        // built — this is the audio proven not to trigger the loop. Prefer
+        // webm (always saved); fall back to the wav conversions.
+        const candidates = [
+          ["system_record.webm", "mic_record.webm"],
+          ["system_record.wav", "mic_record.wav"],
+        ];
+        let inputs = [];
+        for (const set of candidates) {
+          const present = set
+            .map((name) => path.join(meetingDir, name))
+            .filter((p) => {
+              try {
+                return fs.existsSync(p) && fs.statSync(p).size > 1000;
+              } catch {
+                return false;
+              }
+            });
+          if (present.length) {
+            inputs = present;
+            break;
+          }
+        }
+        if (!inputs.length) {
+          return { success: false, error: "Recording audio not found for this meeting" };
+        }
+
+        const { mixToPlaybackFile } = require("./ffmpegUtils");
+        const mixPath = path.join(meetingDir, "retranscribe-source.m4a");
+        try {
+          await mixToPlaybackFile(inputs, mixPath);
+          const audioBuffer = fs.readFileSync(mixPath);
+
+          const provider = localProvider === "nvidia" ? "nvidia" : "whisper";
+          let result;
+          if (provider === "nvidia" && this.parakeetManager) {
+            result = await this.parakeetManager.transcribeLocalParakeet(audioBuffer, {
+              model: parakeetModel || process.env.PARAKEET_MODEL || "parakeet-tdt-0.6b-v3",
+              language: null,
+            });
+          } else if (this.whisperManager) {
+            result = await this.whisperManager.transcribeLocalWhisper(audioBuffer, {
+              model: whisperModel || process.env.WHISPER_MODEL || "base",
+              language: null,
+              withSegments: true,
+            });
+          } else {
+            return { success: false, error: "No local transcription engine available" };
+          }
+
+          if (!result?.success || !result?.segments?.length) {
+            return {
+              success: false,
+              error: result?.error || result?.message || "Re-transcription produced no segments",
+            };
+          }
+
+          // Persist ONLY the fresh segments; drop the stale speakers array so a
+          // half-labeled state can't render before diarization re-runs.
+          const transcriptPath = path.join(meetingDir, "transcript.json");
+          let existing = {};
+          if (fs.existsSync(transcriptPath)) {
+            try {
+              existing = JSON.parse(fs.readFileSync(transcriptPath, "utf8")) || {};
+            } catch {
+              existing = {};
+            }
+          }
+          delete existing.speakers;
+          fs.writeFileSync(
+            transcriptPath,
+            JSON.stringify({ ...existing, segments: result.segments }, null, 2)
+          );
+
+          debugLogger.info(
+            "Meeting re-transcribed from saved audio",
+            { meetingId, provider, segmentCount: result.segments.length },
+            "meeting"
+          );
+          return { success: true, segmentCount: result.segments.length };
+        } finally {
+          try {
+            fs.unlinkSync(mixPath);
+          } catch {
+            // temp mix may not exist — ignore
+          }
+        }
+      } catch (error) {
+        debugLogger.error("meeting-retranscribe failed", { error: error.message }, "meeting");
+        return { success: false, error: error.message };
+      }
+    });
+
     // Run speaker diarization. Two engines behind one contract (Tier 6 A/B):
     //  - "pyannote": Python subprocess (pyannote.audio, needs HF token)
     //  - "sherpa":   sherpa-onnx worker (ONNX models, no Python/token)

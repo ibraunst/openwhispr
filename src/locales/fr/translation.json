@@ -1994,6 +1994,14 @@
     "forgetNoteDescription": "Ses lignes dans cette note deviennent celles d'un invité anonyme, sa voix enregistrée est supprimée et les prochaines réunions le traiteront comme un nouvel invité.",
     "learnVoice": "Apprendre la voix depuis cet enregistrement",
     "learned": "Voix de {{name}} apprise — les prochaines réunions le reconnaîtront",
-    "learnFailed": "Impossible d'apprendre la voix"
+    "learnFailed": "Impossible d'apprendre la voix",
+    "retranscribe": "Retranscrire",
+    "retranscribeRunning": "Transcription…",
+    "retranscribeTooltip": "Retranscrire cette réunion à partir de son audio enregistré (corrige une transcription brouillée ou répétée), puis réidentifier les intervenants",
+    "retranscribeTitle": "Retranscrire depuis l'audio ?",
+    "retranscribeDescription": "Ceci remplace toute la transcription en retranscrivant l'enregistrement sauvegardé, puis réidentifie les intervenants. Les modifications manuelles d'intervenants sur cette note sont perdues. L'audio est inchangé.",
+    "retranscribeConfirm": "Retranscrire",
+    "retranscribeDone": "Réunion retranscrite",
+    "retranscribeFailed": "Échec de la retranscription"
   }
 }

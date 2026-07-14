@@ -1994,6 +1994,14 @@
     "forgetNoteDescription": "Sus líneas en esta nota pasan a ser de un invitado sin nombre, su voz guardada se elimina y las próximas reuniones lo tratarán como un invitado nuevo.",
     "learnVoice": "Aprender la voz de esta grabación",
     "learned": "Voz de {{name}} aprendida — las próximas reuniones lo reconocerán",
-    "learnFailed": "No se pudo aprender la voz"
+    "learnFailed": "No se pudo aprender la voz",
+    "retranscribe": "Retranscribir",
+    "retranscribeRunning": "Transcribiendo…",
+    "retranscribeTooltip": "Retranscribe esta reunión desde su audio guardado (corrige una transcripción confusa o repetida) y vuelve a identificar a los hablantes",
+    "retranscribeTitle": "¿Retranscribir desde el audio?",
+    "retranscribeDescription": "Esto reemplaza toda la transcripción retranscribiendo la grabación guardada y vuelve a identificar a los hablantes. Se descartan las ediciones manuales de hablantes en esta nota. El audio no cambia.",
+    "retranscribeConfirm": "Retranscribir",
+    "retranscribeDone": "Reunión retranscrita",
+    "retranscribeFailed": "Error al retranscribir"
   }
 }

@@ -2061,6 +2061,14 @@
     "forgetNoteDescription": "Their lines in this note become an unnamed guest, their saved voice is deleted, and future meetings will treat them as a new guest.",
     "learnVoice": "Learn voice from this recording",
     "learned": "Learned {{name}}'s voice — future meetings will recognize them",
-    "learnFailed": "Could not learn voice"
+    "learnFailed": "Could not learn voice",
+    "retranscribe": "Re-transcribe",
+    "retranscribeRunning": "Transcribing…",
+    "retranscribeTooltip": "Re-transcribe this meeting from its saved audio (fixes a garbled or repeated transcript), then re-identify speakers",
+    "retranscribeTitle": "Re-transcribe from audio?",
+    "retranscribeDescription": "This replaces the entire transcript by re-transcribing the saved recording, then re-identifies speakers. Any manual speaker edits on this note are discarded. The audio is unchanged.",
+    "retranscribeConfirm": "Re-transcribe",
+    "retranscribeDone": "Meeting re-transcribed",
+    "retranscribeFailed": "Re-transcription failed"
   }
 }

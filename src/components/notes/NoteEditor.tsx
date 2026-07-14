@@ -94,7 +94,9 @@ interface NoteEditorProps {
   speakerSuggestions?: string[];
   onResetParagraph?: (paragraphIndex: number) => Promise<void>;
   onRerunSpeakerRecognition?: () => void;
+  onRetranscribe?: () => void;
   isRerunningSpeakerRecognition?: boolean;
+  isRetranscribing?: boolean;
   diarizationCacheEngines?: string[];
   currentDiarizationEngine?: string | null;
   onApplyCachedDiarization?: (engine: string) => void;
@@ -209,6 +211,8 @@ export default function NoteEditor({
   speakerSuggestions,
   onResetParagraph,
   onRerunSpeakerRecognition,
+  onRetranscribe,
+  isRetranscribing,
   isRerunningSpeakerRecognition,
   diarizationCacheEngines,
   currentDiarizationEngine,
@@ -898,7 +902,8 @@ export default function NoteEditor({
           {viewMode === "transcript" && hasMeetingTranscript ? (
             <>
               {((onRenameSpeaker && transcriptSpeakers.length > 0) ||
-                onRerunSpeakerRecognition) && (
+                onRerunSpeakerRecognition ||
+                onRetranscribe) && (
                 <div className="flex items-center gap-1.5 flex-wrap px-5 pt-3">
                   {onRenameSpeaker &&
                     transcriptSpeakers.map((speaker) => {
@@ -998,9 +1003,29 @@ export default function NoteEditor({
                         size={11}
                         className={cn(isRerunningSpeakerRecognition && "animate-spin")}
                       />
-                      {isRerunningSpeakerRecognition
+                      {isRerunningSpeakerRecognition && !isRetranscribing
                         ? t("voicebank.rerunRunning")
                         : t("voicebank.rerun")}
+                    </button>
+                  )}
+                  {onRetranscribe && (
+                    <button
+                      onClick={onRetranscribe}
+                      disabled={isRerunningSpeakerRecognition}
+                      title={t("voicebank.retranscribeTooltip")}
+                      className={cn(
+                        "flex items-center gap-1.5 h-6 px-2.5 rounded-full text-xs font-medium",
+                        !onRerunSpeakerRecognition && "ml-auto",
+                        "bg-foreground/4 dark:bg-white/4 border border-foreground/8 dark:border-white/8",
+                        "text-foreground/60 hover:text-foreground/80",
+                        "hover:bg-foreground/8 dark:hover:bg-white/8 hover:border-foreground/15",
+                        "transition-colors duration-150 disabled:opacity-60 disabled:pointer-events-none"
+                      )}
+                    >
+                      <FileText size={11} className={cn(isRetranscribing && "animate-pulse")} />
+                      {isRetranscribing
+                        ? t("voicebank.retranscribeRunning")
+                        : t("voicebank.retranscribe")}
                     </button>
                   )}
                   {onApplyCachedDiarization &&

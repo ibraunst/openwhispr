@@ -1994,6 +1994,14 @@
     "forgetNoteDescription": "此人在本筆記中的發言將變為未命名訪客，其已儲存的聲音將被刪除，之後的會議會將其視為新訪客。",
     "learnVoice": "從此錄音學習聲音",
     "learned": "已學習 {{name}} 的聲音 — 之後的會議將能識別此人",
-    "learnFailed": "無法學習聲音"
+    "learnFailed": "無法學習聲音",
+    "retranscribe": "重新轉錄",
+    "retranscribeRunning": "轉錄中…",
+    "retranscribeTooltip": "從已儲存的音訊重新轉錄此會議（修復錯亂或重複的逐字稿），然後重新辨識發言人",
+    "retranscribeTitle": "從音訊重新轉錄？",
+    "retranscribeDescription": "這將透過重新轉錄已儲存的錄音替換整個逐字稿，並重新辨識發言人。此筆記上的手動發言人編輯將被捨棄。音訊不變。",
+    "retranscribeConfirm": "重新轉錄",
+    "retranscribeDone": "會議已重新轉錄",
+    "retranscribeFailed": "重新轉錄失敗"
   }
 }
