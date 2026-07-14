@@ -378,6 +378,41 @@ class WhisperManager {
     return text.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
   }
 
+  // whisper.cpp can fall into a repetition loop on certain audio, emitting the
+  // exact same short phrase for dozens of consecutive segments (one real
+  // meeting produced one phrase 188× across ~4 min, then a second run of 27).
+  // The loop is audio-rendering-sensitive and not reliably reproducible, so
+  // this is a deterministic safety net on the output: collapse any run of
+  // >=THRESHOLD consecutive segments with identical text into a single segment
+  // spanning the run. Natural speech never repeats a whole segment verbatim
+  // that many times in a row (validated against the incident transcript:
+  // caught only the 3 hallucination runs, left backchannels like repeated
+  // "Right."/"Yeah." — which were never 4+ consecutive — untouched).
+  collapseRepeatedSegments(segments) {
+    const THRESHOLD = 4;
+    if (!Array.isArray(segments) || segments.length < THRESHOLD) return segments;
+    const out = [];
+    let i = 0;
+    while (i < segments.length) {
+      const key = segments[i].text.toLowerCase();
+      let j = i;
+      while (j + 1 < segments.length && segments[j + 1].text.toLowerCase() === key) j++;
+      const runLength = j - i + 1;
+      if (runLength >= THRESHOLD) {
+        out.push({ start: segments[i].start, end: segments[j].end, text: segments[i].text });
+        debugLogger.info(
+          "Collapsed whisper repetition loop",
+          { phrase: segments[i].text.slice(0, 60), count: runLength },
+          "whisper"
+        );
+      } else {
+        for (let k = i; k <= j; k++) out.push(segments[k]);
+      }
+      i = j + 1;
+    }
+    return out;
+  }
+
   parseWhisperResult(output) {
     // Handle both string (from CLI) and object (from server) inputs
     let result;
@@ -418,13 +453,22 @@ class WhisperManager {
       const response = { success: true, text };
       // verbose_json responses carry per-segment timestamps (float seconds)
       if (Array.isArray(result.segments)) {
-        response.segments = result.segments
+        const segments = result.segments
           .map((seg) => ({
             start: Number(seg.start) || 0,
             end: Number(seg.end) || 0,
             text: this.normalizeWhitespace(String(seg.text || "")),
           }))
           .filter((seg) => seg.text && !this.isBlankAudioMarker(seg.text));
+        response.segments = this.collapseRepeatedSegments(segments);
+        // Rebuild text from the de-duped segments so the transcript body and
+        // the per-segment timeline agree (result.text still holds the loop).
+        if (response.segments.length !== segments.length) {
+          const rebuilt = this.normalizeWhitespace(
+            response.segments.map((s) => s.text).join(" ")
+          );
+          if (rebuilt) response.text = rebuilt;
+        }
       }
       return response;
     }
