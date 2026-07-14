@@ -1001,7 +1001,9 @@ export default function NoteEditor({
                     >
                       <RefreshCw
                         size={11}
-                        className={cn(isRerunningSpeakerRecognition && "animate-spin")}
+                        className={cn(
+                          isRerunningSpeakerRecognition && !isRetranscribing && "animate-spin"
+                        )}
                       />
                       {isRerunningSpeakerRecognition && !isRetranscribing
                         ? t("voicebank.rerunRunning")
