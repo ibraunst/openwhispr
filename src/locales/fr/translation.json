@@ -1684,6 +1684,11 @@
     "deleteBlockedRecording": {
       "title": "Cette note est en cours d'enregistrement",
       "description": "Arrêtez l'enregistrement de la réunion avant de supprimer cette note."
+    },
+    "deleteMeetingConfirm": {
+      "title": "Supprimer la note de réunion ?",
+      "description": "La note, l'audio de l'enregistrement et la transcription des intervenants seront définitivement supprimés de cet ordinateur. Les fichiers exportés ne sont pas concernés.",
+      "confirm": "Supprimer"
     }
   },
   "dictionary": {

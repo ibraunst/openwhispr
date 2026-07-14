@@ -1574,6 +1574,11 @@
     "deleteBlockedRecording": {
       "title": "このノートは録音中です",
       "description": "このノートを削除する前に、会議の録音を停止してください。"
+    },
+    "deleteMeetingConfirm": {
+      "title": "会議ノートを削除しますか？",
+      "description": "ノート、録音音声、話者付き文字起こしはこのコンピュータから完全に削除されます。エクスポート済みファイルは影響を受けません。",
+      "confirm": "削除"
     }
   },
   "dictionary": {

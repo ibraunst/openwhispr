@@ -1646,6 +1646,11 @@
     "deleteBlockedRecording": {
       "title": "Questa nota sta registrando",
       "description": "Interrompi la registrazione della riunione prima di eliminare questa nota."
+    },
+    "deleteMeetingConfirm": {
+      "title": "Eliminare la nota della riunione?",
+      "description": "La nota, l'audio della registrazione e la trascrizione con gli oratori verranno eliminati definitivamente da questo computer. I file esportati non sono interessati.",
+      "confirm": "Elimina"
     }
   },
   "dictionary": {

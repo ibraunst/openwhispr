@@ -1646,6 +1646,11 @@
     "deleteBlockedRecording": {
       "title": "此筆記正在錄製",
       "description": "請先停止會議錄製，再刪除此筆記。"
+    },
+    "deleteMeetingConfirm": {
+      "title": "刪除會議筆記？",
+      "description": "該筆記、錄音音訊和發言人逐字稿將從此電腦永久刪除。已匯出的檔案不受影響。",
+      "confirm": "刪除"
     }
   },
   "dictionary": {

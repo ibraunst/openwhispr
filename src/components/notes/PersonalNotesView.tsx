@@ -481,6 +481,14 @@ export default function PersonalNotesView({
     loadFolders();
   }, [activeFolderId, loadFolders]);
 
+  // Deleting a note with a linked recording also deletes the recording
+  // folder (audio + speaker transcript) from disk — irreversible, so it
+  // needs an explicit go-ahead. Plain notes keep the instant delete.
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    noteId: number;
+    resolve: (ok: boolean) => void;
+  } | null>(null);
+
   const handleDelete = useCallback(
     async (id: number) => {
       // Deleting the note a meeting is recording into orphans the recording:
@@ -495,6 +503,12 @@ export default function PersonalNotesView({
           variant: "destructive",
         });
         return;
+      }
+      if (notes.find((n) => n.id === id)?.meeting_id) {
+        const ok = await new Promise<boolean>((resolve) =>
+          setDeleteConfirm({ noteId: id, resolve })
+        );
+        if (!ok) return;
       }
       await window.electronAPI.deleteNote(id);
       if (activeNoteId === id) {
@@ -2022,6 +2036,49 @@ export default function PersonalNotesView({
           targetFolderId={activeFolderId}
           onNotesAdded={handleNotesAdded}
         />
+      )}
+
+      {deleteConfirm && (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              deleteConfirm.resolve(false);
+              setDeleteConfirm(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogTitle className="text-sm">
+              {t("notes.deleteMeetingConfirm.title")}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {t("notes.deleteMeetingConfirm.description")}
+            </DialogDescription>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  deleteConfirm.resolve(false);
+                  setDeleteConfirm(null);
+                }}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  deleteConfirm.resolve(true);
+                  setDeleteConfirm(null);
+                }}
+              >
+                {t("notes.deleteMeetingConfirm.confirm")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {forgetConfirm && (

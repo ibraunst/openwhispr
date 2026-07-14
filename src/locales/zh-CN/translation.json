@@ -1646,6 +1646,11 @@
     "deleteBlockedRecording": {
       "title": "此笔记正在录制",
       "description": "请先停止会议录制，再删除此笔记。"
+    },
+    "deleteMeetingConfirm": {
+      "title": "删除会议笔记？",
+      "description": "该笔记、录音音频和发言人转录将从此电脑永久删除。已导出的文件不受影响。",
+      "confirm": "删除"
     }
   },
   "dictionary": {

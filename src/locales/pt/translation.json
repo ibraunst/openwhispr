@@ -1646,6 +1646,11 @@
     "deleteBlockedRecording": {
       "title": "Esta nota está gravando",
       "description": "Pare a gravação da reunião antes de excluir esta nota."
+    },
+    "deleteMeetingConfirm": {
+      "title": "Excluir a nota de reunião?",
+      "description": "A nota, o áudio da gravação e a transcrição com falantes serão excluídos permanentemente deste computador. Arquivos exportados não são afetados.",
+      "confirm": "Excluir"
     }
   },
   "dictionary": {

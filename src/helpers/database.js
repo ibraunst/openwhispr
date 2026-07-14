@@ -856,6 +856,32 @@ class DatabaseManager {
     }
   }
 
+  countNotesByMeetingId(meetingId) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      const row = this.db
+        .prepare("SELECT COUNT(*) AS n FROM notes WHERE meeting_id = ?")
+        .get(meetingId);
+      return row?.n ?? 0;
+    } catch (error) {
+      debugLogger.error("Error counting notes by meeting id", { error: error.message }, "notes");
+      throw error;
+    }
+  }
+
+  getReferencedMeetingIds() {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      return this.db
+        .prepare("SELECT DISTINCT meeting_id FROM notes WHERE meeting_id IS NOT NULL")
+        .all()
+        .map((row) => row.meeting_id);
+    } catch (error) {
+      debugLogger.error("Error listing referenced meeting ids", { error: error.message }, "notes");
+      throw error;
+    }
+  }
+
   createAgentConversation(title = "Untitled") {
     try {
       if (!this.db) throw new Error("Database not initialized");

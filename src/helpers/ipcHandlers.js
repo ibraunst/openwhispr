@@ -172,6 +172,7 @@ class IPCHandlers {
     this._activeRecordingPipeline = null;
     this.audioStorageManager = new AudioStorageManager();
     this._audioCleanupInterval = null;
+    this._meetingDirCleanupInterval = null;
     this._setupTextEditMonitor();
     this._setupAudioCleanup();
     this.setupHandlers();
@@ -229,6 +230,72 @@ class IPCHandlers {
     const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
     this._runAudioCleanup();
     this._audioCleanupInterval = setInterval(() => this._runAudioCleanup(), SIX_HOURS_MS);
+    // Orphaned meeting recordings (folders no note references anymore —
+    // notes deleted before folder cleanup existed, crashed recordings)
+    // otherwise accumulate forever at ~350MB per 30-minute meeting.
+    setTimeout(() => this._runMeetingDirCleanup(), 30 * 1000);
+    this._meetingDirCleanupInterval = setInterval(
+      () => this._runMeetingDirCleanup(),
+      SIX_HOURS_MS
+    );
+  }
+
+  // Delete one meeting's recording folder when no note references it.
+  // Called right after a meeting note is deleted.
+  _deleteMeetingDirIfOrphaned(meetingId) {
+    const fs = require("fs");
+    try {
+      if (!/^meeting-\d+$/.test(String(meetingId))) return;
+      if (this.databaseManager.countNotesByMeetingId(meetingId) > 0) return;
+      const meetingsRoot = path.join(app.getPath("userData"), "meetings");
+      const dir = path.resolve(meetingsRoot, String(meetingId));
+      if (!dir.startsWith(meetingsRoot + path.sep) || !fs.existsSync(dir)) return;
+      fs.rmSync(dir, { recursive: true, force: true });
+      debugLogger.info("Deleted meeting recording folder with note", { meetingId }, "meeting");
+    } catch (error) {
+      debugLogger.error(
+        "Failed to delete meeting recording folder",
+        { meetingId, error: error.message },
+        "meeting"
+      );
+    }
+  }
+
+  // Sweep recording folders that no note references. The 7-day age floor
+  // protects recordings whose note never got linked (app crash mid-meeting)
+  // long enough for the user to recover them; the note-delete path above
+  // handles the normal case immediately.
+  _runMeetingDirCleanup() {
+    const fs = require("fs");
+    const ORPHAN_MIN_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+    try {
+      const meetingsRoot = path.join(app.getPath("userData"), "meetings");
+      if (!fs.existsSync(meetingsRoot)) return;
+      const referenced = new Set(this.databaseManager.getReferencedMeetingIds());
+      const now = Date.now();
+      let removed = 0;
+      for (const entry of fs.readdirSync(meetingsRoot)) {
+        if (!/^meeting-\d+$/.test(entry) || referenced.has(entry)) continue;
+        const dir = path.join(meetingsRoot, entry);
+        try {
+          const stat = fs.statSync(dir);
+          if (!stat.isDirectory() || now - stat.mtimeMs < ORPHAN_MIN_AGE_MS) continue;
+          fs.rmSync(dir, { recursive: true, force: true });
+          removed += 1;
+        } catch (entryError) {
+          debugLogger.warn(
+            "Skipped orphaned meeting folder during cleanup",
+            { entry, error: entryError.message },
+            "meeting"
+          );
+        }
+      }
+      if (removed > 0) {
+        debugLogger.info("Orphaned meeting recordings cleaned up", { removed }, "meeting");
+      }
+    } catch (error) {
+      debugLogger.error("Meeting folder cleanup failed", { error: error.message }, "meeting");
+    }
   }
 
   _setupTextEditMonitor() {
@@ -790,8 +857,18 @@ class IPCHandlers {
     });
 
     ipcMain.handle("db-delete-note", async (event, id) => {
+      // Capture the recording link before the row disappears — deleting a
+      // meeting note also deletes its recording folder (audio + speaker
+      // transcript) from disk, unless another note still references it.
+      let meetingId = null;
+      try {
+        meetingId = this.databaseManager.getNote(id)?.meeting_id || null;
+      } catch {
+        // Note lookup failure must not block the delete itself.
+      }
       const result = this.databaseManager.deleteNote(id);
       if (result?.success) {
+        if (meetingId) this._deleteMeetingDirIfOrphaned(meetingId);
         setImmediate(() => {
           this.broadcastToWindows("note-deleted", { id });
         });
