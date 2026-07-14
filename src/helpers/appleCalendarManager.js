@@ -368,13 +368,25 @@ class AppleCalendarManager {
 
   _runAppleScript(script) {
     return new Promise((resolve, reject) => {
-      execFile("osascript", ["-e", script], { timeout: 15000 }, (err, stdout, stderr) => {
-        if (err) {
-          reject(new Error(stderr || err.message));
-          return;
+      // maxBuffer must be generous: the sync binary emits JSON for a 14-day
+      // window across ALL calendars, and since recurring series are now
+      // expanded per-occurrence (each daily standup is 14 rows, not 1) the
+      // payload runs well past Node's 1MB execFile default on a busy
+      // calendar. Overflowing it kills osascript with a maxBuffer error,
+      // which surfaces as "produced no output" and aborts the whole sync
+      // BEFORE reconciliation — so deleted events never get cleared.
+      execFile(
+        "osascript",
+        ["-e", script],
+        { timeout: 15000, maxBuffer: 64 * 1024 * 1024 },
+        (err, stdout, stderr) => {
+          if (err) {
+            reject(new Error(stderr || err.message));
+            return;
+          }
+          resolve(stdout.trim());
         }
-        resolve(stdout.trim());
-      });
+      );
     });
   }
 
