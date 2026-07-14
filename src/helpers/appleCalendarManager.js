@@ -70,16 +70,7 @@ class AppleCalendarManager {
   }
 
   async fetchAndStoreCalendars() {
-    const getResourcePath = () => {
-      if (app.isPackaged) {
-        return path.join(process.resourcesPath, "bin");
-      }
-      return path.join(app.getAppPath(), "resources", "bin");
-    };
-    const binaryPath = path.join(getResourcePath(), "calendar-sync-mac");
-    const escapedPath = binaryPath.replace(/"/g, '\\"');
-    const script = `do shell script "\\"${escapedPath}\\" --list-calendars"`;
-    const result = await this._runAppleScript(script);
+    const result = await this._runSyncBinary(["--list-calendars"]);
     if (!result || !result.trim()) return [];
     const calendars = JSON.parse(result);
     if (Array.isArray(calendars) && calendars.length > 0) {
@@ -122,18 +113,7 @@ class AppleCalendarManager {
     if (!this.isConnected()) return;
 
     try {
-      const getResourcePath = () => {
-        if (app.isPackaged) {
-          return path.join(process.resourcesPath, "bin");
-        }
-        return path.join(app.getAppPath(), "resources", "bin");
-      };
-
-      const binaryPath = path.join(getResourcePath(), "calendar-sync-mac");
-      
-      const escapedPath = binaryPath.replace(/"/g, '\\"');
-      const script = `do shell script "\\"${escapedPath}\\" 14"`;
-      const result = await this._runAppleScript(script);
+      const result = await this._runSyncBinary(["14"]);
 
       const allEvents = this._parseEvents(result);
       // Filter by selected calendars
@@ -366,19 +346,27 @@ class AppleCalendarManager {
     }
   }
 
-  _runAppleScript(script) {
+  // Invoke the EventKit sync binary DIRECTLY as a child of the app — never
+  // through `osascript do shell script`. The osascript wrapper was the root
+  // of two failures: (1) TCC attributed calendar access non-deterministically
+  // (sometimes to osascript, which holds no grant → intermittent "access
+  // denied" even after the user granted the app), and (2) taskgated judged
+  // the binary's hardened-runtime ad-hoc signature on its own and SIGKILLed
+  // it. As a direct child, the responsible process is this app (which holds
+  // the Calendars grant), exactly like every other bundled native binary —
+  // consistent TCC, no signature kill, and no `do shell script` pipe limit.
+  // maxBuffer is generous: recurring series are expanded per-occurrence, so
+  // a 14-day all-calendars payload is large.
+  _runSyncBinary(args) {
+    const resourceDir = app.isPackaged
+      ? path.join(process.resourcesPath, "bin")
+      : path.join(app.getAppPath(), "resources", "bin");
+    const binaryPath = path.join(resourceDir, "calendar-sync-mac");
     return new Promise((resolve, reject) => {
-      // maxBuffer must be generous: the sync binary emits JSON for a 14-day
-      // window across ALL calendars, and since recurring series are now
-      // expanded per-occurrence (each daily standup is 14 rows, not 1) the
-      // payload runs well past Node's 1MB execFile default on a busy
-      // calendar. Overflowing it kills osascript with a maxBuffer error,
-      // which surfaces as "produced no output" and aborts the whole sync
-      // BEFORE reconciliation — so deleted events never get cleared.
       execFile(
-        "osascript",
-        ["-e", script],
-        { timeout: 15000, maxBuffer: 64 * 1024 * 1024 },
+        binaryPath,
+        args,
+        { timeout: 30000, maxBuffer: 64 * 1024 * 1024 },
         (err, stdout, stderr) => {
           if (err) {
             reject(new Error(stderr || err.message));
@@ -387,6 +375,18 @@ class AppleCalendarManager {
           resolve(stdout.trim());
         }
       );
+    });
+  }
+
+  _runAppleScript(script) {
+    return new Promise((resolve, reject) => {
+      execFile("osascript", ["-e", script], { timeout: 15000 }, (err, stdout, stderr) => {
+        if (err) {
+          reject(new Error(stderr || err.message));
+          return;
+        }
+        resolve(stdout.trim());
+      });
     });
   }
 
