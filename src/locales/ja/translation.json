@@ -1419,7 +1419,9 @@
       "pause": "一時停止",
       "resume": "再開",
       "playRecording": "録音を再生",
-      "pauseRecording": "再生を一時停止"
+      "pauseRecording": "再生を一時停止",
+      "transcribingMeeting": "文字起こし中…",
+      "identifyingSpeakers": "話者を識別中…"
     },
     "context": {
       "moveToFolder": "フォルダに移動",

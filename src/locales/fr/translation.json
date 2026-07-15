@@ -1547,7 +1547,9 @@
       "pause": "Pause",
       "resume": "Reprendre",
       "playRecording": "Écouter l'enregistrement",
-      "pauseRecording": "Mettre en pause la lecture"
+      "pauseRecording": "Mettre en pause la lecture",
+      "transcribingMeeting": "Transcription…",
+      "identifyingSpeakers": "Identification des intervenants…"
     },
     "upload": {
       "title": "Téléverser un fichier audio",

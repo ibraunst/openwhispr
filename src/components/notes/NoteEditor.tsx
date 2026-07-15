@@ -1108,7 +1108,13 @@ export default function NoteEditor({
         <DictationWidget
           isRecording={isRecording || !!isMeetingRecording}
           isProcessing={isProcessing || !!isMeetingLocalProcessing || !!isMeetingDiarizing}
-          processingLabel={isMeetingDiarizing ? "Identifying speakers…" : undefined}
+          processingLabel={
+            isMeetingDiarizing
+              ? t("notes.editor.identifyingSpeakers")
+              : isMeetingLocalProcessing
+                ? t("notes.editor.transcribingMeeting")
+                : undefined
+          }
           onStart={onStartMeetingRecording && !isMeetingRecording ? onStartMeetingRecording : handleStartRecording}
           onStop={isMeetingRecording ? onStopMeetingRecording! : onStopRecording}
           isPaused={!!isMeetingPaused}

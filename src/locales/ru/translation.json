@@ -1509,7 +1509,9 @@
       "pause": "Пауза",
       "resume": "Продолжить",
       "playRecording": "Воспроизвести запись",
-      "pauseRecording": "Приостановить воспроизведение"
+      "pauseRecording": "Приостановить воспроизведение",
+      "transcribingMeeting": "Транскрибирование…",
+      "identifyingSpeakers": "Определение говорящих…"
     },
     "upload": {
       "title": "Загрузить аудио",

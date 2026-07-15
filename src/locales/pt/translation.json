@@ -1509,7 +1509,9 @@
       "pause": "Pausar",
       "resume": "Retomar",
       "playRecording": "Reproduzir gravação",
-      "pauseRecording": "Pausar reprodução"
+      "pauseRecording": "Pausar reprodução",
+      "transcribingMeeting": "Transcrevendo…",
+      "identifyingSpeakers": "Identificando participantes…"
     },
     "upload": {
       "title": "Enviar áudio",

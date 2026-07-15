@@ -1628,7 +1628,9 @@
       "pause": "Pause",
       "resume": "Resume",
       "playRecording": "Play recording",
-      "pauseRecording": "Pause playback"
+      "pauseRecording": "Pause playback",
+      "transcribingMeeting": "Transcribing…",
+      "identifyingSpeakers": "Identifying speakers…"
     },
     "upload": {
       "title": "Upload Audio",

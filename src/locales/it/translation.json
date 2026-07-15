@@ -1509,7 +1509,9 @@
       "pause": "Pausa",
       "resume": "Riprendi",
       "playRecording": "Riproduci registrazione",
-      "pauseRecording": "Metti in pausa la riproduzione"
+      "pauseRecording": "Metti in pausa la riproduzione",
+      "transcribingMeeting": "Trascrizione…",
+      "identifyingSpeakers": "Identificazione degli oratori…"
     },
     "upload": {
       "title": "Carica audio",

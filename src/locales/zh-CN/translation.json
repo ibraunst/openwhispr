@@ -1509,7 +1509,9 @@
       "pause": "暂停",
       "resume": "继续",
       "playRecording": "播放录音",
-      "pauseRecording": "暂停播放"
+      "pauseRecording": "暂停播放",
+      "transcribingMeeting": "转录中…",
+      "identifyingSpeakers": "识别发言人…"
     },
     "upload": {
       "title": "上传音频",
