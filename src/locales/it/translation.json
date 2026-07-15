@@ -2004,6 +2004,12 @@
     "retranscribeDescription": "Questo sostituisce l'intera trascrizione ritrascrivendo la registrazione salvata e re-identifica gli oratori. Le modifiche manuali agli oratori su questa nota vengono scartate. L'audio non cambia.",
     "retranscribeConfirm": "Ritrascrivi",
     "retranscribeDone": "Riunione ritrascritta",
-    "retranscribeFailed": "Ritrascrizione non riuscita"
+    "retranscribeFailed": "Ritrascrizione non riuscita",
+    "learnAll": "Apprendi voci",
+    "learnAllRunning": "Apprendimento…",
+    "learnAllTooltip": "Salva un'impronta vocale per ogni oratore con nome in questa registrazione per riconoscerlo nelle riunioni future (esclude Io, gli ospiti e le voci già salvate)",
+    "learnAllDone": "{{count}} voce/i apprese",
+    "learnAllNone": "Nessuna nuova voce da apprendere — gli oratori con nome sono già salvati (o troppo brevi)",
+    "learnAllSherpaOnly": "L'apprendimento delle voci richiede il motore sherpa (Integrazioni → Identificazione oratori)"
   }
 }

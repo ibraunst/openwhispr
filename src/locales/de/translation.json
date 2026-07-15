@@ -2004,6 +2004,12 @@
     "retranscribeDescription": "Dies ersetzt das gesamte Transkript durch eine Neutranskription der gespeicherten Aufnahme und erkennt die Sprecher neu. Manuelle Sprecheränderungen an dieser Notiz gehen verloren. Die Aufnahme bleibt unverändert.",
     "retranscribeConfirm": "Neu transkribieren",
     "retranscribeDone": "Meeting neu transkribiert",
-    "retranscribeFailed": "Neutranskription fehlgeschlagen"
+    "retranscribeFailed": "Neutranskription fehlgeschlagen",
+    "learnAll": "Stimmen lernen",
+    "learnAllRunning": "Lerne…",
+    "learnAllTooltip": "Speichert für jeden benannten Sprecher dieser Aufnahme ein Stimmprofil, damit er in künftigen Meetings erkannt wird (überspringt Ich, Gäste und bereits gespeicherte Stimmen)",
+    "learnAllDone": "{{count}} Stimme(n) gelernt",
+    "learnAllNone": "Keine neuen Stimmen zu lernen — benannte Sprecher sind bereits gespeichert (oder zu kurz)",
+    "learnAllSherpaOnly": "Das Lernen von Stimmen erfordert die sherpa-Engine (Integrationen → Sprechererkennung)"
   }
 }

@@ -2004,6 +2004,12 @@
     "retranscribeDescription": "Ceci remplace toute la transcription en retranscrivant l'enregistrement sauvegardé, puis réidentifie les intervenants. Les modifications manuelles d'intervenants sur cette note sont perdues. L'audio est inchangé.",
     "retranscribeConfirm": "Retranscrire",
     "retranscribeDone": "Réunion retranscrite",
-    "retranscribeFailed": "Échec de la retranscription"
+    "retranscribeFailed": "Échec de la retranscription",
+    "learnAll": "Apprendre les voix",
+    "learnAllRunning": "Apprentissage…",
+    "learnAllTooltip": "Enregistre une empreinte vocale pour chaque intervenant nommé de cet enregistrement afin de le reconnaître lors des prochaines réunions (ignore Moi, les invités et les voix déjà enregistrées)",
+    "learnAllDone": "{{count}} voix apprise(s)",
+    "learnAllNone": "Aucune nouvelle voix à apprendre — les intervenants nommés sont déjà enregistrés (ou trop brefs)",
+    "learnAllSherpaOnly": "L'apprentissage des voix nécessite le moteur sherpa (Intégrations → Identification des intervenants)"
   }
 }

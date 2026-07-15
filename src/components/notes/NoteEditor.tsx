@@ -91,6 +91,8 @@ interface NoteEditorProps {
   onAssignParagraph?: (paragraphIndex: number, newLabel: string) => Promise<void>;
   onForgetSpeakerVoice?: (speaker: string) => Promise<void>;
   onLearnSpeakerVoice?: (speaker: string) => Promise<void>;
+  onLearnAllSpeakers?: () => void;
+  isLearningVoices?: boolean;
   speakerSuggestions?: string[];
   onResetParagraph?: (paragraphIndex: number) => Promise<void>;
   onRerunSpeakerRecognition?: () => void;
@@ -208,6 +210,8 @@ export default function NoteEditor({
   onAssignParagraph,
   onForgetSpeakerVoice,
   onLearnSpeakerVoice,
+  onLearnAllSpeakers,
+  isLearningVoices,
   speakerSuggestions,
   onResetParagraph,
   onRerunSpeakerRecognition,
@@ -986,6 +990,28 @@ export default function NoteEditor({
                       </DropdownMenu>
                     );
                   })}
+                  {onLearnAllSpeakers &&
+                    transcriptSpeakers.some(
+                      (s) => s !== "Me" && !/^Guest \d+$/i.test(s)
+                    ) && (
+                      <button
+                        onClick={onLearnAllSpeakers}
+                        disabled={isLearningVoices || isRerunningSpeakerRecognition}
+                        title={t("voicebank.learnAllTooltip")}
+                        className={cn(
+                          "flex items-center gap-1.5 h-6 px-2.5 rounded-full text-xs font-medium",
+                          "bg-foreground/4 dark:bg-white/4 border border-foreground/8 dark:border-white/8",
+                          "text-foreground/60 hover:text-foreground/80",
+                          "hover:bg-foreground/8 dark:hover:bg-white/8 hover:border-foreground/15",
+                          "transition-colors duration-150 disabled:opacity-60 disabled:pointer-events-none"
+                        )}
+                      >
+                        <Radio size={11} className={cn(isLearningVoices && "animate-pulse")} />
+                        {isLearningVoices
+                          ? t("voicebank.learnAllRunning")
+                          : t("voicebank.learnAll")}
+                      </button>
+                    )}
                   {onRerunSpeakerRecognition && (
                     <button
                       onClick={onRerunSpeakerRecognition}

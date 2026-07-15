@@ -923,6 +923,79 @@ export default function PersonalNotesView({
     [activeNoteId, learningSpeaker, toast, t]
   );
 
+  // "Learn voices": batch-enroll every NAMED speaker in this note (skipping
+  // Me and generic "Guest N") that doesn't already have a voiceprint. The
+  // "I've finished flagging everyone → now remember them" step — inline
+  // naming is intentionally markdown-only (a per-line correction must not
+  // write the bank), so this is the explicit, confident-labels enrollment.
+  const [learningAllNoteId, setLearningAllNoteId] = useState<number | null>(null);
+  const handleLearnAllSpeakers = useCallback(async () => {
+    const noteId = activeNoteId;
+    if (noteId == null || learningAllNoteId != null) return;
+    const transcript = activeMeetingDiarized || activeNote?.transcript || "";
+    const genericRe = /^Guest \d+$/i;
+    const named = Array.from(
+      new Set(
+        Array.from(transcript.matchAll(/^\*\*(.+?):\*\*/gm)).map((m) => m[1].trim())
+      )
+    ).filter((label) => label && label !== "Me" && !genericRe.test(label));
+
+    if (named.length === 0) {
+      toast({ title: t("voicebank.learnAllNone") });
+      return;
+    }
+    const engine =
+      getSettings().diarizationEngine === "sherpa"
+        ? ("sherpa" as const)
+        : ("pyannote" as const);
+    if (engine !== "sherpa") {
+      toast({
+        title: t("voicebank.learnFailed"),
+        description: t("voicebank.learnAllSherpaOnly"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLearningAllNoteId(noteId);
+    let learned = 0;
+    let skipped = 0;
+    try {
+      for (const speaker of named) {
+        const result = await window.electronAPI?.voicebankEnrollSpeaker?.({
+          noteId,
+          speaker,
+          engine,
+        });
+        if (result?.success) {
+          learned += 1;
+        } else {
+          // Already-known or too-short speakers aren't failures — just skips.
+          skipped += 1;
+          logger.info(
+            "Learn-all skipped speaker",
+            { speaker, reason: result?.error },
+            "notes"
+          );
+        }
+      }
+      toast({
+        title: learned > 0
+          ? t("voicebank.learnAllDone", { count: learned })
+          : t("voicebank.learnAllNone"),
+      });
+    } catch (err) {
+      logger.error("Learn all voices failed", { error: (err as Error).message }, "notes");
+      toast({
+        title: t("voicebank.learnFailed"),
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setLearningAllNoteId(null);
+    }
+  }, [activeNoteId, activeNote?.transcript, activeMeetingDiarized, learningAllNoteId, toast, t]);
+
   const handleForgetSpeakerVoice = useCallback(
     async (speaker: string) => {
       const noteId = activeNoteId;
@@ -1918,6 +1991,8 @@ export default function PersonalNotesView({
               onAssignParagraph={handleAssignParagraphSpeaker}
               onForgetSpeakerVoice={handleForgetSpeakerVoice}
               onLearnSpeakerVoice={handleLearnSpeakerVoice}
+              onLearnAllSpeakers={handleLearnAllSpeakers}
+              isLearningVoices={learningAllNoteId === activeNoteId}
               speakerSuggestions={speakerSuggestions}
               onResetParagraph={handleResetParagraphSpeaker}
               onRerunSpeakerRecognition={

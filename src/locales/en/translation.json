@@ -2071,6 +2071,12 @@
     "retranscribeDescription": "This replaces the entire transcript by re-transcribing the saved recording, then re-identifies speakers. Any manual speaker edits on this note are discarded. The audio is unchanged.",
     "retranscribeConfirm": "Re-transcribe",
     "retranscribeDone": "Meeting re-transcribed",
-    "retranscribeFailed": "Re-transcription failed"
+    "retranscribeFailed": "Re-transcription failed",
+    "learnAll": "Learn voices",
+    "learnAllRunning": "Learning…",
+    "learnAllTooltip": "Save a voiceprint for each named speaker in this recording so they're recognized in future meetings (skips Me, guests, and voices already saved)",
+    "learnAllDone": "Learned {{count}} voice(s)",
+    "learnAllNone": "No new voices to learn — named speakers are already saved (or too brief)",
+    "learnAllSherpaOnly": "Learning voices requires the sherpa engine (Integrations → Speaker identification)"
   }
 }

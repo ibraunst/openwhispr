@@ -2004,6 +2004,12 @@
     "retranscribeDescription": "Isto substitui toda a transcrição retranscrevendo a gravação salva e reidentifica os participantes. Edições manuais de participantes nesta nota são descartadas. O áudio não muda.",
     "retranscribeConfirm": "Retranscrever",
     "retranscribeDone": "Reunião retranscrita",
-    "retranscribeFailed": "Falha na retranscrição"
+    "retranscribeFailed": "Falha na retranscrição",
+    "learnAll": "Aprender vozes",
+    "learnAllRunning": "Aprendendo…",
+    "learnAllTooltip": "Salva uma impressão de voz para cada participante nomeado desta gravação para reconhecê-los em reuniões futuras (ignora Eu, convidados e vozes já salvas)",
+    "learnAllDone": "{{count}} voz(es) aprendida(s)",
+    "learnAllNone": "Nenhuma voz nova para aprender — os participantes nomeados já estão salvos (ou são muito breves)",
+    "learnAllSherpaOnly": "Aprender vozes requer o mecanismo sherpa (Integrações → Identificação de participantes)"
   }
 }

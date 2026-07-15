@@ -2004,6 +2004,12 @@
     "retranscribeDescription": "Esto reemplaza toda la transcripción retranscribiendo la grabación guardada y vuelve a identificar a los hablantes. Se descartan las ediciones manuales de hablantes en esta nota. El audio no cambia.",
     "retranscribeConfirm": "Retranscribir",
     "retranscribeDone": "Reunión retranscrita",
-    "retranscribeFailed": "Error al retranscribir"
+    "retranscribeFailed": "Error al retranscribir",
+    "learnAll": "Aprender voces",
+    "learnAllRunning": "Aprendiendo…",
+    "learnAllTooltip": "Guarda una huella de voz para cada hablante con nombre de esta grabación para reconocerlos en futuras reuniones (omite Yo, invitados y voces ya guardadas)",
+    "learnAllDone": "Se aprendieron {{count}} voz(ces)",
+    "learnAllNone": "No hay voces nuevas que aprender: los hablantes con nombre ya están guardados (o son demasiado breves)",
+    "learnAllSherpaOnly": "Aprender voces requiere el motor sherpa (Integraciones → Identificación de hablantes)"
   }
 }

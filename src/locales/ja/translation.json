@@ -2004,6 +2004,12 @@
     "retranscribeDescription": "保存された録音を再文字起こしして文字起こし全体を置き換え、話者を再識別します。このノートの手動の話者編集は破棄されます。音声は変更されません。",
     "retranscribeConfirm": "再文字起こし",
     "retranscribeDone": "会議を再文字起こししました",
-    "retranscribeFailed": "再文字起こしに失敗しました"
+    "retranscribeFailed": "再文字起こしに失敗しました",
+    "learnAll": "声を学習",
+    "learnAllRunning": "学習中…",
+    "learnAllTooltip": "この録音内の名前付き話者ごとに声紋を保存し、今後の会議で認識できるようにします（自分・ゲスト・保存済みの声はスキップ）",
+    "learnAllDone": "{{count}}件の声を学習しました",
+    "learnAllNone": "学習する新しい声はありません — 名前付き話者はすでに保存済み（または短すぎ）です",
+    "learnAllSherpaOnly": "声の学習には sherpa エンジンが必要です（連携 → 話者識別）"
   }
 }

@@ -2004,6 +2004,12 @@
     "retranscribeDescription": "這將透過重新轉錄已儲存的錄音替換整個逐字稿，並重新辨識發言人。此筆記上的手動發言人編輯將被捨棄。音訊不變。",
     "retranscribeConfirm": "重新轉錄",
     "retranscribeDone": "會議已重新轉錄",
-    "retranscribeFailed": "重新轉錄失敗"
+    "retranscribeFailed": "重新轉錄失敗",
+    "learnAll": "學習聲音",
+    "learnAllRunning": "學習中…",
+    "learnAllTooltip": "為此錄音中每位已命名的發言人儲存聲紋，以便在未來會議中辨識（略過「我」、訪客和已儲存的聲音）",
+    "learnAllDone": "已學習 {{count}} 個聲音",
+    "learnAllNone": "沒有新聲音可學習 — 已命名的發言人均已儲存（或過短）",
+    "learnAllSherpaOnly": "學習聲音需要 sherpa 引擎（整合 → 發言人辨識）"
   }
 }

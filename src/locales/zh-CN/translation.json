@@ -2004,6 +2004,12 @@
     "retranscribeDescription": "这将通过重新转录已保存的录音替换整个转录，并重新识别发言人。此笔记上的手动发言人编辑将被丢弃。音频不变。",
     "retranscribeConfirm": "重新转录",
     "retranscribeDone": "会议已重新转录",
-    "retranscribeFailed": "重新转录失败"
+    "retranscribeFailed": "重新转录失败",
+    "learnAll": "学习声音",
+    "learnAllRunning": "学习中…",
+    "learnAllTooltip": "为此录音中每位已命名的发言人保存声纹，以便在未来会议中识别（跳过“我”、访客和已保存的声音）",
+    "learnAllDone": "已学习 {{count}} 个声音",
+    "learnAllNone": "没有新声音可学习 — 已命名的发言人均已保存（或过短）",
+    "learnAllSherpaOnly": "学习声音需要 sherpa 引擎（集成 → 发言人识别）"
   }
 }
