@@ -74,7 +74,7 @@ Rules:
 function triggerInstruction(trigger) {
   switch (trigger.type) {
     case "my_turn":
-      return 'ME just finished a turn (ME\'S LAST TURN below). Assess its tone against the stance. Use nudge kind "tone" only if clearly off-stance, or kind "missing" if an important OPEN checklist item fits naturally right now. Otherwise nudge null.';
+      return 'ME just finished a turn (ME\'S LAST TURN below). Assess its tone against the stance. Use nudge kind "tone" only if clearly off-stance, or kind "missing" only if a specific OPEN checklist item (listed above) fits naturally right now — never "missing" when the open checklist is empty. Otherwise nudge null.';
     case "their_question":
       return 'THEM just asked a question (THEIR QUESTION below). If it is directed at ME, give nudge kind "answer": fix = how to answer in the target stance, include = the facts/points to cover (from prep when relevant). If it is not for ME or needs no help, nudge null.';
     case "ask":

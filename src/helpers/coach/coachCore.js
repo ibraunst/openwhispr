@@ -532,6 +532,9 @@ class CoachSession {
       }
     }
     if (nudge.kind === "next") return "unrequested_next";
+    // "Bring up X" exists to surface an OPEN prep item; without one the model
+    // invents generic advice (seen in replay on a meeting with no checklist)
+    if (nudge.kind === "missing" && !this.checklist.some((i) => !i.covered)) return "no_open_items";
     const gap = nudge.kind === "answer" ? this.tuning.answerGapMs : this.tuning.nudgeGapMs;
     if (this.now() - this.lastNudgeAt < gap) return "rate_limited";
     return "ok";
