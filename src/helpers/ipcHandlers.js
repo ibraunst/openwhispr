@@ -11,6 +11,10 @@ const { i18nMain, changeLanguage } = require("./i18nMain");
 const DeepgramStreaming = require("./deepgramStreaming");
 const OpenAIRealtimeStreaming = require("./openaiRealtimeStreaming");
 const AudioStorageManager = require("./audioStorage");
+const MeetingCoachManager = require("./meetingCoach");
+const { CoachConnector } = require("./coachConnector");
+const { PREP_FILE_EXTENSIONS } = require("./coach/prepParser");
+const { reconcileSegmentSpeakers } = require("./transcriptReconcile");
 const { TAP_SAMPLE_RATE } = require("./audioTapManager");
 
 const MISTRAL_TRANSCRIPTION_URL = "https://api.mistral.ai/v1/audio/transcriptions";
@@ -27,60 +31,6 @@ const AUDIO_MIME_TYPES = {
   flac: "audio/flac",
   aac: "audio/aac",
 };
-
-// Reconcile transcript.json's speaker labels against the note's markdown
-// transcript (the actual source of truth for renames — the rename UI, voice
-// bank merges, and auto-naming all write there, but historically never wrote
-// back to transcript.json). Groups the raw segments into consecutive
-// same-speaker runs and zips them positionally against the markdown's
-// "**Speaker:** text" paragraphs (formatDiarizedTranscript produces exactly
-// one paragraph per run), so playback always reflects the current name even
-// when transcript.json itself was never updated. Falls back to the raw
-// labels if the run/paragraph counts don't line up (e.g. no markdown yet).
-function reconcileSegmentSpeakers(rawSegments, markdownTranscript) {
-  if (!markdownTranscript || !rawSegments.length) return rawSegments;
-
-  const runs = [];
-  const segRunIndex = [];
-  for (const seg of rawSegments) {
-    const label = seg?.speaker ?? null;
-    const last = runs[runs.length - 1];
-    if (!last || last.label !== label) runs.push({ label });
-    segRunIndex.push(runs.length - 1);
-  }
-
-  // Parse the markdown into blocks exactly the way the per-paragraph edit
-  // handler does (split on blank lines), keeping each labeled paragraph's
-  // BLOCK index. A resumed meeting can carry unlabeled preamble blocks, so
-  // the Nth labeled paragraph is not necessarily the Nth block — using the
-  // run index directly as paragraphIndex would make per-paragraph edits
-  // land N blocks early.
-  const blocks = markdownTranscript.split(/\n{2,}/);
-  const mdParas = [];
-  blocks.forEach((block, blockIndex) => {
-    const m = /^\*\*(.+?):\*\*/.exec(block);
-    if (m) mdParas.push({ label: m[1].trim(), blockIndex });
-  });
-
-  // Run/paragraph counts only line up when reconciliation is trustworthy —
-  // that's also the only time a raw segment's run index can be trusted as
-  // the markdown paragraph index for a later per-paragraph edit.
-  if (mdParas.length !== runs.length) return rawSegments;
-
-  // Map each segment to its run's markdown label BY RUN INDEX, not by raw
-  // label — the same raw diarization speaker id commonly recurs in separate,
-  // non-adjacent runs (A talks, B talks, A talks again). A label-keyed map
-  // would let the last run's name silently overwrite earlier runs sharing
-  // that raw id, misattributing whole stretches of the karaoke view.
-  return rawSegments.map((seg, i) => {
-    const runIndex = segRunIndex[i];
-    const para = mdParas[runIndex];
-    const mdLabel = runs[runIndex].label != null ? para.label : null;
-    return mdLabel != null
-      ? { ...seg, speaker: mdLabel, paragraphIndex: para.blockIndex }
-      : { ...seg, paragraphIndex: para.blockIndex };
-  });
-}
 
 function buildMultipartBody(fileBuffer, fileName, contentType, fields = {}) {
   const boundary = `----customWhispr${Date.now()}`;
@@ -171,6 +121,20 @@ class IPCHandlers {
     this._textEditHandler = null;
     this._activeRecordingPipeline = null;
     this.audioStorageManager = new AudioStorageManager();
+    this.meetingCoach = new MeetingCoachManager({
+      databaseManager: this.databaseManager,
+      windowManager: this.windowManager,
+      environmentManager: this.environmentManager,
+    });
+    // Cowork connector endpoint (127.0.0.1 + token) — see resources/coach-mcp
+    this.coachConnector = new CoachConnector({
+      databaseManager: this.databaseManager,
+      meetingCoach: this.meetingCoach,
+      windowManager: this.windowManager,
+    });
+    this.coachConnector.start().catch((err) =>
+      debugLogger.error("Coach connector failed to start", { error: err.message }, "coach")
+    );
     this._audioCleanupInterval = null;
     this._meetingDirCleanupInterval = null;
     this._setupTextEditMonitor();
@@ -3663,6 +3627,99 @@ class IPCHandlers {
       }
     });
 
+    // ── Meeting coach ───────────────────────────────────────────────────
+    const coachCall = (label, fn) => async (...args) => {
+      try {
+        return { success: true, ...(await fn(...args)) };
+      } catch (error) {
+        debugLogger.error(`Coach ${label} failed`, { error: error.message }, "coach");
+        return { success: false, error: error.message, code: error.code };
+      }
+    };
+
+    ipcMain.handle(
+      "coach-start",
+      coachCall("start", (_event, options = {}) => this.meetingCoach.start(options))
+    );
+    ipcMain.on("coach-utterance", (_event, utterance) => {
+      try {
+        this.meetingCoach.addUtterance(utterance);
+      } catch (error) {
+        debugLogger.error("Coach utterance failed", { error: error.message }, "coach");
+      }
+    });
+    ipcMain.on("coach-set-paused", (_event, paused) => {
+      this.meetingCoach.setPaused(!!paused);
+    });
+    ipcMain.handle(
+      "coach-stop",
+      coachCall("stop", async () => ({ summary: await this.meetingCoach.stop() }))
+    );
+    ipcMain.handle("coach-overlay-get-state", async () => this.meetingCoach.getOverlayState());
+    ipcMain.handle("coach-overlay-action", async (_event, action) =>
+      this.meetingCoach.overlayAction(action)
+    );
+    ipcMain.handle(
+      "coach-get-prep",
+      coachCall("get prep", (_event, noteId) => ({ prep: this.meetingCoach.getPrep(noteId) }))
+    );
+    ipcMain.handle(
+      "coach-save-prep",
+      coachCall("save prep", (_event, noteId, patch = {}) => ({
+        prep: this.meetingCoach.savePrep(noteId, patch),
+      }))
+    );
+    ipcMain.handle(
+      "coach-add-prep-file",
+      coachCall("add prep file", async (_event, noteId) => {
+        const { dialog } = require("electron");
+        const parent = this.windowManager?.controlPanelWindow;
+        const dialogOptions = {
+          properties: ["openFile", "multiSelections"],
+          filters: [{ name: "Prep documents", extensions: PREP_FILE_EXTENSIONS }],
+        };
+        const result =
+          parent && !parent.isDestroyed()
+            ? await dialog.showOpenDialog(parent, dialogOptions)
+            : await dialog.showOpenDialog(dialogOptions);
+        if (result.canceled || !result.filePaths.length) return { canceled: true };
+        let prep = null;
+        const failures = [];
+        for (const filePath of result.filePaths) {
+          try {
+            prep = await this.meetingCoach.addPrepFile(noteId, filePath);
+          } catch (error) {
+            failures.push({ name: path.basename(filePath), error: error.message });
+          }
+        }
+        return { prep: prep || this.meetingCoach.getPrep(noteId), failures };
+      })
+    );
+    ipcMain.handle(
+      "coach-add-prep-text",
+      coachCall("add prep text", (_event, noteId, name, text) => ({
+        prep: this.meetingCoach.addPrepText(noteId, name, text),
+      }))
+    );
+    ipcMain.handle(
+      "coach-remove-prep-source",
+      coachCall("remove prep source", (_event, noteId, sourceId) => ({
+        prep: this.meetingCoach.removePrepSource(noteId, sourceId),
+      }))
+    );
+    ipcMain.handle(
+      "coach-build-plan",
+      coachCall("build plan", (_event, noteId, options = {}) =>
+        this.meetingCoach.buildPlan(noteId, options)
+      )
+    );
+    ipcMain.handle(
+      "coach-get-session",
+      coachCall("get session", (_event, noteId) => ({
+        session: this.meetingCoach.getLatestSession(noteId),
+      }))
+    );
+
     // Stop request from the pill's meeting indicator — broadcast to the
     // control panel, where useMeetingTranscription owns the recording.
     ipcMain.handle("meeting-request-stop", async () => {
@@ -3672,6 +3729,13 @@ class IPCHandlers {
 
     ipcMain.handle("meeting-set-user-recording", async (_event, active) => {
       this.meetingDetectionEngine?.setUserRecording(!!active);
+      // Safety net: every recording stop path flips this flag, so a coach
+      // session can never outlive its recording (renderer crash, unmount).
+      if (!active) {
+        this.meetingCoach.stop().catch((err) =>
+          debugLogger.error("Coach stop failed", { error: err.message }, "coach")
+        );
+      }
       // Drive the pill's persistent meeting-recording indicator
       const pill = this.windowManager?.mainWindow;
       if (pill && !pill.isDestroyed()) {

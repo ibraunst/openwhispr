@@ -4,6 +4,7 @@ import { getSettings } from "../stores/settingsStore";
 import { isBuiltInMicrophone } from "../utils/audioDeviceUtils";
 import { getSystemAudioStream } from "../utils/systemAudio";
 import { EchoLeakGate, pcm16ToFloat32 } from "../utils/echoLeakGate";
+import { CoachChannelTap, COACH_SAMPLE_RATE } from "../utils/coachTap";
 import logger from "../utils/logger";
 
 interface UseMeetingTranscriptionReturn {
@@ -448,6 +449,20 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     gate: EchoLeakGate;
   } | null>(null);
 
+  // Live meeting coach (local mode, opt-in per note): a separate 16 kHz
+  // context with one utterance tap per channel. Entirely best-effort — it
+  // never feeds the recording, the live preview or the final transcript.
+  const coachRef = useRef<{
+    context: AudioContext;
+    sources: MediaStreamAudioSourceNode[];
+    processors: AudioWorkletNode[];
+    taps: CoachChannelTap[];
+  } | null>(null);
+  const coachActiveRef = useRef(false);
+  // Wall-clock start of the split recordings — the playback timeline that
+  // coach timestamps are expressed in
+  const splitStartedAtRef = useRef(0);
+
   // Split audio recording refs (for speaker diarization)
   const systemRecorderRef = useRef<MediaRecorder | null>(null);
   const systemChunksRef = useRef<Blob[]>([]);
@@ -544,6 +559,23 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
         await liveContextRef.current.close();
       } catch {}
       liveContextRef.current = null;
+    }
+
+    coachActiveRef.current = false;
+    if (coachRef.current) {
+      const { context, sources, processors } = coachRef.current;
+      coachRef.current = null;
+      for (const processor of processors) {
+        await flushAndDisconnectProcessor(processor);
+      }
+      for (const source of sources) {
+        try {
+          source.disconnect();
+        } catch {}
+      }
+      try {
+        await context.close();
+      } catch {}
     }
 
     if (echoGateRef.current) {
@@ -645,6 +677,12 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     }
     window.electronAPI?.meetingSetUserRecording?.(false);
     window.electronAPI?.setSleepBlocker?.(false);
+    if (coachActiveRef.current) {
+      coachActiveRef.current = false;
+      window.electronAPI
+        ?.coachStop?.()
+        .catch((err: Error) => logger.warn("Coach stop failed", { error: err.message }, "meeting"));
+    }
 
     const wasLocalMode = localModeRef.current;
     localModeRef.current = false;
@@ -970,6 +1008,10 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     liveContextRef.current?.suspend().catch(() => {});
     // The gated mic feed pauses with it (its recorder is paused anyway)
     echoGateRef.current?.context.suspend().catch(() => {});
+    if (coachRef.current) {
+      coachRef.current.context.suspend().catch(() => {});
+      window.electronAPI?.coachSetPaused?.(true);
+    }
     isPausedRef.current = true;
     setIsPaused(true);
     logger.info("Meeting recording paused", {}, "meeting");
@@ -989,6 +1031,10 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     }
     liveContextRef.current?.resume().catch(() => {});
     echoGateRef.current?.context.resume().catch(() => {});
+    if (coachRef.current) {
+      coachRef.current.context.resume().catch(() => {});
+      window.electronAPI?.coachSetPaused?.(false);
+    }
     isPausedRef.current = false;
     setIsPaused(false);
     logger.info("Meeting recording resumed", {}, "meeting");
@@ -1049,9 +1095,133 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     await promise;
   }, []);
 
+  // Ask the main process whether this note is coached; if so, run one
+  // utterance tap per channel. Called after the recording is already live, so
+  // nothing here can delay or break it.
+  const startCoach = useCallback(
+    async ({
+      noteId,
+      meetingId,
+      systemStream,
+      micStream,
+    }: {
+      noteId: number | null;
+      meetingId: string;
+      systemStream: MediaStream;
+      micStream: MediaStream | null;
+    }) => {
+      if (!noteId || !window.electronAPI?.coachStart) return;
+      const settings = getSettings();
+      const stillThisMeeting = () => isRecordingRef.current && meetingIdRef.current === meetingId;
+
+      let result;
+      try {
+        result = await window.electronAPI.coachStart({
+          noteId,
+          meetingId,
+          provider: settings.coachProvider,
+          model: settings.coachModel,
+          hotkey: settings.coachAskHotkey,
+          language: settings.uiLanguage,
+          intensity: settings.coachIntensity,
+        });
+      } catch (err) {
+        logger.warn("Coach start failed", { error: (err as Error).message }, "meeting");
+        return;
+      }
+      if (!result?.success) {
+        logger.warn("Coach start failed", { error: result?.error }, "meeting");
+        return;
+      }
+      if (!result.active) return;
+      if (!stillThisMeeting()) {
+        void window.electronAPI.coachStop?.();
+        return;
+      }
+
+      let context: AudioContext | null = null;
+      try {
+        context = new AudioContext({ sampleRate: COACH_SAMPLE_RATE });
+        await detachFromOutputDevice(context);
+        const offsetMs = Math.max(0, Date.now() - (splitStartedAtRef.current || Date.now()));
+        const parakeetModel = settings.parakeetModel || undefined;
+
+        let failures = 0;
+        let transcriptionDisabled = false;
+        const transcribe = async (wav: ArrayBuffer) => {
+          if (transcriptionDisabled) return null;
+          const res = await window.electronAPI?.meetingTranscribeLiveChunk?.(wav, { parakeetModel });
+          if (res?.success) {
+            failures = 0;
+            return res.text || "";
+          }
+          failures += 1;
+          if (res?.unavailable || failures >= 3) {
+            transcriptionDisabled = true;
+            logger.warn("Coach live transcription disabled", { error: res?.error }, "meeting");
+          }
+          return null;
+        };
+        const isActive = () => coachActiveRef.current && isRecordingRef.current;
+        const onError = (err: Error) =>
+          logger.debug("Coach tap transcription error", { error: err.message }, "meeting");
+
+        coachActiveRef.current = true;
+        const taps: CoachChannelTap[] = [];
+        const sources: MediaStreamAudioSourceNode[] = [];
+        const processors: AudioWorkletNode[] = [];
+        const channels: Array<[MediaStream, "me" | "them"]> = [[systemStream, "them"]];
+        if (micStream) channels.push([micStream, "me"]);
+
+        for (const [stream, speaker] of channels) {
+          const tap = new CoachChannelTap({
+            speaker,
+            offsetMs,
+            trackPitch: speaker === "me",
+            transcribe,
+            onUtterance: (u) => window.electronAPI?.coachSendUtterance?.(u),
+            isActive,
+            onError,
+          });
+          const { source, processor } = await createAudioPipeline({
+            stream,
+            context,
+            label: `Coach ${speaker}`,
+            onChunk: (chunk) => {
+              if (isActive() && !isPausedRef.current) tap.push(chunk);
+            },
+          });
+          taps.push(tap);
+          sources.push(source);
+          processors.push(processor);
+        }
+
+        if (!stillThisMeeting()) {
+          coachActiveRef.current = false;
+          for (const processor of processors) await flushAndDisconnectProcessor(processor);
+          await context.close().catch(() => {});
+          void window.electronAPI.coachStop?.();
+          return;
+        }
+        coachRef.current = { context, sources, processors, taps };
+        logger.info("Coach taps running", { channels: channels.length, offsetMs }, "meeting");
+      } catch (err) {
+        coachActiveRef.current = false;
+        logger.warn("Coach taps unavailable", { error: (err as Error).message }, "meeting");
+        if (context && coachRef.current?.context !== context) {
+          await context.close().catch(() => {});
+        }
+        void window.electronAPI.coachStop?.();
+      }
+    },
+    []
+  );
+
   const startTranscription = useCallback(async () => {
     if (isRecordingRef.current || isStartingRef.current) return;
     isStartingRef.current = true;
+    // Captured before any await — the consumer sets it right before calling us
+    const coachNoteId = diarizationNoteIdRef.current;
 
     logger.info("Meeting transcription starting...", {}, "meeting");
     setTranscript("");
@@ -1152,7 +1322,9 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
         meetingIdRef.current = `meeting-${Date.now()}`;
         const startedMeetingId = meetingIdRef.current;
         systemRecorderRef.current = startSplitRecorder(stream, systemChunksRef);
+        splitStartedAtRef.current = Date.now();
         let micGated = false;
+        let coachMicStream: MediaStream | null = micResult;
         if (micResult) {
           // Echo-leak gate: without headphones the other participants'
           // voices leak from the speakers into the mic, polluting the mic
@@ -1233,6 +1405,8 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
           if (isRecordingRef.current && meetingIdRef.current === startedMeetingId) {
             micRecorderRef.current = startSplitRecorder(micRecordStream, micChunksRef);
           }
+          // The coach hears the gated mic too: speaker bleed muted at source
+          coachMicStream = micRecordStream;
         }
 
         logger.info(
@@ -1332,6 +1506,15 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
             { error: (liveErr as Error).message },
             "meeting"
           );
+        }
+
+        if (isRecordingRef.current && meetingIdRef.current === startedMeetingId) {
+          void startCoach({
+            noteId: coachNoteId,
+            meetingId: startedMeetingId,
+            systemStream: stream,
+            micStream: coachMicStream,
+          });
         }
       } catch (err) {
         logger.error("Local meeting recording setup failed", { error: (err as Error).message }, "meeting");
@@ -1567,7 +1750,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
       setIsRecording(false);
       await cleanup();
     }
-  }, [cleanup]);
+  }, [cleanup, startCoach]);
 
   // Auto-stop when the meeting app (e.g. Zoom) closes
   useEffect(() => {

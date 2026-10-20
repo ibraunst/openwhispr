@@ -328,6 +328,9 @@ function registerSidecars() {
   if (audioTapManager) sidecarRegistry.register("audiotap", () => audioTapManager.stop());
   const modelManager = require("./src/helpers/modelManagerBridge").default;
   sidecarRegistry.register("llama", () => modelManager.stopServer());
+  if (ipcHandlers?.meetingCoach) {
+    sidecarRegistry.register("llama-coach", () => ipcHandlers.meetingCoach.shutdown());
+  }
 }
 
 // Phase 2: Non-critical setup after windows are visible

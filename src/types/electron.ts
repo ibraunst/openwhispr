@@ -1,3 +1,13 @@
+import type {
+  CoachOverlayAction,
+  CoachOverlayState,
+  CoachPrep,
+  CoachResult,
+  CoachSessionRecord,
+  CoachSessionSummary,
+  CoachUtterance,
+} from "./coach";
+
 export type LocalTranscriptionProvider = "whisper" | "nvidia";
 
 export interface CalendarEvent {
@@ -1314,6 +1324,51 @@ declare global {
       onMeetingProcessEnded?: (callback: (data: { processKey: string; appName: string }) => void) => () => void;
       meetingSetUserRecording?: (active: boolean) => Promise<{ success: boolean }>;
       meetingRequestStop?: () => Promise<{ success: boolean }>;
+      coachStart?: (options: {
+        noteId: number | null;
+        meetingId: string;
+        provider?: string;
+        model?: string;
+        hotkey?: string;
+        language?: string;
+        intensity?: string;
+      }) => Promise<CoachResult & { active?: boolean; reason?: string; sessionId?: number }>;
+      coachSendUtterance?: (utterance: CoachUtterance) => void;
+      coachSetPaused?: (paused: boolean) => void;
+      coachStop?: () => Promise<CoachResult & { summary?: CoachSessionSummary | null }>;
+      coachOverlayGetState?: () => Promise<CoachOverlayState>;
+      coachOverlayAction?: (action: CoachOverlayAction) => Promise<CoachOverlayState>;
+      onCoachState?: (callback: (state: CoachOverlayState) => void) => () => void;
+      coachGetPrep?: (noteId: number) => Promise<CoachResult & { prep?: CoachPrep }>;
+      coachSavePrep?: (
+        noteId: number,
+        patch: Partial<Pick<CoachPrep, "checklist" | "stance" | "stanceCustom" | "enabled" | "intensity">>
+      ) => Promise<CoachResult & { prep?: CoachPrep }>;
+      coachAddPrepFile?: (noteId: number) => Promise<
+        CoachResult & {
+          prep?: CoachPrep;
+          canceled?: boolean;
+          failures?: Array<{ name: string; error: string }>;
+        }
+      >;
+      coachAddPrepText?: (
+        noteId: number,
+        name: string,
+        text: string
+      ) => Promise<CoachResult & { prep?: CoachPrep }>;
+      coachRemovePrepSource?: (
+        noteId: number,
+        sourceId: string
+      ) => Promise<CoachResult & { prep?: CoachPrep }>;
+      coachBuildPlan?: (
+        noteId: number,
+        options: { provider?: string; model?: string; language?: string }
+      ) => Promise<CoachResult & { prep?: CoachPrep; suggestedStance?: string }>;
+      coachGetSession?: (
+        noteId: number
+      ) => Promise<CoachResult & { session?: CoachSessionRecord | null }>;
+      onCoachSessionUpdated?: (callback: (data: { noteId: number }) => void) => () => void;
+      onCoachPrepUpdated?: (callback: (data: { noteId: number }) => void) => () => void;
       onMeetingStopRequested?: (callback: () => void) => () => void;
       onMeetingAutoStopExecute?: (callback: (data: { reason: string }) => void) => () => void;
       onMeetingAutoStopSuggested?: (callback: (data: { autoStopInMs: number; reason: string }) => void) => () => void;

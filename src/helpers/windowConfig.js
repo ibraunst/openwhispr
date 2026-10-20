@@ -112,6 +112,30 @@ const NOTIFICATION_WINDOW_CONFIG = {
     process.platform === "darwin" ? "panel" : process.platform === "linux" ? "toolbar" : "normal",
 };
 
+// Live meeting coach. Never focusable (must not steal focus from the call)
+// and excluded from screen capture via setContentProtection at creation.
+const COACH_OVERLAY_CONFIG = {
+  width: 320,
+  height: 420,
+  frame: false,
+  transparent: true,
+  alwaysOnTop: true,
+  skipTaskbar: true,
+  resizable: false,
+  focusable: false,
+  hasShadow: false,
+  show: false,
+  webPreferences: {
+    preload: path.join(__dirname, "..", "..", "preload.js"),
+    nodeIntegration: false,
+    contextIsolation: true,
+    sandbox: true,
+  },
+  visibleOnAllWorkspaces: process.platform !== "win32",
+  type:
+    process.platform === "darwin" ? "panel" : process.platform === "linux" ? "toolbar" : "normal",
+};
+
 class WindowPositionUtil {
   static getMainWindowPosition(display, customSize = null, position = "bottom-right") {
     const { width, height } = customSize || WINDOW_SIZES.BASE;
@@ -141,6 +165,16 @@ class WindowPositionUtil {
     const workArea = display.workArea || display.bounds;
     const x = Math.max(0, workArea.x + workArea.width - width - MARGIN);
     const y = Math.max(0, workArea.y + MARGIN);
+    return { x, y, width, height };
+  }
+
+  // Right edge, below the meeting-notification slot so the two never overlap
+  static getCoachOverlayPosition(display, height = COACH_OVERLAY_CONFIG.height) {
+    const width = COACH_OVERLAY_CONFIG.width;
+    const MARGIN = 16;
+    const workArea = display.workArea || display.bounds;
+    const x = Math.max(0, workArea.x + workArea.width - width - MARGIN);
+    const y = Math.max(0, workArea.y + MARGIN + 88 + 12);
     return { x, y, width, height };
   }
 
@@ -204,6 +238,7 @@ module.exports = {
   CONTROL_PANEL_CONFIG,
   AGENT_OVERLAY_CONFIG,
   NOTIFICATION_WINDOW_CONFIG,
+  COACH_OVERLAY_CONFIG,
   WINDOW_SIZES,
   WindowPositionUtil,
 };

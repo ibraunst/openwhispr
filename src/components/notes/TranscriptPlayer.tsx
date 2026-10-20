@@ -159,6 +159,8 @@ interface TranscriptPlayerProps extends SpeakerRenameProps {
   noteId: number;
   hasRecording: boolean;
   transcript: string;
+  /** Jump playback to a moment (e.g. from the Coaching tab timeline) */
+  seekRequest?: { ms: number; nonce: number } | null;
 }
 
 function formatTime(seconds: number): string {
@@ -295,6 +297,7 @@ export default function TranscriptPlayer({
   speakerSuggestions,
   onRequestCustomName,
   onResetParagraph,
+  seekRequest,
 }: TranscriptPlayerProps) {
   const { t } = useTranslation();
   const [segments, setSegments] = useState<PlaybackSegment[]>([]);
@@ -435,6 +438,22 @@ export default function TranscriptPlayer({
     [syncToTime]
   );
 
+  // External seek requests can arrive before the audio element has loaded
+  // (the transcript tab mounts fresh) — hold them until metadata is in.
+  const pendingSeekRef = useRef<number | null>(null);
+  const applyPendingSeek = useCallback(() => {
+    const target = pendingSeekRef.current;
+    const audio = audioRef.current;
+    if (target == null || !audio || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
+    pendingSeekRef.current = null;
+    seekTo(Math.min(target, Math.max(0, audio.duration - 0.25)));
+  }, [seekTo]);
+  useEffect(() => {
+    if (!seekRequest) return;
+    pendingSeekRef.current = Math.max(0, seekRequest.ms / 1000);
+    applyPendingSeek();
+  }, [seekRequest, applyPendingSeek]);
+
   // Stable per-word seek handler so memoized segments don't re-render on
   // every playback tick
   const segmentsRef = useRef(segments);
@@ -473,7 +492,10 @@ export default function TranscriptPlayer({
             ref={audioRef}
             src={audioUrl}
             preload="metadata"
-            onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
+            onLoadedMetadata={(e) => {
+              setDuration(e.currentTarget.duration || 0);
+              applyPendingSeek();
+            }}
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)}

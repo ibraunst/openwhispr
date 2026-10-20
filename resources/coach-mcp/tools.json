@@ -1,0 +1,152 @@
+[
+  {
+    "name": "list_meetings",
+    "description": "List upcoming calendar meetings (with their customWhispr note if one exists) and recent recorded meeting notes. Use the returned event_id or note_id with the other tools.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "days_ahead": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30,
+          "default": 7
+        },
+        "days_back": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 90,
+          "default": 14
+        },
+        "query": {
+          "type": "string",
+          "description": "Optional: filter by title / full-text search"
+        }
+      }
+    }
+  },
+  {
+    "name": "get_meeting_prep",
+    "description": "Get the live-coaching prep for a meeting: checklist (goals, questions to ask, facts, expected objections), stance, attached prep material names, and whether coaching is on.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "note_id": {
+          "type": "integer"
+        },
+        "event_id": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  {
+    "name": "set_meeting_prep",
+    "description": "Set the live-coaching prep for a meeting (creates the meeting note for an upcoming calendar event if needed) and turn coaching on. REPLACES the existing checklist. Keep 4-14 items, most important first; text <= 12 words, detail <= 30 words (numbers, names, planned responses). The coach tracks these live and suggests them at the right moment.",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "checklist"
+      ],
+      "properties": {
+        "note_id": {
+          "type": "integer"
+        },
+        "event_id": {
+          "type": "string",
+          "description": "From list_meetings (upcoming)"
+        },
+        "checklist": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "text"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "goal",
+                  "question",
+                  "fact",
+                  "objection"
+                ]
+              },
+              "text": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "stance": {
+          "type": "string",
+          "enum": [
+            "firm",
+            "collaborative",
+            "supportive",
+            "persuasive",
+            "custom"
+          ],
+          "description": "Target tone for coaching"
+        },
+        "stance_custom": {
+          "type": "string",
+          "description": "Tone description when stance is 'custom'"
+        },
+        "prep_text": {
+          "type": "string",
+          "description": "Optional full prep doc (markdown) to attach for reference"
+        },
+        "enable": {
+          "type": "boolean",
+          "default": true
+        },
+        "intensity": {
+          "type": "string",
+          "enum": [
+            "light",
+            "balanced",
+            "active"
+          ],
+          "description": "How often the coach speaks up in this meeting (default: the user's setting). Use active for negotiations or high-stakes calls the user wants to be held to the stance."
+        }
+      }
+    }
+  },
+  {
+    "name": "get_meeting_transcript",
+    "description": "Get a recorded meeting: title, date, attendees, the speaker-labeled transcript (markdown, '**Name:** text'), the user's own notes and any AI-generated notes.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "note_id": {
+          "type": "integer"
+        },
+        "event_id": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  {
+    "name": "get_coaching_summary",
+    "description": "Get the result of the last live-coached session for a meeting: prep checklist coverage (covered by whom and when, follow-ups for missed items), talk share, tone verdicts over time, and every suggestion the coach showed with its timestamp.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "note_id": {
+          "type": "integer"
+        },
+        "event_id": {
+          "type": "string"
+        }
+      }
+    }
+  }
+]

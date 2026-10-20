@@ -22,6 +22,7 @@ const AgentOverlay = React.lazy(agentOverlayImport);
 const MeetingNotificationOverlay = React.lazy(
   () => import("./components/MeetingNotificationOverlay.tsx")
 );
+const CoachOverlay = React.lazy(() => import("./components/CoachOverlay.tsx"));
 
 let root = null;
 
@@ -281,6 +282,14 @@ function AppRouter() {
     return (
       <Suspense fallback={<div />}>
         <MeetingNotificationOverlay />
+      </Suspense>
+    );
+  }
+
+  if (window.location.search.includes("coach-overlay=true")) {
+    return (
+      <Suspense fallback={<div />}>
+        <CoachOverlay />
       </Suspense>
     );
   }

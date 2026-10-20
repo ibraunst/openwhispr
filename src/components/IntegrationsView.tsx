@@ -15,6 +15,7 @@ import {
 } from "../stores/settingsStore";
 import { useSystemAudioPermission } from "../hooks/useSystemAudioPermission";
 import { formatSpeakerName } from "../utils/speakerNameFormatter";
+import CoachSettingsPanel from "./settings/CoachSettingsPanel";
 import type { VoiceBankEntry } from "../types/electron";
 import googleCalendarIcon from "../assets/icons/google-calendar.svg";
 
@@ -502,6 +503,8 @@ export default function IntegrationsView() {
           )}
         </SettingsPanel>
       </div>
+
+      <CoachSettingsPanel />
 
       {isMacOS && (
         <SettingsPanel>

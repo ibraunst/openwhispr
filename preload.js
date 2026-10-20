@@ -508,6 +508,30 @@ contextBridge.exposeInMainWorld("electronAPI", {
   meetingSetUserRecording: (active) =>
     ipcRenderer.invoke("meeting-set-user-recording", active),
   meetingRequestStop: () => ipcRenderer.invoke("meeting-request-stop"),
+  coachStart: (options) => ipcRenderer.invoke("coach-start", options),
+  coachSendUtterance: (utterance) => ipcRenderer.send("coach-utterance", utterance),
+  coachSetPaused: (paused) => ipcRenderer.send("coach-set-paused", paused),
+  coachStop: () => ipcRenderer.invoke("coach-stop"),
+  coachOverlayGetState: () => ipcRenderer.invoke("coach-overlay-get-state"),
+  coachOverlayAction: (action) => ipcRenderer.invoke("coach-overlay-action", action),
+  onCoachState: registerListener("coach-state", (callback) => (_event, state) => callback(state)),
+  coachGetPrep: (noteId) => ipcRenderer.invoke("coach-get-prep", noteId),
+  coachSavePrep: (noteId, patch) => ipcRenderer.invoke("coach-save-prep", noteId, patch),
+  coachAddPrepFile: (noteId) => ipcRenderer.invoke("coach-add-prep-file", noteId),
+  coachAddPrepText: (noteId, name, text) =>
+    ipcRenderer.invoke("coach-add-prep-text", noteId, name, text),
+  coachRemovePrepSource: (noteId, sourceId) =>
+    ipcRenderer.invoke("coach-remove-prep-source", noteId, sourceId),
+  coachBuildPlan: (noteId, options) => ipcRenderer.invoke("coach-build-plan", noteId, options),
+  coachGetSession: (noteId) => ipcRenderer.invoke("coach-get-session", noteId),
+  onCoachPrepUpdated: registerListener(
+    "coach-prep-updated",
+    (callback) => (_event, data) => callback(data)
+  ),
+  onCoachSessionUpdated: registerListener(
+    "coach-session-updated",
+    (callback) => (_event, data) => callback(data)
+  ),
   onMeetingStopRequested: registerListener(
     "meeting-stop-requested",
     (callback) => () => callback()

@@ -612,12 +612,34 @@ export default function PersonalNotesView({
     return () => cancelAction();
   }, [activeNoteId, cancelAction]);
 
-  const handleGenerateNotes = useCallback(() => {
+  const handleGenerateNotes = useCallback(async () => {
     const transcript = activeMeetingTranscript || activeNote?.transcript;
     if (!transcript) return;
 
+    // A coached meeting's prep checklist results ride along so the notes can
+    // call out what was and wasn't covered
+    let coverageBlock = "";
+    if (activeNoteId) {
+      try {
+        const res = await window.electronAPI?.coachGetSession?.(activeNoteId);
+        const coverage = res?.session?.summary?.coverage ?? [];
+        if (coverage.length) {
+          const followUps = res?.session?.summary?.followUps ?? {};
+          const lines = coverage.map((item) =>
+            item.covered
+              ? `- [covered] ${item.text}`
+              : `- [NOT covered] ${item.text}${followUps[item.id] ? ` — suggested follow-up: ${followUps[item.id]}` : ""}`
+          );
+          coverageBlock = `## Prep Checklist Coverage\nInclude a short "Coverage" section in the notes summarising which prep items were covered and listing the uncovered ones with their follow-ups.\n${lines.join("\n")}`;
+        }
+      } catch (err) {
+        logger.warn("Could not load coach coverage for notes", { error: (err as Error).message }, "coach");
+      }
+    }
+
     const combinedContent = [
       localContentRef.current.trim() ? `## My Notes\n${localContentRef.current}` : "",
+      coverageBlock,
       `## Meeting Transcript\n${transcript}`,
     ]
       .filter(Boolean)
@@ -640,7 +662,7 @@ export default function PersonalNotesView({
       isCloudMode,
       modelId: effectiveModelId,
     });
-  }, [activeMeetingTranscript, activeNote?.transcript, runAction, isCloudMode, effectiveModelId]);
+  }, [activeMeetingTranscript, activeNote?.transcript, activeNoteId, runAction, isCloudMode, effectiveModelId]);
 
   const isEnhancementStale = useMemo(() => {
     if (!activeNote?.enhanced_content || !activeNote?.enhanced_at_content_hash) return false;

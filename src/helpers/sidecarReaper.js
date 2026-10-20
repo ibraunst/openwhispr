@@ -6,6 +6,8 @@ const EXPECTED_BINARY_FRAGMENTS = {
   parakeet: "sherpa-onnx-ws",
   whisper: "whisper-server",
   llama: "llama-server",
+  // The meeting coach's local fallback model (separate instance)
+  "llama-coach": "llama-server",
   audiotap: "macos-audio-tap",
   diarize: "sherpa-onnx-diarize",
 };

@@ -182,12 +182,14 @@
 
   /* Make dictation window (App) transparent, but keep control panel solid */
   body:has(.dictation-window),
-  body:has(.meeting-notification-window) {
+  body:has(.meeting-notification-window),
+  body:has(.coach-overlay-window) {
     background: transparent;
   }
 
   body:has(.dictation-window) #root,
-  body:has(.meeting-notification-window) #root {
+  body:has(.meeting-notification-window) #root,
+  body:has(.coach-overlay-window) #root {
     background: transparent;
   }
 }

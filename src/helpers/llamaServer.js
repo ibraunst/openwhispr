@@ -19,7 +19,13 @@ const STARTUP_POLL_INTERVAL_MS = 500;
 const HEALTH_CHECK_FAILURE_THRESHOLD = 3;
 
 class LlamaServerManager {
-  constructor() {
+  /**
+   * @param {object} [opts]
+   * @param {string} [opts.sidecarName] pid-file name; separate instances (e.g.
+   *   the meeting coach's) need their own so orphan cleanup tracks each one
+   */
+  constructor({ sidecarName = "llama" } = {}) {
+    this.sidecarName = sidecarName;
     this.process = null;
     this.port = null;
     this.ready = false;
@@ -153,6 +159,7 @@ class LlamaServerManager {
       String(this.port),
       "--threads",
       String(options.threads || 4),
+      ...(Array.isArray(options.extraArgs) ? options.extraArgs : []),
     ];
 
     if (process.platform === "darwin") {
@@ -248,7 +255,7 @@ class LlamaServerManager {
         env,
         detached: process.platform !== "win32",
       });
-      sidecarPidFile.write("llama", this.process.pid);
+      sidecarPidFile.write(this.sidecarName, this.process.pid);
 
       let stderrBuffer = "";
       let exitCode = null;
@@ -283,7 +290,7 @@ class LlamaServerManager {
         this.ready = false;
         this.process = null;
         this.stopHealthCheck();
-        sidecarPidFile.clear("llama");
+        sidecarPidFile.clear(this.sidecarName);
       });
 
       const getProcessInfo = () => ({ stderr: stderrBuffer, exitCode, exitSignal });

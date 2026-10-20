@@ -20,6 +20,7 @@ const {
   CONTROL_PANEL_CONFIG,
   AGENT_OVERLAY_CONFIG,
   NOTIFICATION_WINDOW_CONFIG,
+  COACH_OVERLAY_CONFIG,
   WINDOW_SIZES,
   WindowPositionUtil,
 } = require("./windowConfig");
@@ -31,6 +32,8 @@ class WindowManager {
     this.agentWindow = null;
     this.notificationWindow = null;
     this._notificationTimeout = null;
+    this.coachOverlayWindow = null;
+    this._coachOverlayLoading = null;
     this.tray = null;
     this.hotkeyManager = new HotkeyManager();
     this.dragManager = new DragManager();
@@ -1202,6 +1205,78 @@ class WindowManager {
         setTimeout(() => this.meetingDetectionEngine._flushNotificationQueue(), 1000);
       }
     });
+  }
+
+  /**
+   * Live meeting-coach overlay. Non-focusable panel excluded from screen
+   * capture (setContentProtection) so coaching never shows up in a share.
+   * Idempotent — returns the existing window while one is open or loading.
+   */
+  async showCoachOverlay() {
+    if (this.coachOverlayWindow && !this.coachOverlayWindow.isDestroyed()) {
+      return this.coachOverlayWindow;
+    }
+    if (this._coachOverlayLoading) return this._coachOverlayLoading;
+
+    this._coachOverlayLoading = (async () => {
+      const display = screen.getPrimaryDisplay();
+      const win = new BrowserWindow({
+        ...COACH_OVERLAY_CONFIG,
+        ...WindowPositionUtil.getCoachOverlayPosition(display),
+      });
+      this.coachOverlayWindow = win;
+      win.setContentProtection(true);
+      WindowPositionUtil.setupAlwaysOnTop(win);
+      win.on("closed", () => {
+        if (this.coachOverlayWindow === win) this.coachOverlayWindow = null;
+      });
+
+      try {
+        if (process.env.NODE_ENV === "development") {
+          await DevServerManager.waitForDevServer();
+          await win.loadURL(`${DevServerManager.DEV_SERVER_URL}?coach-overlay=true`);
+        } else {
+          const fileInfo = DevServerManager.getAppFilePath(false);
+          await win.loadFile(fileInfo.path, {
+            query: { ...fileInfo.query, "coach-overlay": "true" },
+          });
+        }
+        if (!win.isDestroyed()) win.showInactive();
+      } catch (error) {
+        debugLogger.error("Coach overlay failed to load", { error: error.message }, "coach");
+        if (!win.isDestroyed()) win.close();
+        throw error;
+      }
+      return win;
+    })();
+
+    try {
+      return await this._coachOverlayLoading;
+    } finally {
+      this._coachOverlayLoading = null;
+    }
+  }
+
+  closeCoachOverlay() {
+    const win = this.coachOverlayWindow;
+    this.coachOverlayWindow = null;
+    if (win && !win.isDestroyed()) win.close();
+  }
+
+  sendToCoachOverlay(channel, data) {
+    const win = this.coachOverlayWindow;
+    if (!win || win.isDestroyed() || win.webContents.isLoading()) return;
+    win.webContents.send(channel, data);
+  }
+
+  // The overlay reports its rendered height (collapsed vs expanded); keep
+  // the window's top edge fixed so a user-dragged position survives.
+  resizeCoachOverlay(height) {
+    const win = this.coachOverlayWindow;
+    if (!win || win.isDestroyed()) return;
+    const clamped = Math.round(Math.min(640, Math.max(48, Number(height) || 0)));
+    const [width, current] = win.getSize();
+    if (clamped !== current) win.setSize(width, clamped);
   }
 
   dismissMeetingNotification() {

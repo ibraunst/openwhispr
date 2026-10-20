@@ -93,6 +93,11 @@
     ".env",
     "src/assets/**/*",
     {
+      "from": "resources/coach-mcp/",
+      "to": "coach-mcp/",
+      "filter": ["server.js", "tools.json"]
+    },
+    {
       "from": "python/",
       "to": "python/",
       "filter": ["**/*.py", "requirements.txt"]

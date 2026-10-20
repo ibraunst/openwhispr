@@ -369,6 +369,51 @@ class DatabaseManager {
         )
       `);
 
+      // Meeting coach: per-note prep (sources + extracted checklist + stance),
+      // one row per coached recording session, and that session's timeline.
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS coach_prep (
+          note_id INTEGER PRIMARY KEY,
+          sources TEXT NOT NULL DEFAULT '[]',
+          checklist TEXT NOT NULL DEFAULT '[]',
+          stance TEXT,
+          stance_custom TEXT,
+          stance_reason TEXT,
+          enabled INTEGER NOT NULL DEFAULT 0,
+          built_at DATETIME,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS coach_sessions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          note_id INTEGER NOT NULL,
+          meeting_id TEXT,
+          stance TEXT,
+          started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          ended_at DATETIME,
+          summary TEXT
+        )
+      `);
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS coach_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          session_id INTEGER NOT NULL,
+          at_ms INTEGER NOT NULL,
+          kind TEXT NOT NULL,
+          data TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      try {
+        // Per-meeting coaching level (null = use the default from settings)
+        this.db.exec("ALTER TABLE coach_prep ADD COLUMN intensity TEXT");
+      } catch (err) {
+        if (!err.message.includes("duplicate column")) throw err;
+      }
+      this.db.exec("CREATE INDEX IF NOT EXISTS idx_coach_sessions_note ON coach_sessions(note_id)");
+      this.db.exec("CREATE INDEX IF NOT EXISTS idx_coach_events_session ON coach_events(session_id)");
+
       return true;
     } catch (error) {
       debugLogger.error("Database initialization failed", { error: error.message }, "database");
@@ -849,6 +894,7 @@ class DatabaseManager {
       }
       const stmt = this.db.prepare("DELETE FROM notes WHERE id = ?");
       const result = stmt.run(id);
+      if (result.changes > 0) this.deleteCoachData(id);
       return { success: result.changes > 0, id };
     } catch (error) {
       debugLogger.error("Error deleting note", { error: error.message }, "notes");
@@ -866,6 +912,182 @@ class DatabaseManager {
     } catch (error) {
       debugLogger.error("Error counting notes by meeting id", { error: error.message }, "notes");
       throw error;
+    }
+  }
+
+  // ── Meeting coach ─────────────────────────────────────────────────────
+
+  _parseCoachPrepRow(row) {
+    const parse = (value, fallback) => {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : fallback;
+      } catch {
+        return fallback;
+      }
+    };
+    return {
+      noteId: row.note_id,
+      sources: parse(row.sources, []),
+      checklist: parse(row.checklist, []),
+      stance: row.stance || null,
+      stanceCustom: row.stance_custom || "",
+      stanceReason: row.stance_reason || "",
+      enabled: !!row.enabled,
+      intensity: row.intensity || null,
+      builtAt: row.built_at || null,
+      updatedAt: row.updated_at || null,
+    };
+  }
+
+  getCoachPrep(noteId) {
+    if (!this.db) throw new Error("Database not initialized");
+    const row = this.db.prepare("SELECT * FROM coach_prep WHERE note_id = ?").get(noteId);
+    return row ? this._parseCoachPrepRow(row) : null;
+  }
+
+  /** Insert or merge-update one note's prep; only the given fields change. */
+  saveCoachPrep(noteId, fields) {
+    if (!this.db) throw new Error("Database not initialized");
+    const existing = this.getCoachPrep(noteId);
+    const next = {
+      sources: existing?.sources ?? [],
+      checklist: existing?.checklist ?? [],
+      stance: existing?.stance ?? null,
+      stanceCustom: existing?.stanceCustom ?? "",
+      stanceReason: existing?.stanceReason ?? "",
+      enabled: existing?.enabled ?? false,
+      intensity: existing?.intensity ?? null,
+      builtAt: existing?.builtAt ?? null,
+      ...fields,
+    };
+    this.db
+      .prepare(
+        `INSERT INTO coach_prep (note_id, sources, checklist, stance, stance_custom, stance_reason, enabled, intensity, built_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(note_id) DO UPDATE SET
+           sources = excluded.sources, checklist = excluded.checklist, stance = excluded.stance,
+           stance_custom = excluded.stance_custom, stance_reason = excluded.stance_reason,
+           enabled = excluded.enabled, intensity = excluded.intensity, built_at = excluded.built_at,
+           updated_at = CURRENT_TIMESTAMP`
+      )
+      .run(
+        noteId,
+        JSON.stringify(next.sources),
+        JSON.stringify(next.checklist),
+        next.stance,
+        next.stanceCustom,
+        next.stanceReason,
+        next.enabled ? 1 : 0,
+        next.intensity,
+        next.builtAt
+      );
+    return this.getCoachPrep(noteId);
+  }
+
+  /**
+   * Stance last used by another meeting in the same recurring series.
+   * Occurrence ids differ only by an occurrence suffix (Apple "/OD=<epoch>",
+   * Google "_<YYYYMMDDTHHMMSSZ>"), so strip those to compare.
+   */
+  getSeriesCoachStance(noteId, calendarEventId) {
+    if (!this.db || !calendarEventId) return null;
+    const seriesKey = (id) =>
+      String(id)
+        .replace(/\/(OD|RID)=.*$/, "")
+        .replace(/_\d{8}(T\d{6}Z?)?(?=@|$)/, "");
+    const key = seriesKey(calendarEventId);
+    const rows = this.db
+      .prepare(
+        `SELECT p.stance, p.stance_custom, n.calendar_event_id
+         FROM coach_prep p JOIN notes n ON n.id = p.note_id
+         WHERE p.note_id != ? AND p.stance IS NOT NULL AND n.calendar_event_id IS NOT NULL
+         ORDER BY p.updated_at DESC LIMIT 500`
+      )
+      .all(noteId);
+    const match = rows.find((r) => seriesKey(r.calendar_event_id) === key);
+    return match ? { stance: match.stance, stanceCustom: match.stance_custom || "" } : null;
+  }
+
+  createCoachSession(noteId, meetingId, stance) {
+    if (!this.db) throw new Error("Database not initialized");
+    const result = this.db
+      .prepare("INSERT INTO coach_sessions (note_id, meeting_id, stance) VALUES (?, ?, ?)")
+      .run(noteId, meetingId || null, stance || null);
+    return result.lastInsertRowid;
+  }
+
+  addCoachEvent(sessionId, atMs, kind, data) {
+    if (!this.db) throw new Error("Database not initialized");
+    this.db
+      .prepare("INSERT INTO coach_events (session_id, at_ms, kind, data) VALUES (?, ?, ?, ?)")
+      .run(sessionId, Math.round(atMs || 0), kind, data == null ? null : JSON.stringify(data));
+  }
+
+  finishCoachSession(sessionId, summary) {
+    if (!this.db) throw new Error("Database not initialized");
+    this.db
+      .prepare("UPDATE coach_sessions SET ended_at = CURRENT_TIMESTAMP, summary = ? WHERE id = ?")
+      .run(JSON.stringify(summary), sessionId);
+  }
+
+  updateCoachSessionSummary(sessionId, summary) {
+    if (!this.db) throw new Error("Database not initialized");
+    this.db
+      .prepare("UPDATE coach_sessions SET summary = ? WHERE id = ?")
+      .run(JSON.stringify(summary), sessionId);
+  }
+
+  /** Most recent finished coached session for a note, with its timeline. */
+  getLatestCoachSession(noteId) {
+    if (!this.db) throw new Error("Database not initialized");
+    const row = this.db
+      .prepare(
+        `SELECT * FROM coach_sessions WHERE note_id = ? AND summary IS NOT NULL
+         ORDER BY id DESC LIMIT 1`
+      )
+      .get(noteId);
+    if (!row) return null;
+    let summary = null;
+    try {
+      summary = JSON.parse(row.summary);
+    } catch {}
+    const events = this.db
+      .prepare("SELECT at_ms, kind, data FROM coach_events WHERE session_id = ? ORDER BY at_ms, id")
+      .all(row.id)
+      .map((e) => {
+        let data = null;
+        try {
+          data = e.data ? JSON.parse(e.data) : null;
+        } catch {}
+        return { atMs: e.at_ms, kind: e.kind, data };
+      });
+    return {
+      id: row.id,
+      noteId: row.note_id,
+      meetingId: row.meeting_id,
+      startedAt: row.started_at,
+      endedAt: row.ended_at,
+      summary,
+      events,
+    };
+  }
+
+  deleteCoachData(noteId) {
+    if (!this.db) return;
+    try {
+      const del = this.db.transaction((id) => {
+        this.db
+          .prepare(
+            "DELETE FROM coach_events WHERE session_id IN (SELECT id FROM coach_sessions WHERE note_id = ?)"
+          )
+          .run(id);
+        this.db.prepare("DELETE FROM coach_sessions WHERE note_id = ?").run(id);
+        this.db.prepare("DELETE FROM coach_prep WHERE note_id = ?").run(id);
+      });
+      del(noteId);
+    } catch (error) {
+      debugLogger.error("Error deleting coach data for note", { error: error.message, noteId }, "notes");
     }
   }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, RefreshCw, Loader2, Lock, Mic, Video } from "lucide-react";
+import { CalendarDays, RefreshCw, Loader2, Lock, Mic, Video, Compass } from "lucide-react";
 import { Toggle } from "./ui/toggle";
 import { cn } from "./lib/utils";
 import type { CalendarEvent } from "../types/electron";
@@ -106,9 +106,15 @@ interface CalendarViewProps {
   onOpenNote?: (noteId: number) => void;
   onStartMeetingRecording?: () => void;
   onJoinMeeting?: (event: CalendarEvent) => void;
+  onPrepMeeting?: (event: CalendarEvent) => void;
 }
 
-export default function CalendarView({ onOpenNote, onStartMeetingRecording, onJoinMeeting }: CalendarViewProps) {
+export default function CalendarView({
+  onOpenNote,
+  onStartMeetingRecording,
+  onJoinMeeting,
+  onPrepMeeting,
+}: CalendarViewProps) {
   const { t } = useTranslation();
   const [upcoming, setUpcoming] = useState<CalendarEvent[]>([]);
   const [active, setActive] = useState<CalendarEvent[]>([]);
@@ -280,7 +286,12 @@ export default function CalendarView({ onOpenNote, onStartMeetingRecording, onJo
                         <div className="py-2 text-xs text-muted-foreground/60">No more events today</div>
                       ) : (
                         group.events.map((event) => (
-                          <EventRow key={event.id} event={event} onJoinMeeting={onJoinMeeting} />
+                          <EventRow
+                            key={event.id}
+                            event={event}
+                            onJoinMeeting={onJoinMeeting}
+                            onPrepMeeting={onPrepMeeting}
+                          />
                         ))
                       )}
                     </div>
@@ -317,9 +328,11 @@ export default function CalendarView({ onOpenNote, onStartMeetingRecording, onJo
 function EventRow({
   event,
   onJoinMeeting,
+  onPrepMeeting,
 }: {
   event: CalendarEvent;
   onJoinMeeting?: (event: CalendarEvent) => void;
+  onPrepMeeting?: (event: CalendarEvent) => void;
 }) {
   const { t } = useTranslation();
   const now = new Date();
@@ -357,6 +370,19 @@ function EventRow({
         </div>
 
       </div>
+      {onPrepMeeting && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onPrepMeeting(event);
+          }}
+          title={t("coach.prepTooltip")}
+          className="shrink-0 self-center flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-foreground/6 dark:bg-white/8 hover:bg-foreground/10 dark:hover:bg-white/12 text-foreground/80 text-[11px] font-medium opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+        >
+          <Compass size={11} />
+          {t("coach.prep")}
+        </button>
+      )}
       {canJoin && (
         <button
           onClick={(e) => {

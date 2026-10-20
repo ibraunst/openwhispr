@@ -226,6 +226,17 @@ export interface SettingsState
   setAgentEnabled: (value: boolean) => void;
   setCloudAgentMode: (value: string) => void;
 
+  // Live meeting coach: model provider ("auto" = first configured key),
+  // optional model override, and the "what should I say next?" hotkey
+  coachProvider: string;
+  coachModel: string;
+  coachAskHotkey: string;
+  coachIntensity: string;
+  setCoachIntensity: (value: string) => void;
+  setCoachProvider: (value: string) => void;
+  setCoachModel: (value: string) => void;
+  setCoachAskHotkey: (value: string) => void;
+
   exportDirectory: string;
   defaultExportFormat: "txt" | "md";
   setExportDirectory: (value: string) => void;
@@ -455,6 +466,10 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   agentEnabled: readBoolean("agentEnabled", true),
   cloudAgentMode: readString("cloudAgentMode", "customwhispr"),
 
+  coachProvider: readString("coachProvider", "auto"),
+  coachModel: readString("coachModel", ""),
+  coachAskHotkey: readString("coachAskHotkey", "Control+Alt+A"),
+  coachIntensity: readString("coachIntensity", "balanced"),
   exportDirectory: readString("exportDirectory", ""),
   defaultExportFormat: (readString("defaultExportFormat", "md") === "md" ? "md" : "txt") as
     | "txt"
@@ -681,6 +696,10 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setAgentEnabled: createBooleanSetter("agentEnabled"),
   setCloudAgentMode: createStringSetter("cloudAgentMode"),
 
+  setCoachProvider: createStringSetter("coachProvider"),
+  setCoachModel: createStringSetter("coachModel"),
+  setCoachAskHotkey: createStringSetter("coachAskHotkey"),
+  setCoachIntensity: createStringSetter("coachIntensity"),
   setExportDirectory: createStringSetter("exportDirectory"),
   setDefaultExportFormat: createStringSetter("defaultExportFormat"),
 

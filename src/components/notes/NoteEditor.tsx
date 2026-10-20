@@ -13,6 +13,7 @@ import {
   UserRound,
   RefreshCw,
   Trash2,
+  Compass,
 } from "lucide-react";
 import SpeakerRenameDialog from "./SpeakerRenameDialog";
 import { MarkdownTextarea } from "../ui/MarkdownTextarea";
@@ -31,6 +32,8 @@ import ActionProcessingOverlay from "./ActionProcessingOverlay";
 import DictationWidget from "./DictationWidget";
 import LiveTranscriptPanel from "./LiveTranscriptPanel";
 import TranscriptPlayer from "./TranscriptPlayer";
+import CoachingPanel from "./CoachingPanel";
+import { useCoachUiStore } from "../../stores/coachUiStore";
 import { normalizeDbDate } from "../../utils/dateFormatting";
 import { useSettingsStore } from "../../stores/settingsStore";
 
@@ -52,7 +55,7 @@ export interface Enhancement {
   onChange: (content: string) => void;
 }
 
-type MeetingViewMode = "raw" | "transcript" | "enhanced";
+type MeetingViewMode = "raw" | "transcript" | "enhanced" | "coach";
 
 interface NoteEditorProps {
   note: NoteItem;
@@ -430,6 +433,16 @@ export default function NoteEditor({
   // panel covers that) — a recording on some other note must not blank out
   // this note's existing transcript.
   const hasMeetingTranscript = !isMeetingRecordingThisNote && !!effectiveTranscript;
+  // Coaching applies to meetings: notes in the Meetings folder and notes
+  // created for a calendar event
+  const isMeetingNote = note.note_type === "meeting" || !!note.calendar_event_id;
+  const [seekRequest, setSeekRequest] = useState<{ ms: number; nonce: number } | null>(null);
+  const handleCoachSeek = useCallback((ms: number) => {
+    setViewMode("transcript");
+    setSeekRequest({ ms, nonce: Date.now() });
+  }, []);
+  const pendingCoachNoteId = useCoachUiStore((s) => s.pendingCoachNoteId);
+  const clearCoachTabRequest = useCoachUiStore((s) => s.clearCoachTabRequest);
 
   // paragraphIndex scopes the custom-name dialog: a number assigns just that
   // paragraph, null renames the speaker everywhere (chips, submenu).
@@ -516,8 +529,17 @@ export default function NoteEditor({
       }
       pendingSelectionRestoreRef.current = null;
       beforeInputSelectionRef.current = null;
+      setSeekRequest(null);
     }
   }, [note.id, syncSelectionRefs]);
+
+  // Calendar "Prep" opens the note straight on its Coaching tab
+  useEffect(() => {
+    if (pendingCoachNoteId !== null && pendingCoachNoteId === note.id && isMeetingNote) {
+      setViewMode("coach");
+      clearCoachTabRequest();
+    }
+  }, [pendingCoachNoteId, note.id, isMeetingNote, clearCoachTabRequest]);
 
   useEffect(() => {
     if (titleRef.current && titleRef.current.textContent !== note.title) {
@@ -797,7 +819,7 @@ export default function NoteEditor({
           </div>
           <div className="flex-1" />
           <div className="flex items-center gap-1">
-            {(enhancement || hasMeetingTranscript) && (
+            {(enhancement || hasMeetingTranscript || isMeetingNote) && (
               <div
                 ref={segmentContainerRef}
                 className="relative flex items-center shrink-0 rounded-md bg-foreground/3 dark:bg-white/3 p-0.5"
@@ -842,6 +864,22 @@ export default function NoteEditor({
                   >
                     <MessageSquareText size={10} />
                     {t("notes.editor.transcript")}
+                  </button>
+                )}
+                {isMeetingNote && (
+                  <button
+                    data-segment-button
+                    data-segment-value="coach"
+                    onClick={() => setViewMode("coach")}
+                    className={cn(
+                      "relative z-1 px-1.5 h-5 rounded text-xs font-medium transition-colors duration-150 flex items-center gap-1",
+                      viewMode === "coach"
+                        ? "text-foreground/60"
+                        : "text-foreground/25 hover:text-foreground/40"
+                    )}
+                  >
+                    <Compass size={10} />
+                    {t("coach.tab")}
                   </button>
                 )}
                 <button
@@ -903,7 +941,14 @@ export default function NoteEditor({
 
       <div className="flex-1 relative min-h-0">
         <div className="h-full overflow-y-auto">
-          {viewMode === "transcript" && hasMeetingTranscript ? (
+          {viewMode === "coach" && isMeetingNote ? (
+            <CoachingPanel
+              noteId={note.id}
+              isRecordingThisNote={!!isMeetingRecordingThisNote}
+              hasRecording={!!note.meeting_id}
+              onSeek={handleCoachSeek}
+            />
+          ) : viewMode === "transcript" && hasMeetingTranscript ? (
             <>
               {((onRenameSpeaker && transcriptSpeakers.length > 0) ||
                 onRerunSpeakerRecognition ||
@@ -1089,6 +1134,7 @@ export default function NoteEditor({
                   setRenameSpeakerTarget({ speaker, paragraphIndex: paragraphIndex ?? null })
                 }
                 onResetParagraph={onResetParagraph}
+                seekRequest={seekRequest}
               />
             </>
           ) : viewMode === "enhanced" && enhancement ? (
