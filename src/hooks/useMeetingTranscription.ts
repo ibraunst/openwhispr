@@ -459,6 +459,15 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     taps: CoachChannelTap[];
   } | null>(null);
   const coachActiveRef = useRef(false);
+  const coachStartingRef = useRef(false);
+  // What startCoach needs, kept for the whole recording so coaching can be
+  // switched on mid-call (prep added after the recording started)
+  const coachArgsRef = useRef<{
+    noteId: number | null;
+    meetingId: string;
+    systemStream: MediaStream;
+    micStream: MediaStream | null;
+  } | null>(null);
   // Wall-clock start of the split recordings — the playback timeline that
   // coach timestamps are expressed in
   const splitStartedAtRef = useRef(0);
@@ -562,6 +571,7 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
     }
 
     coachActiveRef.current = false;
+    coachArgsRef.current = null;
     if (coachRef.current) {
       const { context, sources, processors } = coachRef.current;
       coachRef.current = null;
@@ -1098,19 +1108,19 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
   // Ask the main process whether this note is coached; if so, run one
   // utterance tap per channel. Called after the recording is already live, so
   // nothing here can delay or break it.
-  const startCoach = useCallback(
+  const startCoachInner = useCallback(
     async ({
       noteId,
       meetingId,
       systemStream,
       micStream,
     }: {
-      noteId: number | null;
+      noteId: number;
       meetingId: string;
       systemStream: MediaStream;
       micStream: MediaStream | null;
     }) => {
-      if (!noteId || !window.electronAPI?.coachStart) return;
+      if (!window.electronAPI?.coachStart) return;
       const settings = getSettings();
       const stillThisMeeting = () => isRecordingRef.current && meetingIdRef.current === meetingId;
 
@@ -1204,6 +1214,8 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
           return;
         }
         coachRef.current = { context, sources, processors, taps };
+        // Started mid-call while paused: keep the engine in step with the taps
+        if (isPausedRef.current) window.electronAPI.coachSetPaused?.(true);
         logger.info("Coach taps running", { channels: channels.length, offsetMs }, "meeting");
       } catch (err) {
         coachActiveRef.current = false;
@@ -1215,6 +1227,30 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
       }
     },
     []
+  );
+
+  // Single-flight: the recording start and a mid-call activation can race
+  const startCoach = useCallback(
+    async ({
+      noteId,
+      meetingId,
+      systemStream,
+      micStream,
+    }: {
+      noteId: number | null;
+      meetingId: string;
+      systemStream: MediaStream;
+      micStream: MediaStream | null;
+    }) => {
+      if (!noteId || !window.electronAPI?.coachStart || coachStartingRef.current) return;
+      coachStartingRef.current = true;
+      try {
+        await startCoachInner({ noteId, meetingId, systemStream, micStream });
+      } finally {
+        coachStartingRef.current = false;
+      }
+    },
+    [startCoachInner]
   );
 
   const startTranscription = useCallback(async () => {
@@ -1509,12 +1545,13 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
         }
 
         if (isRecordingRef.current && meetingIdRef.current === startedMeetingId) {
-          void startCoach({
+          coachArgsRef.current = {
             noteId: coachNoteId,
             meetingId: startedMeetingId,
             systemStream: stream,
             micStream: coachMicStream,
-          });
+          };
+          void startCoach(coachArgsRef.current);
         }
       } catch (err) {
         logger.error("Local meeting recording setup failed", { error: (err as Error).message }, "meeting");
@@ -1751,6 +1788,29 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
       await cleanup();
     }
   }, [cleanup, startCoach]);
+
+  // Coaching switched on for the recording note mid-call (Coach tab toggle,
+  // checklist build, or Cowork pushing prep) — start the taps now
+  useEffect(() => {
+    const unsubscribe = window.electronAPI?.onCoachActivate?.((data) => {
+      const args = coachArgsRef.current;
+      if (
+        !args ||
+        args.noteId !== data?.noteId ||
+        args.meetingId !== data?.meetingId ||
+        !isRecordingRef.current ||
+        meetingIdRef.current !== args.meetingId ||
+        coachActiveRef.current ||
+        coachStartingRef.current ||
+        coachRef.current
+      ) {
+        return;
+      }
+      logger.info("Starting coach mid-recording", { noteId: args.noteId }, "meeting");
+      void startCoach(args);
+    });
+    return () => unsubscribe?.();
+  }, [startCoach]);
 
   // Auto-stop when the meeting app (e.g. Zoom) closes
   useEffect(() => {

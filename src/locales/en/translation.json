@@ -2140,7 +2140,7 @@
       "enableTitle": "Coach me during this meeting",
       "enableHint": "Shows a private overlay with live suggestions while this meeting records. It is hidden from screen sharing.",
       "liveNow": "Coaching is live for this recording.",
-      "liveNextTime": "Turned on — it takes effect the next time recording starts.",
+      "liveNextTime": "This meeting is recording — turn coaching on to start it right away.",
       "prepTitle": "Prep material",
       "addFile": "Add file",
       "pasteText": "Paste text",

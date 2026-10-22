@@ -2073,7 +2073,7 @@
       "enableTitle": "在此会议中为我提供教练",
       "enableHint": "会议录音期间显示一个私密浮窗，给出实时建议。屏幕共享时会隐藏。",
       "liveNow": "本次录音的教练正在进行。",
-      "liveNextTime": "已开启 — 将在下次开始录音时生效。",
+      "liveNextTime": "此会议正在录音 — 开启教练即可立即开始。",
       "prepTitle": "准备资料",
       "addFile": "添加文件",
       "pasteText": "粘贴文本",

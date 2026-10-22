@@ -2073,7 +2073,7 @@
       "enableTitle": "Coache mich in diesem Meeting",
       "enableHint": "Zeigt während der Aufnahme ein privates Overlay mit Live-Vorschlägen. Bei der Bildschirmfreigabe ist es ausgeblendet.",
       "liveNow": "Das Coaching läuft für diese Aufnahme.",
-      "liveNextTime": "Aktiviert – gilt ab dem nächsten Aufnahmestart.",
+      "liveNextTime": "Dieses Meeting wird aufgenommen – schalte das Coaching ein, um es sofort zu starten.",
       "prepTitle": "Vorbereitungsmaterial",
       "addFile": "Datei hinzufügen",
       "pasteText": "Text einfügen",

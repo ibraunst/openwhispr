@@ -2073,7 +2073,7 @@
       "enableTitle": "Hazme coaching en esta reunión",
       "enableHint": "Muestra una ventana privada con sugerencias en vivo mientras se graba esta reunión. Está oculta al compartir pantalla.",
       "liveNow": "El coaching está activo en esta grabación.",
-      "liveNextTime": "Activado: se aplicará la próxima vez que empiece la grabación.",
+      "liveNextTime": "Esta reunión se está grabando: activa el coaching para empezar ahora mismo.",
       "prepTitle": "Material de preparación",
       "addFile": "Añadir archivo",
       "pasteText": "Pegar texto",

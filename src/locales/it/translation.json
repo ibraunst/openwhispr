@@ -2073,7 +2073,7 @@
       "enableTitle": "Fammi da coach in questa riunione",
       "enableHint": "Mostra una finestra privata con suggerimenti dal vivo durante la registrazione. È nascosta durante la condivisione dello schermo.",
       "liveNow": "Il coaching è attivo per questa registrazione.",
-      "liveNextTime": "Attivato: avrà effetto al prossimo avvio della registrazione.",
+      "liveNextTime": "Questa riunione è in registrazione: attiva il coaching per avviarlo subito.",
       "prepTitle": "Materiale di preparazione",
       "addFile": "Aggiungi file",
       "pasteText": "Incolla testo",

@@ -58,6 +58,19 @@ class MeetingCoachManager {
     this._stopping = null;
     this._localServer = null;
     this._localStarting = null;
+    // A recording running on a note that wasn't coached when it started.
+    // Turning coaching on for that note mid-call starts the coach then.
+    this.armed = null; // { noteId, meetingId }
+  }
+
+  // Ask the recording renderer to start its coach taps now (it re-calls start)
+  _activateIfArmed(noteId) {
+    if (this.active || !this.armed || this.armed.noteId !== noteId) return;
+    debugLogger.info("Coaching enabled mid-recording — starting coach", { noteId }, "coach");
+    this.windowManager.sendToControlPanel?.("coach-activate", {
+      noteId,
+      meetingId: this.armed.meetingId,
+    });
   }
 
   _getKey(envName) {
@@ -221,6 +234,7 @@ class MeetingCoachManager {
     }
     const saved = this.db.saveCoachPrep(noteId, fields);
     this._pushLiveStanceIfActive(noteId, fields);
+    if (saved.enabled) this._activateIfArmed(noteId);
     return this.getPrep(saved.noteId);
   }
 
@@ -333,7 +347,9 @@ class MeetingCoachManager {
       enabled: isFirstBuild ? true : prep.enabled,
       builtAt: new Date().toISOString(),
     });
-    return { prep: this.getPrep(noteId), suggestedStance: plan.stance };
+    const built = this.getPrep(noteId);
+    if (built.enabled) this._activateIfArmed(noteId);
+    return { prep: built, suggestedStance: plan.stance };
   }
 
   getLatestSession(noteId) {
@@ -352,7 +368,11 @@ class MeetingCoachManager {
     if (!noteId) return { active: false, reason: "no_note" };
 
     const prep = this.getPrep(noteId);
-    if (!prep.enabled) return { active: false, reason: "disabled" };
+    if (!prep.enabled) {
+      this.armed = { noteId, meetingId };
+      return { active: false, reason: "disabled", armed: true };
+    }
+    this.armed = null;
 
     const note = this.db.getNote(noteId);
     let endsAtMs = null;
@@ -528,6 +548,8 @@ class MeetingCoachManager {
 
   /** Ends the live session; safe to call repeatedly from every stop path. */
   async stop() {
+    // The recording ended (every stop path lands here) — nothing to arm
+    this.armed = null;
     if (this._stopping) return this._stopping;
     if (!this.active) return null;
     const active = this.active;

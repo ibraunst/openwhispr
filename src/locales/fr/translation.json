@@ -2073,7 +2073,7 @@
       "enableTitle": "Me coacher pendant cette réunion",
       "enableHint": "Affiche une fenêtre privée de suggestions en direct pendant l’enregistrement. Elle est masquée lors du partage d’écran.",
       "liveNow": "Le coaching est actif pour cet enregistrement.",
-      "liveNextTime": "Activé — prendra effet au prochain démarrage de l’enregistrement.",
+      "liveNextTime": "Cette réunion est en cours d’enregistrement — activez le coaching pour le lancer tout de suite.",
       "prepTitle": "Documents de préparation",
       "addFile": "Ajouter un fichier",
       "pasteText": "Coller du texte",

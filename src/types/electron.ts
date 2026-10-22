@@ -1369,6 +1369,9 @@ declare global {
       ) => Promise<CoachResult & { session?: CoachSessionRecord | null }>;
       onCoachSessionUpdated?: (callback: (data: { noteId: number }) => void) => () => void;
       onCoachPrepUpdated?: (callback: (data: { noteId: number }) => void) => () => void;
+      onCoachActivate?: (
+        callback: (data: { noteId: number; meetingId: string }) => void
+      ) => () => void;
       onMeetingStopRequested?: (callback: () => void) => () => void;
       onMeetingAutoStopExecute?: (callback: (data: { reason: string }) => void) => () => void;
       onMeetingAutoStopSuggested?: (callback: (data: { autoStopInMs: number; reason: string }) => void) => () => void;

@@ -524,6 +524,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("coach-remove-prep-source", noteId, sourceId),
   coachBuildPlan: (noteId, options) => ipcRenderer.invoke("coach-build-plan", noteId, options),
   coachGetSession: (noteId) => ipcRenderer.invoke("coach-get-session", noteId),
+  onCoachActivate: registerListener(
+    "coach-activate",
+    (callback) => (_event, data) => callback(data)
+  ),
   onCoachPrepUpdated: registerListener(
     "coach-prep-updated",
     (callback) => (_event, data) => callback(data)
