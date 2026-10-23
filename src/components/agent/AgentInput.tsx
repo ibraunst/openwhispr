@@ -94,12 +94,10 @@ export function AgentInput({ agentState, partialTranscript }: AgentInputProps) {
       {agentState === "idle" && (
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
-            <div
-              className="text-muted-foreground/50"
-              style={{ animation: "agent-mic-pulse 2.5s ease-in-out infinite" }}
-            >
-              <Mic size={14} />
-            </div>
+            {/* Static on purpose: the overlay idles hidden with
+                backgroundThrottling off, so an infinite pulse here kept
+                the GPU process compositing (~25% CPU) all day. */}
+            <Mic size={14} className="text-muted-foreground/50" />
             <span className="text-[11px] text-muted-foreground/50 select-none">
               {t("agentMode.input.holdToSpeak")}
             </span>

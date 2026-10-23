@@ -413,7 +413,10 @@ body:has(.control-panel-vibrancy) #root {
 }
 
 /* Ambient color field behind the control panel — gives the glass
-   something to refract. Sits at z -1 inside an isolated root. */
+   something to refract. Sits at z -1 inside an isolated root.
+   Deliberately static: the control panel runs with backgroundThrottling
+   off (meeting recording), so an infinite animation here kept the GPU
+   process re-blurring these layers every frame even while hidden. */
 .ambient-glass-bg {
   position: absolute;
   inset: 0;
@@ -428,7 +431,6 @@ body:has(.control-panel-vibrancy) #root {
   position: absolute;
   border-radius: 50%;
   filter: blur(100px);
-  animation: mesh-drift 30s ease-in-out infinite alternate;
 }
 
 .ambient-glass-bg::before {
@@ -447,8 +449,6 @@ body:has(.control-panel-vibrancy) #root {
   left: -80px;
   background: oklch(0.62 0.16 300);
   opacity: 0.06;
-  animation-delay: -15s;
-  animation-direction: alternate-reverse;
 }
 
 .dark .ambient-glass-bg::before {
@@ -487,13 +487,6 @@ body:has(.control-panel-vibrancy) #root {
     rgba(255, 255, 255, 0.05)
   );
   pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ambient-glass-bg::before,
-  .ambient-glass-bg::after {
-    animation: none;
-  }
 }
 
 /* ---- Premium UI Utilities ---- */
@@ -976,18 +969,6 @@ body:has(.agent-overlay-window) #root {
   51%,
   100% {
     opacity: 0;
-  }
-}
-
-@keyframes agent-mic-pulse {
-  0%,
-  100% {
-    opacity: 0.5;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.05);
   }
 }
 
